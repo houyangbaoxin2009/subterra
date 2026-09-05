@@ -1,8 +1,25 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
 group = rootProject.group
 version = rootProject.version
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// subterra-api is the only standalone-published module: domain mods depend on
+// its jar alone. Publication goes to the file repo configured at the root.
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = 'local'
+            url = uri("${rootProject.projectDir}/repo")
+        }
+    }
+}

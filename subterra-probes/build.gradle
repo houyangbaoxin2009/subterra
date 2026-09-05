@@ -11,6 +11,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 dependencies {
     implementation project(':subterra-launch')
     implementation project(':subterra-compat')
+    implementation project(':subterra-api')
 }
 
 // Deterministic acceptance: exit 0 = PASS, exit 1 = FAIL. Never shipped.
@@ -35,6 +36,13 @@ def compatProbe = tasks.register('runCompatProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.CompatProbe'
 }
 
+def apiProbe = tasks.register('runApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the L3 API-library deterministic probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ApiProbe'
+}
+
 // End-to-end gate: boots the dev server on the Java 25 toolchain and asserts
 // the boot contract from the log. Event-based, never timing-based.
 def bootProbe = tasks.register('runBootProbe', JavaExec) {
@@ -49,5 +57,5 @@ def bootProbe = tasks.register('runBootProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, bootProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, bootProbe
 }

@@ -2,13 +2,21 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.3.0] L3 API library / L3 API 库 (2026-09-05)
+
+* `subterra-api` ships its first content (pure Java, zero Minecraft dependency): `TimeApi` (monotonic clock, ISO-8601 round-trip, human durations), `NetApi` (IPv4/port validation, URL encode/decode, best-effort HTTP GET with caller timeout, never throws), `SerApi` (hex and base64), `CryptoApi` (SHA-256/SHA-1, HMAC-SHA-256, AES-256-GCM with per-call random IV and tamper-detecting tags) / `subterra-api` 首发内容（纯 Java、零 MC 依赖）：`TimeApi`（单调钟、ISO-8601 往返、人性化时长）、`NetApi`（IPv4/端口校验、URL 编解码、带调用方超时的尽力 HTTP GET 不抛异常）、`SerApi`（hex 与 base64）、`CryptoApi`（SHA-256/SHA-1、HMAC-SHA-256、带每次随机 IV 与防篡改标签的 AES-256-GCM）
+* `subterra-api` publishes a standalone jar (maven-publish → local file repo) — the only module domain mods depend on / `subterra-api` 独立发 jar（maven-publish → 本地文件仓）——领域模组唯一依赖
+* New deterministic probe `ApiProbe` (pure JVM): boundary cases, known vectors (sha256/hmac FIPS/RFC), round-trips, AES-GCM tamper detection — wired into `probeAcceptance` (now five probes + boot gate) / 新增确定性探针 `ApiProbe`（纯 JVM）：边界、已知向量（sha256/hmac）、往返、AES-GCM 防篡改——接入 `probeAcceptance`（现五探针 + 开机门禁）
+
 ## [p.1.2.0] L2 compatibility layer / L2 兼容层 (2026-09-05)
 
 * End-to-end boot gate `ServerBootProbe` (subterra-probes): boots the dev server on the Java 25 toolchain with the L1 argument package, asserts the deterministic boot contract from the log (`Done (...)`, `Java 25 ... verified: true`, `JVM argument package present`, no FATAL), then stops the server gracefully via the console `stop` command — event-based, never timing-based / 端到端开机门禁 `ServerBootProbe`：在 Java 25 工具链开机开发服，按日志断言确定性开机契约（`Done (...)`、`Java 25 ... verified: true`、参数包齐备、无 FATAL），随后经控制台 `stop` 优雅停服——事件驱动、禁时序断言
+
 * Java 25 gap registry `Java25Gaps` (subterra-compat): RCA-driven registry for future incompatibilities — boot-verified baseline (MC 1.21.1 + NeoForge 21.1.249 on JVM 25) starts empty; an OPEN entry fails acceptance until patched / Java 25 兼容坑登记 `Java25Gaps`（subterra-compat）：以 RCA 驱动的兼容坑登记结构——开机验证基线（JVM 25 上 MC 1.21.1 + NeoForge 21.1.249）为空；出现 OPEN 条目即在修补前判拒不通过
+
 * `CompatProbe` (pure JVM) guards the registry contract; `probeAcceptance` now runs four probes (launch / launch-args / compat / boot gate) / `CompatProbe`（纯 JVM）守卫登记契约；`probeAcceptance` 现含四探针（启动 / 启动参数 / 兼容登记 / 开机门禁）
 
-## [p.1.1.1] Boot Minecraft 1.21.1 on Java 25 (dev-run plumbing) / 在 Java 25 上开机 (2026-09-05)
+## \[p.1.1.1] Boot Minecraft 1.21.1 on Java 25 (dev-run plumbing) / 在 Java 25 上开机 (2026-09-05)
 
 * Development server boots on Java 25 LTS with the Subterra argument package injected; L1 runtime validation logs `Java 25 (verified: true)` and `JVM argument package present (4 static flags)` before `Done (...)` / 开发服在 Java 25 LTS 上完整开机，L1 校验日志 `Java 25 (verified: true)` + 参数包齐备，随后 `Done (...)`；MC 1.21.1 + NeoForge 21.1.249 在 JVM 25 上未出现需要修补的兼容坑
 
