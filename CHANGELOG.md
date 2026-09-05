@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.5.1] Configuration package / 配置包 (2026-09-06)
+
+* `ConfigPack` (subterra-config): one-click import/export of a set of td config files as a single td document — `files = [ [ name = ..., config = [...] ] ]` entries (file names as string values, never bare keys), deterministic name order, exact round-trips, version field / `ConfigPack`（subterra-config）：一组 td 配置文件的单文档一键导入/导出——`files` 用「name/config 子表」数组项（文件名走字符串值而非裸键）、按名排序、往返保真、带版本号
+* Deterministic probe `ConfigPackProbe` (11 checks) wired into `probeAcceptance` — round-trip fidelity (incl. top-level-name stripping semantics of parse_data), re-export idempotence, malformed rejection / 确定性探针 `ConfigPackProbe`（11 项断言）接入 `probeAcceptance`——往返保真（含 parse_data 顶层命名表剥离语义）、再导出幂等、非法输入拒绝
+
 ## [p.1.4.1] Ported optimization, first item: entity merging core / 移植优化首批：实体合并核心 (2026-09-06)
 
 * Ported the ServerCore `merging` surface as a pure-JDK core (MIT-side logic; MC mixin shell later): `MergePolicy` (enabled/radius/fraction with constructor validation, squared-radius bounds) + deterministic `Merger.canMerge` with injected RNG — no O(n²), no MC runtime / 以纯 JDK 核心移植 ServerCore `merging` 功能面（MIT 侧逻辑；MC mixin 薄壳后置）：`MergePolicy`（enabled/radius/fraction 构造校验、平方半径边界）+ 注入 RNG 的确定性 `Merger.canMerge`——无 O(n²)、无 MC 运行时
