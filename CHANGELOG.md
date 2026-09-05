@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.8.1] Structure collision guard / 结构防碰撞护栏 (2026-09-06)
+
+* New pure-JDK core `io.toterra.subterra.optim.worldgen.guard`: clearance-aware `StructureFootprint` AABB, spatial-hash `StructureLayout` (insert + nearest-free-spot spiral search are O(neighbourhood), never O(n²); footprints indexed across every spanned cell so cross-cell lookups always hit), explicit all-pairs `conflicts()` for tooling / 新增纯 JDK 核心 `io.toterra.subterra.optim.worldgen.guard`：带间隙的 `StructureFootprint` AABB、空间哈希 `StructureLayout`（插入与最近空位螺旋搜索 O(邻域)、杜绝 O(n²)；足迹按跨格全索引保证跨单元格查找命中）、显式全对 `conflicts()` 供工具使用
+* Deterministic probe `WorldGenGuardProbe` (18 checks) wired into `probeAcceptance` — clearance semantics, cross-cell detection, spiral placement, density smoke under 2s / 确定性探针 `WorldGenGuardProbe`（18 项断言）接入 `probeAcceptance`——间隙语义、跨格检出、螺旋落位、2 秒内密集性能冒烟
+
 ## [p.1.8.0] EcoDims nine-dimension biome model / 九维群系模型 (2026-09-06)
 
 * New pure-JDK API surface `io.toterra.subterra.api.worldgen` (architecture §5.2): `EcoDim` (nine registered dimensions), `EcoDimValue`, total `EcoProfile` builder, default-disallow/allow-exceptions `EcoRelations` (undirected coexist chain), `validate()` health check (no fully-forbidden value, satisfiable rule set), deterministic `EcoResolver` with priority fallback (single-dimension concession first, then two-dimension; terrain yields last), unhappiness-free vanilla-equivalent defaults in `VanillaDefaults` + rule chain in `VanillaRules` for all listed biomes / 新增纯 JDK API 面 `io.toterra.subterra.api.worldgen`（架构 §5.2）：`EcoDim`（九个注册维度）、`EcoDimValue`、强制性完整 `EcoProfile` 构建器、白名单式 `EcoRelations`（无向共存关系链）、`validate()` 健康检查（无全禁值、规则集可满足）、确定性 `EcoResolver` 优先级逐级回退（先单维让步、再双维、地形最后让步）、`VanillaDefaults`/`VanillaRules` 覆盖原版等价默认映射全部合法
