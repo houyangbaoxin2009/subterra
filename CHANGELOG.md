@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.1] Ported optimization, first item: entity merging core / 移植优化首批：实体合并核心 (2026-09-06)
+
+* Ported the ServerCore `merging` surface as a pure-JDK core (MIT-side logic; MC mixin shell later): `MergePolicy` (enabled/radius/fraction with constructor validation, squared-radius bounds) + deterministic `Merger.canMerge` with injected RNG — no O(n²), no MC runtime / 以纯 JDK 核心移植 ServerCore `merging` 功能面（MIT 侧逻辑；MC mixin 薄壳后置）：`MergePolicy`（enabled/radius/fraction 构造校验、平方半径边界）+ 注入 RNG 的确定性 `Merger.canMerge`——无 O(n²)、无 MC 运行时
+* Deterministic probe `MergeProbe` (13 checks) wired into `probeAcceptance` — policy validation, radius bound, probability extremes, same-seed determinism / 确定性探针 `MergeProbe`（13 项断言）接入 `probeAcceptance`——策略校验、半径边界、概率极值、同种子确定性
+
 ## [p.1.6.2] Thread snapshot in crash diagnostics / 崩溃诊断线程快照 (2026-09-06)
 
 * `ThreadsSnapshot` (subterra-log) renders every live thread's name/state/top frames, embedded into `CrashDumper.diagnosticsBlock` — worker pools (C2ME/FlowSched, storage I/O, lighting, vanilla io) are visible at failure time; LogProbe 41 checks green / `ThreadsSnapshot`（subterra-log）导出全部存活线程的名称/状态/栈顶帧，并入 `CrashDumper.diagnosticsBlock`——崩溃时可见各工作线程池（C2ME/FlowSched、存储 IO、光照、原版 io）；LogProbe 41 项全绿
