@@ -54,8 +54,10 @@ Closed source. All rights reserved.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
-#[[mixins]]
-#config="${mod_id}.mixins.json"
+# Inventory Advancement Accelerator (ported) mixins: exact inventory_changed
+# trigger acceleration, fail-safe with shadow verification and circuit breakers.
+[[mixins]]
+config="subterra.mixins.json"
 
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg

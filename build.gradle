@@ -87,6 +87,10 @@ neoForge {
                     project.dependencies.create(project(':subterra-log')))
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-config')))
+            // The Inventory Advancement Accelerator module is referenced by the
+            // main mod class bootstrap and by its own mixins; visible in dev runs.
+            additionalRuntimeClasspathConfiguration.dependencies.add(
+                    project.dependencies.create(project(':subterra-invadvopt')))
 
             // L1 launch package (p.1.1): inject the Subterra JVM argument package
             // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
@@ -173,6 +177,9 @@ dependencies {
     // Logging module + td config drive the boot-time log wiring (SubterraLogging).
     implementation project(':subterra-log')
     implementation project(':subterra-config')
+    // Inventory Advancement Accelerator (ported, MIT): server-side inventory_changed
+    // trigger acceleration, bootstrapped from the main mod class.
+    implementation project(':subterra-invadvopt')
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime

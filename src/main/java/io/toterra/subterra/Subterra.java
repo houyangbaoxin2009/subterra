@@ -30,7 +30,10 @@ public class Subterra {
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    private final ModContainer modContainer;
+
     public Subterra(IEventBus modEventBus, ModContainer modContainer) {
+        this.modContainer = modContainer;
         modEventBus.addListener(this::commonSetup);
 
         // Register ourselves for server and other game events
@@ -60,6 +63,10 @@ public class Subterra {
         // Logging module boot-time wiring: td config, sinks, module registry,
         // and the crash-report diagnostics callable.
         SubterraLogging.bootstrap();
+
+        // Inventory Advancement Accelerator (ported, MIT): registers its common
+        // config and event handlers as an internal capability of this mod.
+        io.toterra.subterra.optim.server.invadvopt.InventoryAdvancementAccelerator.bootstrap(modContainer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call

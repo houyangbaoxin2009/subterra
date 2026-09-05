@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.4] Ported optimization: Inventory Advancement Accelerator / 移植优化：物品栏进度加速器 (2026-09-06)
+
+* New module `subterra-invadvopt` (MC-layer port of the MIT-licensed Inventory Advancement Accelerator, `MIT (c) vicuna` preserved): server-side `inventory_changed` advancement trigger accelerator — exact candidate indexing with vanilla timing, fail-safe (every fallback path keeps vanilla behavior), shadow verification with a global mismatch circuit breaker, per-player index warmups, and a `stats`/`status`/`verify`/`mode` command; conflicts with achiopt / cerulean / icterine are detected and the replacement is refused; shipped as an internal capability of the Subterra mod (no second @Mod), with its 6 mixins merged into `subterra.mixins.json` / 新模块 `subterra-invadvopt`（MIT 许可 Inventory Advancement Accelerator 的 MC 层移植，保留 `MIT (c) vicuna`）：服务端 `inventory_changed` 进度触发加速器——精确候选索引且保持原版时序、故障安全（所有回退路径保留原版行为）、影子校验 + 全局失配熔断、按玩家索引预热、`stats`/`status`/`verify`/`mode` 命令；检测到 achiopt / cerulean / icterine 冲突即拒绝替换；作为 Subterra 模组内部能力随主模组发布（无第二个 @Mod），其 6 个 mixin 并入 `subterra.mixins.json`
+
 ## [p.1.4.3] Ported engine, third item: multilingual pronunciation core / 移植引擎批三：多语言发音核心 (2026-09-06)
 
 * Ported engine core for the JEC-style pinyin search (MIT surface; JEC recon confirms engine seam = `DictLoader`): `Lexicon` (PinIn data format `char: r1, r2`, tone digits stripped, extension merging for kana romaji / Hangul romanization) + `PronounceMatcher` per-character consuming matcher with prefix-typing termination — deterministic, no O(n²), no MC runtime / 移植 JEC 式拼音搜索的引擎核心（MIT 面；JEC 侦察确认引擎接缝 = `DictLoader`）：`Lexicon`（PinIn 数据格式 `char: r1, r2`、声调数字剥离、扩展合并支持假名罗马字/谚文罗马化）+ `PronounceMatcher` 逐字消费匹配 + 前缀式输入终止——确定性、无 O(n²)、无 MC 运行时
