@@ -50,8 +50,13 @@ base {
     archivesName = mod_id
 }
 
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21 bytecode.
+// The dev/game JVM runs on Java 25 LTS (Toolchain 25 + --release 21).
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
 
 neoForge {
     // Specify the version of NeoForge to use.
@@ -72,6 +77,14 @@ neoForge {
         // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
         // the mod validates the presence of these flags at boot.
         configureEach {
+            // The launch module classes must be visible to the game layer in dev
+            // (runtime search differs from the shipped mod jar aggregation).
+            additionalRuntimeClasspathConfiguration.dependencies.add(
+                    project.dependencies.create(project(':subterra-launch')))
+
+            // L1 launch package (p.1.1): inject the Subterra JVM argument package
+            // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
+            // the mod validates the presence of these flags at boot.
             jvmArguments.addAll([
                     '-XX:+UseZGC',
                     '-XX:InitialRAMPercentage=75',
@@ -174,6 +187,9 @@ dependencies {
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    // NeoForge/FML rejects pre-release p.* versions in neoforge.mods.toml;
+    // mirror the p-track as a parseable game version by stripping the "p." prefix.
+    def modVersionGame = mod_version.replaceFirst('^p\\.', '')
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
@@ -183,6 +199,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_name               : mod_name,
             mod_license            : mod_license,
             mod_version            : mod_version,
+            mod_version_game       : modVersionGame,
     ]
     inputs.properties replaceProperties
     expand replaceProperties
