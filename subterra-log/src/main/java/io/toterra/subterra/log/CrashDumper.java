@@ -64,6 +64,8 @@ public final class CrashDumper {
           .append('\n')
           .append(reg.describe()).append('\n')
           .append('\n')
+          .append(ThreadsSnapshot.describe(3)).append('\n')
+          .append('\n')
           .append("Recent log (tail):");
         for (LogRecord r : hub.snapshot()) {
             sb.append('\n').append(r.format());

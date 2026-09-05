@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.6.2] Thread snapshot in crash diagnostics / 崩溃诊断线程快照 (2026-09-06)
+
+* `ThreadsSnapshot` (subterra-log) renders every live thread's name/state/top frames, embedded into `CrashDumper.diagnosticsBlock` — worker pools (C2ME/FlowSched, storage I/O, lighting, vanilla io) are visible at failure time; LogProbe 41 checks green / `ThreadsSnapshot`（subterra-log）导出全部存活线程的名称/状态/栈顶帧，并入 `CrashDumper.diagnosticsBlock`——崩溃时可见各工作线程池（C2ME/FlowSched、存储 IO、光照、原版 io）；LogProbe 41 项全绿
+
 ## [p.1.8.1] Structure collision guard / 结构防碰撞护栏 (2026-09-06)
 
 * New pure-JDK core `io.toterra.subterra.optim.worldgen.guard`: clearance-aware `StructureFootprint` AABB, spatial-hash `StructureLayout` (insert + nearest-free-spot spiral search are O(neighbourhood), never O(n²); footprints indexed across every spanned cell so cross-cell lookups always hit), explicit all-pairs `conflicts()` for tooling / 新增纯 JDK 核心 `io.toterra.subterra.optim.worldgen.guard`：带间隙的 `StructureFootprint` AABB、空间哈希 `StructureLayout`（插入与最近空位螺旋搜索 O(邻域)、杜绝 O(n²)；足迹按跨格全索引保证跨单元格查找命中）、显式全对 `conflicts()` 供工具使用

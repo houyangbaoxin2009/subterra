@@ -167,6 +167,8 @@ public final class LogProbe {
             String block = CrashDumper.diagnosticsBlock(LogHub.hub(), reg);
             check("diagnostics block modules", block.contains("Modules:") && block.contains("mod-x v9"));
             check("diagnostics block tail", block.contains("Recent log (tail):") && block.contains("tail line for dump"));
+            check("diagnostics block threads", block.contains("Threads (")
+                    && block.contains(Thread.currentThread().getName()));
         } finally {
             deleteTree(dir);
         }
