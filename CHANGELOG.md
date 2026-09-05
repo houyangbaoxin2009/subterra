@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.2] Ported optimization, second item: breeding-cap core / 移植优化次批：繁殖上限核心 (2026-09-06)
+
+* Ported the ServerCore `breeding_cap` surface as a pure-JDK core: `BreedingCap` (cap per entity type, validated, 0 = unbounded) + `Counters` (per-type acquire/release accounting) + `canBreed` gate — deterministic, no O(n²) / 以纯 JDK 核心移植 ServerCore `breeding_cap` 功能面：`BreedingCap`（按实体类型上限、构造校验、0=不封顶）+ `Counters`（按类型 acquire/release 计数）+ `canBreed` 闸门——确定性、无 O(n²)
+* Deterministic probe `BreedingCapProbe` (8 checks) wired into `probeAcceptance` — validation, cap adherence, cross-type isolation, release/clear accounting, unbounded semantics / 确定性探针 `BreedingCapProbe`（8 项断言）接入 `probeAcceptance`——校验、封顶、跨类型隔离、释放/清空计数、不封顶语义
+
 ## [p.1.3.1] Region announcement API / 区域名解锁 API (2026-09-06)
 
 * `RegionAnnouncement` (subterra-api worldgen): the region-name unlocking contract for the Traveler Title module — names start at `???`, switch to a hint after a clue, and to the custom name once named; blank inputs fall back to `???`, blank region id rejected; deterministic display strings for the UI layer / `RegionAnnouncement`（subterra-api worldgen）：旅人标题的区域名解锁契约——名称初始为 `???`，取得线索后显示提示名，命名后显示自定义名；空输入回退 `???`、空区域 id 拒绝；显示串确定、便于 UI 层渲染
