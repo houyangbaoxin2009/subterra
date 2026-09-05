@@ -59,6 +59,11 @@ Closed source. All rights reserved.
 [[mixins]]
 config="subterra.mixins.json"
 
+# Smooth Boot (ported) mixins: Util background/IO worker executor replacement
+# with td-configured thread counts/priorities + game/integrated thread priority.
+[[mixins]]
+config="subterra-smoothboot.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]

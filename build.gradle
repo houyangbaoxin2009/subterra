@@ -36,10 +36,12 @@ tasks.named('jar') {
 // MC-layer source hosts: ports that target Minecraft/NeoForge classes cannot
 // compile in a plain submodule (only the root moddev project has the patched
 // Minecraft classpath), so their sources are compiled here as part of the main
-// mod. Currently: subterra-invadvopt (inventory advancement accelerator).
+// mod. Currently: subterra-invadvopt (inventory advancement accelerator) and
+// subterra-smoothboot (smooth-boot worker tuning).
 sourceSets {
     main {
         java.srcDir('subterra-invadvopt/src/main/java')
+        java.srcDir('subterra-smoothboot/src/main/java')
     }
     test {
         java.srcDir('subterra-invadvopt/src/test/java')
