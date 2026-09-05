@@ -2,6 +2,12 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.0] Optimization set: module skeleton + first self-developed optimization / 优化集：模块骨架 + 首项自研优化 (2026-09-05)
+
+* `subterra-optim` functional skeleton lands: eight category packages (memory / logic / worldgen / entity / network / server / client / render) with javadoc anchors; depends on `subterra-api` only (iron-law direction) / `subterra-optim` 功能骨架落地：八个功能包（内存/逻辑/世界生成/实体/网络/服务端/客户端/渲染）带文档锚点；仅依赖 `subterra-api`（依赖铁律方向）
+* First self-developed optimization `ScratchPool` (optim/util): bounded object pool for hot paths — capacity-capped, factory-created on miss, instance-reusing on hit; deterministic probe `ScratchPoolProbe` asserts identity reuse, factory counting, capacity capping, and allocation avoidance under a 1000-borrow/release heat workload / 首项自研优化 `ScratchPool`（optim/util）：热路径有界对象池——容量封顶、miss 时工厂创建、hit 时实例复用；确定性探针 `ScratchPoolProbe` 断言同一性复用、工厂计数、容量封顶与 1000 次借还热度负载下零分配
+* `probeAcceptance` now runs six probes (launch / launch-args / compat / api / pool / boot gate) / `probeAcceptance` 现含六探针（启动 / 启动参数 / 兼容登记 / API 库 / 对象池 / 开机门禁）
+
 ## [p.1.3.0] L3 API library / L3 API 库 (2026-09-05)
 
 * `subterra-api` ships its first content (pure Java, zero Minecraft dependency): `TimeApi` (monotonic clock, ISO-8601 round-trip, human durations), `NetApi` (IPv4/port validation, URL encode/decode, best-effort HTTP GET with caller timeout, never throws), `SerApi` (hex and base64), `CryptoApi` (SHA-256/SHA-1, HMAC-SHA-256, AES-256-GCM with per-call random IV and tamper-detecting tags) / `subterra-api` 首发内容（纯 Java、零 MC 依赖）：`TimeApi`（单调钟、ISO-8601 往返、人性化时长）、`NetApi`（IPv4/端口校验、URL 编解码、带调用方超时的尽力 HTTP GET 不抛异常）、`SerApi`（hex 与 base64）、`CryptoApi`（SHA-256/SHA-1、HMAC-SHA-256、带每次随机 IV 与防篡改标签的 AES-256-GCM）

@@ -6,3 +6,9 @@ group = rootProject.group
 version = rootProject.version
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Iron-law dependency direction: optim depends on api, never on any
+// implementation module.
+dependencies {
+    implementation project(':subterra-api')
+}
