@@ -104,6 +104,10 @@ neoForge {
             server()
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // Fixed probe port: never collides with a regular MC server the user
+            // may run, and lets the boot gate identify (and reap) its own game by port.
+            programArgument '--port'
+            programArgument '25599'
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

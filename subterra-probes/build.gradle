@@ -10,6 +10,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 // Probes exercise the launch layer standalone (pure JVM, no Minecraft runtime).
 dependencies {
     implementation project(':subterra-launch')
+    implementation project(':subterra-compat')
 }
 
 // Deterministic acceptance: exit 0 = PASS, exit 1 = FAIL. Never shipped.
@@ -27,8 +28,26 @@ def launchArgsProbe = tasks.register('runLaunchArgsProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.LaunchArgsProbe'
 }
 
+def compatProbe = tasks.register('runCompatProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the L2 compatibility-registry deterministic probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.CompatProbe'
+}
+
+// End-to-end gate: boots the dev server on the Java 25 toolchain and asserts
+// the boot contract from the log. Event-based, never timing-based.
+def bootProbe = tasks.register('runBootProbe', JavaExec) {
+    group = 'verification'
+    description = 'Boot the dev server on Java 25 and assert the L1/L2 boot contract (E2E gate)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ServerBootProbe'
+    workingDir = rootProject.projectDir
+    systemProperty 'subterra.projectDir', rootProject.projectDir.absolutePath
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
-    description = 'Run all acceptance probes'
-    dependsOn launchProbe, launchArgsProbe
+    description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
+    dependsOn launchProbe, launchArgsProbe, compatProbe, bootProbe
 }
