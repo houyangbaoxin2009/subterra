@@ -10,8 +10,8 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 class RegistrationWarmupSourceTest {
-    private static final String RUNTIME_SOURCE = "src/main/java/io/toterra/subterra/optim/server/invadvopt/InventoryAdvancementRuntime.java";
-    private static final String MIXIN_SOURCE = "src/main/java/io/toterra/subterra/optim/server/invadvopt/mixin/PlayerAdvancementsMixin.java";
+    private static final String RUNTIME_SOURCE = "subterra-invadvopt/src/main/java/io/toterra/subterra/optim/server/invadvopt/InventoryAdvancementRuntime.java";
+    private static final String MIXIN_SOURCE = "subterra-invadvopt/src/main/java/io/toterra/subterra/optim/server/invadvopt/mixin/PlayerAdvancementsMixin.java";
 
     @Test
     void absentIndexesAreNeverMaterializedByIndividualListenerCallbacks() throws IOException {

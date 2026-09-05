@@ -30,7 +30,9 @@ public final class InventoryAdvancementAccelerator {
     }
 
     public static void bootstrap(ModContainer container) {
-        container.registerConfig(ModConfig.Type.COMMON, InvAdvOptConfig.SPEC);
+        // Explicit config file name: the default would collide with the main
+        // mod's subterra-common.toml (both are registered on the subterra container).
+        container.registerConfig(ModConfig.Type.COMMON, InvAdvOptConfig.SPEC, "subterra-invadvopt-common.toml");
         NeoForge.EVENT_BUS.register(new InventoryAdvancementAccelerator());
     }
 

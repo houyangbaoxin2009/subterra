@@ -41,6 +41,13 @@ public class Subterra {
 
         // Register mod config
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+
+        // Inventory Advancement Accelerator (ported, MIT): its config must be
+        // registered here, in the mod constructor, so ConfigTracker sees it
+        // before the config-load stage (a commonSetup registration would be too
+        // late: TagsUpdated fires before the config is ever loaded and every
+        // read would throw "Cannot get config value before config is loaded").
+        io.toterra.subterra.optim.server.invadvopt.InventoryAdvancementAccelerator.bootstrap(modContainer);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -63,10 +70,6 @@ public class Subterra {
         // Logging module boot-time wiring: td config, sinks, module registry,
         // and the crash-report diagnostics callable.
         SubterraLogging.bootstrap();
-
-        // Inventory Advancement Accelerator (ported, MIT): registers its common
-        // config and event handlers as an internal capability of this mod.
-        io.toterra.subterra.optim.server.invadvopt.InventoryAdvancementAccelerator.bootstrap(modContainer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
