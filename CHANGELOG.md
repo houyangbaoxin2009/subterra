@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.8.0] EcoDims nine-dimension biome model / 九维群系模型 (2026-09-06)
+
+* New pure-JDK API surface `io.toterra.subterra.api.worldgen` (architecture §5.2): `EcoDim` (nine registered dimensions), `EcoDimValue`, total `EcoProfile` builder, default-disallow/allow-exceptions `EcoRelations` (undirected coexist chain), `validate()` health check (no fully-forbidden value, satisfiable rule set), deterministic `EcoResolver` with priority fallback (single-dimension concession first, then two-dimension; terrain yields last), unhappiness-free vanilla-equivalent defaults in `VanillaDefaults` + rule chain in `VanillaRules` for all listed biomes / 新增纯 JDK API 面 `io.toterra.subterra.api.worldgen`（架构 §5.2）：`EcoDim`（九个注册维度）、`EcoDimValue`、强制性完整 `EcoProfile` 构建器、白名单式 `EcoRelations`（无向共存关系链）、`validate()` 健康检查（无全禁值、规则集可满足）、确定性 `EcoResolver` 优先级逐级回退（先单维让步、再双维、地形最后让步）、`VanillaDefaults`/`VanillaRules` 覆盖原版等价默认映射全部合法
+* Deterministic probe `EcoDimsProbe` (30 checks) wired into `probeAcceptance` — dimension registry, coexist semantics, default legality per biome, validator negative-path, resolver concession order / 确定性探针 `EcoDimsProbe`（30 项断言）接入 `probeAcceptance`——维度注册、共存语义、各群系默认合法性、校验器反例、回退次序
+
 ## [p.1.6.1] Logging boot wiring / 日志开机接线 (2026-09-06)
 
 * Dev-run classpath fix: `SubterraLogging` (which loads `log.td`, registers module versions/deps and the crash-report diagnostics callable) caused `NoClassDefFoundError: LogSink` at `FMLCommonSetupEvent` — subterra-log / subterra-config now injected into `runs.configureEach` `additionalRuntimeClasspathConfiguration` alongside subterra-launch / 修复 dev-run 类路径：`SubterraLogging`（加载 `log.td`、登记模块版本/依赖、注册崩溃报告诊断块）在 `FMLCommonSetupEvent` 抛 `NoClassDefFoundError: LogSink` —— subterra-log / subterra-config 现随 subterra-launch 一并注入 `runs.configureEach` 的 `additionalRuntimeClasspathConfiguration`
