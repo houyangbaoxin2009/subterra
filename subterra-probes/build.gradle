@@ -14,6 +14,7 @@ dependencies {
     implementation project(':subterra-api')
     implementation project(':subterra-optim')
     implementation project(':subterra-config')
+    implementation project(':subterra-log')
 }
 
 // Deterministic acceptance: exit 0 = PASS, exit 1 = FAIL. Never shipped.
@@ -59,6 +60,13 @@ def configProbe = tasks.register('runConfigProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.ConfigProbe'
 }
 
+def logProbe = tasks.register('runLogProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the logging + diagnostics deterministic probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.LogProbe'
+}
+
 // End-to-end gate: boots the dev server on the Java 25 toolchain and asserts
 // the boot contract from the log. Event-based, never timing-based.
 def bootProbe = tasks.register('runBootProbe', JavaExec) {
@@ -73,5 +81,5 @@ def bootProbe = tasks.register('runBootProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, bootProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, bootProbe
 }

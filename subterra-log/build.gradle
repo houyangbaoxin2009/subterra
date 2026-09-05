@@ -1,0 +1,14 @@
+plugins {
+    id 'java-library'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Logging module: pure JDK (no Minecraft runtime), td-config driven via
+// subterra-config; the mini-AI analyzer is opt-in and stays unbound by default.
+dependencies {
+    implementation project(':subterra-config')
+}

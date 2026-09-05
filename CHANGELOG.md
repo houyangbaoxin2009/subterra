@@ -2,6 +2,14 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.6.0] Logging module / 日志模块 (2026-09-05)
+
+* New module `subterra-log` (pure JDK): level-gated facade `Logger` + `LogHub` (thread-safe tail ring + sinks), NeoForge-style layout `[HH:mm:ss.SSS] [thread/LEVEL] [logger]: msg`, threshold fast-path drop, `FileLogSink` with per-launch rolling and keep-N pruning (Paper/NeoForge policy), never-throwing sinks / 新模块 `subterra-log`（纯 JDK）：分级门面 `Logger` + `LogHub`（线程安全尾部环形缓冲 + 输出端）、NeoForge 布局、阈值前置快速丢弃、`FileLogSink` 启动滚动 + 保留 N 份（Paper/NeoForge 策略）、输出端永不抛错
+* Crash auto-export `CrashDumper`: dumps exception + system info + `Modules:` dependency block + recent log tail to `crash-<ts>.txt`; `ModuleReg` registers modules/versions/dependencies and detects dependency cycles via three-colour DFS (self-loop and pair cycles covered) / 崩溃自动导出 `CrashDumper`：异常 + 系统信息 + 模块依赖块 + 最近日志尾部 → `crash-<ts>.txt`；`ModuleReg` 登记模块/版本/依赖并以三色 DFS 检出依赖环（自环/二元环已覆盖）
+* td-driven `LogConfig` (via subterra-config): `log.td` with level/ring_size/file(dir/keep)/analysis(enabled/device/model); unknown fields fall back to defaults / td 驱动 `LogConfig`（经 subterra-config）：`log.td` 含 level/ring_size/file(dir/keep)/analysis(enabled/device/model)；非法值回退默认
+* Pluggable crash analyzers: `ErrorAnalyzer` interface, zero-dependency `RulesAnalyzer` (known-crash regex set: OOM/port/mixin/NPE/stack/classpath/JVM-native/mod-load), opt-in `AiAnalyzer` hook for local Intel GPU/NPU mini-AI (default off, falls back to unknown until the inference endpoint is wired) / 可插拔崩溃分析器：`ErrorAnalyzer` 接口、零依赖 `RulesAnalyzer`（已知崩溃正则集）、本地 Intel GPU/NPU 微型 AI 的 `AiAnalyzer` 接入点（默认关闭，推理端接线前回落 unknown）
+* Deterministic probe `LogProbe` (38 checks) wired into `probeAcceptance` / 确定性探针 `LogProbe`（38 项断言）接入 `probeAcceptance`
+
 ## [p.1.5.0] td configuration module / td 配置模块 (2026-09-05)
 
 * New module `subterra-config` (pure JDK): `Td` parser/writer for the tie-data subset used by tiec `config.parse_data` — header strip (`type tie<data>`), optional table name, bare tables, named entries, arrays, nested tables, strings with escapes, int/float/bool, `//` comments, trailing-comma tolerance / 新模块 `subterra-config`（纯 JDK）：td（tie 数据）解析/写出器——支持 tiec `config.parse_data` 同语法子集（头剥离、可选表名、裸表、命名项、数组、嵌套表、转义字符串、int/float/bool、`//` 注释、容忍尾逗号）
