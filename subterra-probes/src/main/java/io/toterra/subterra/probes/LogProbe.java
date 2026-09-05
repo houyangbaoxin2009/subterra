@@ -164,6 +164,9 @@ public final class LogProbe {
             check("dump has exception", text.contains("kaboom") && text.contains("Stack:"));
             check("dump has modules block", text.contains("Modules:") && text.contains("mod-x v9"));
             check("dump has log tail", text.contains("tail line for dump"));
+            String block = CrashDumper.diagnosticsBlock(LogHub.hub(), reg);
+            check("diagnostics block modules", block.contains("Modules:") && block.contains("mod-x v9"));
+            check("diagnostics block tail", block.contains("Recent log (tail):") && block.contains("tail line for dump"));
         } finally {
             deleteTree(dir);
         }

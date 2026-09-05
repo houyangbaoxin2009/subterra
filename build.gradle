@@ -81,6 +81,12 @@ neoForge {
             // (runtime search differs from the shipped mod jar aggregation).
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-launch')))
+            // The logging module (and its td-config dependency) is referenced by
+            // the main mod class; make its classes visible in dev runs too.
+            additionalRuntimeClasspathConfiguration.dependencies.add(
+                    project.dependencies.create(project(':subterra-log')))
+            additionalRuntimeClasspathConfiguration.dependencies.add(
+                    project.dependencies.create(project(':subterra-config')))
 
             // L1 launch package (p.1.1): inject the Subterra JVM argument package
             // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
@@ -164,6 +170,9 @@ configurations {
 dependencies {
     // Launch layer (JVM runtime verification) is used by the main mod class.
     implementation project(':subterra-launch')
+    // Logging module + td config drive the boot-time log wiring (SubterraLogging).
+    implementation project(':subterra-log')
+    implementation project(':subterra-config')
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime

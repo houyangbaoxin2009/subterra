@@ -42,18 +42,19 @@ public final class CrashDumper {
         }
     }
 
-    private static String render(Throwable t, LogHub hub, ModuleReg reg) {
-        StringBuilder sb = new StringBuilder(1024);
-        sb.append("---- Subterra Diagnostic Dump ----\n");
-        sb.append("Time: ").append(LocalDateTime.now()).append('\n');
-        sb.append("Description: ").append(t.getClass().getName());
-        if (t.getMessage() != null) {
-            sb.append(": ").append(t.getMessage());
-        }
-        sb.append('\n');
-        sb.append("Stack:\n").append(stackOf(t));
-        sb.append('\n')
-          .append("System:\n")
+    /**
+     * Self-contained diagnostics text (system info + module dependency block +
+     * recent log tail) for embedding into a Minecraft crash report via a
+     * system-report crash callable. Pure JDK; no exception argument needed.
+     */
+    public static String diagnosticsBlock() {
+        return diagnosticsBlock(LogHub.hub(), ModuleReg.registry());
+    }
+
+    /** Diagnostics block with explicit sources (tests inject fresh hubs). */
+    public static String diagnosticsBlock(LogHub hub, ModuleReg reg) {
+        StringBuilder sb = new StringBuilder(512);
+        sb.append("System:\n")
           .append("  java.version=").append(System.getProperty("java.version")).append('\n')
           .append("  java.vm.name=").append(System.getProperty("java.vm.name", "?")).append('\n')
           .append("  os.name=").append(System.getProperty("os.name")).append('\n')
@@ -67,7 +68,20 @@ public final class CrashDumper {
         for (LogRecord r : hub.snapshot()) {
             sb.append('\n').append(r.format());
         }
+        return sb.toString();
+    }
+
+    private static String render(Throwable t, LogHub hub, ModuleReg reg) {
+        StringBuilder sb = new StringBuilder(1024);
+        sb.append("---- Subterra Diagnostic Dump ----\n");
+        sb.append("Time: ").append(LocalDateTime.now()).append('\n');
+        sb.append("Description: ").append(t.getClass().getName());
+        if (t.getMessage() != null) {
+            sb.append(": ").append(t.getMessage());
+        }
         sb.append('\n');
+        sb.append("Stack:\n").append(stackOf(t));
+        sb.append('\n').append(diagnosticsBlock(hub, reg)).append('\n');
         return sb.toString();
     }
 

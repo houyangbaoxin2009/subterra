@@ -2,6 +2,13 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.6.1] Logging boot wiring / 日志开机接线 (2026-09-06)
+
+* Dev-run classpath fix: `SubterraLogging` (which loads `log.td`, registers module versions/deps and the crash-report diagnostics callable) caused `NoClassDefFoundError: LogSink` at `FMLCommonSetupEvent` — subterra-log / subterra-config now injected into `runs.configureEach` `additionalRuntimeClasspathConfiguration` alongside subterra-launch / 修复 dev-run 类路径：`SubterraLogging`（加载 `log.td`、登记模块版本/依赖、注册崩溃报告诊断块）在 `FMLCommonSetupEvent` 抛 `NoClassDefFoundError: LogSink` —— subterra-log / subterra-config 现随 subterra-launch 一并注入 `runs.configureEach` 的 `additionalRuntimeClasspathConfiguration`
+* Boot-time log wiring verified on the dev server (boot gate PASS): `log.td` (level/ring/file/analysis) drives `LogHub`, records bridge into the game log via `Slf4jLogSink`, optional rolling `FileLogSink` writes `logs/subterra/subterra-<ts>.log`, module set registered, diagnostics block embedded into crash reports via `CrashReportCallables.registerCrashCallable` / 开机日志接线已在开发服验证（开机门禁 PASS）：`log.td` 驱动 `LogHub`，`Slf4jLogSink` 桥接进游戏日志，可选滚动 `FileLogSink` 写 `logs/subterra/subterra-<ts>.log`，模块集登记，诊断块经 `CrashReportCallables.registerCrashCallable` 嵌入崩溃报告
+* `CrashDumper.diagnosticsBlock()` exposed for the crash callable (system info + modules + log tail), covered by two new LogProbe checks (40 total) / `CrashDumper.diagnosticsBlock()` 供崩溃回调复用（系统信息+模块+日志尾），LogProbe 新增两项断言（共 40）
+* Roadmap: p.1.6 marked landed; p.1.7 planned — tie lightweight AI log analyzer as a tink-form standalone local component (Intel GPU/NPU inference, default off) / 路线图：p.1.6 标记落地；p.1.7 立项——tie 轻量级 AI 日志分析器（tink 形态独立本地组件，Intel GPU/NPU 推理，默认关闭）
+
 ## [p.1.6.0] Logging module / 日志模块 (2026-09-05)
 
 * New module `subterra-log` (pure JDK): level-gated facade `Logger` + `LogHub` (thread-safe tail ring + sinks), NeoForge-style layout `[HH:mm:ss.SSS] [thread/LEVEL] [logger]: msg`, threshold fast-path drop, `FileLogSink` with per-launch rolling and keep-N pruning (Paper/NeoForge policy), never-throwing sinks / 新模块 `subterra-log`（纯 JDK）：分级门面 `Logger` + `LogHub`（线程安全尾部环形缓冲 + 输出端）、NeoForge 布局、阈值前置快速丢弃、`FileLogSink` 启动滚动 + 保留 N 份（Paper/NeoForge 策略）、输出端永不抛错

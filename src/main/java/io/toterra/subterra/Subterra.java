@@ -56,6 +56,10 @@ public class Subterra {
         } else {
             LOGGER.info("Subterra L1: JVM argument package present ({})", JvmLaunchArgs.staticTuningFlags().size() + " static flags");
         }
+
+        // Logging module boot-time wiring: td config, sinks, module registry,
+        // and the crash-report diagnostics callable.
+        SubterraLogging.bootstrap();
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
