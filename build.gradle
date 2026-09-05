@@ -68,6 +68,19 @@ neoForge {
     // Default run configurations.
     // These can be tweaked, removed, or duplicated as needed.
     runs {
+        // L1 launch package (p.1.1): inject the Subterra JVM argument package
+        // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
+        // the mod validates the presence of these flags at boot.
+        configureEach {
+            jvmArguments.addAll([
+                    '-XX:+UseZGC',
+                    '-XX:InitialRAMPercentage=75',
+                    '-XX:MaxRAMPercentage=75',
+                    '-XX:+AlwaysPreTouch',
+                    '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            ])
+        }
+
         client {
             client()
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.

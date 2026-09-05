@@ -20,8 +20,15 @@ def launchProbe = tasks.register('runLaunchProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.LaunchLayerProbe'
 }
 
+def launchArgsProbe = tasks.register('runLaunchArgsProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the L1 JVM-argument-package deterministic probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.LaunchArgsProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes'
-    dependsOn launchProbe
+    dependsOn launchProbe, launchArgsProbe
 }

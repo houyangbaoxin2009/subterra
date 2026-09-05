@@ -14,6 +14,10 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
 import io.toterra.subterra.runtime.JvmEnv;
+import io.toterra.subterra.runtime.JvmLaunchArgs;
+
+import java.lang.management.ManagementFactory;
+import java.util.List;
 
 /**
  * Subterra — foundation mod for the Toterra series.
@@ -42,6 +46,15 @@ public class Subterra {
         LOGGER.info("Subterra L1: Java {} (min supported 21, verified: {})", report.javaVersion(), report.verified());
         if (!report.verified()) {
             LOGGER.warn("Subterra L1: Java {} is below the supported baseline; launch arguments may be incomplete.", report.javaVersion());
+        }
+
+        // L1 launch check: verify the JVM argument package was injected before process start
+        List<String> applied = ManagementFactory.getRuntimeMXBean().getInputArguments();
+        List<String> missing = JvmLaunchArgs.missingStaticFlags(applied);
+        if (!missing.isEmpty()) {
+            LOGGER.warn("Subterra L1: missing JVM tuning flags: {} — inject the Subterra launch argument package before starting the game (see subterra-launch JvmLaunchArgs).", missing);
+        } else {
+            LOGGER.info("Subterra L1: JVM argument package present ({})", JvmLaunchArgs.staticTuningFlags().size() + " static flags");
         }
     }
 
