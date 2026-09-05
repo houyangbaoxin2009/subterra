@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.3.1] Region announcement API / 区域名解锁 API (2026-09-06)
+
+* `RegionAnnouncement` (subterra-api worldgen): the region-name unlocking contract for the Traveler Title module — names start at `???`, switch to a hint after a clue, and to the custom name once named; blank inputs fall back to `???`, blank region id rejected; deterministic display strings for the UI layer / `RegionAnnouncement`（subterra-api worldgen）：旅人标题的区域名解锁契约——名称初始为 `???`，取得线索后显示提示名，命名后显示自定义名；空输入回退 `???`、空区域 id 拒绝；显示串确定、便于 UI 层渲染
+* Deterministic probe `RegionProbe` (8 checks) wired into `probeAcceptance` / 确定性探针 `RegionProbe`（8 项断言）接入 `probeAcceptance`
+
 ## [p.1.5.1] Configuration package / 配置包 (2026-09-06)
 
 * `ConfigPack` (subterra-config): one-click import/export of a set of td config files as a single td document — `files = [ [ name = ..., config = [...] ] ]` entries (file names as string values, never bare keys), deterministic name order, exact round-trips, version field / `ConfigPack`（subterra-config）：一组 td 配置文件的单文档一键导入/导出——`files` 用「name/config 子表」数组项（文件名走字符串值而非裸键）、按名排序、往返保真、带版本号
