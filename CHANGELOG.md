@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.3] Ported engine, third item: multilingual pronunciation core / 移植引擎批三：多语言发音核心 (2026-09-06)
+
+* Ported engine core for the JEC-style pinyin search (MIT surface; JEC recon confirms engine seam = `DictLoader`): `Lexicon` (PinIn data format `char: r1, r2`, tone digits stripped, extension merging for kana romaji / Hangul romanization) + `PronounceMatcher` per-character consuming matcher with prefix-typing termination — deterministic, no O(n²), no MC runtime / 移植 JEC 式拼音搜索的引擎核心（MIT 面；JEC 侦察确认引擎接缝 = `DictLoader`）：`Lexicon`（PinIn 数据格式 `char: r1, r2`、声调数字剥离、扩展合并支持假名罗马字/谚文罗马化）+ `PronounceMatcher` 逐字消费匹配 + 前缀式输入终止——确定性、无 O(n²)、无 MC 运行时
+* Deterministic probe `PronounceProbe` (15 checks) wired into `probeAcceptance` — parsing/merging, multi-reading, extension scripts, case-insensitivity, prefix typing, negatives / 确定性探针 `PronounceProbe`（15 项断言）接入 `probeAcceptance`——解析/合并、多读音、扩展脚本、大小写不敏感、前缀输入、反例
+
 ## [p.1.4.2] Ported optimization, second item: breeding-cap core / 移植优化次批：繁殖上限核心 (2026-09-06)
 
 * Ported the ServerCore `breeding_cap` surface as a pure-JDK core: `BreedingCap` (cap per entity type, validated, 0 = unbounded) + `Counters` (per-type acquire/release accounting) + `canBreed` gate — deterministic, no O(n²) / 以纯 JDK 核心移植 ServerCore `breeding_cap` 功能面：`BreedingCap`（按实体类型上限、构造校验、0=不封顶）+ `Counters`（按类型 acquire/release 计数）+ `canBreed` 闸门——确定性、无 O(n²)
