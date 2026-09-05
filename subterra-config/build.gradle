@@ -1,0 +1,12 @@
+plugins {
+    id 'java-library'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// subterra-config is a standalone td-based configuration module: pure JDK,
+// no Minecraft runtime, no dependency on implementation modules.
+// Iron-law direction: config ← probes.

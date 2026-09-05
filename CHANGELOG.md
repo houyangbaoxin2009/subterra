@@ -2,6 +2,12 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.5.0] td configuration module / td 配置模块 (2026-09-05)
+
+* New module `subterra-config` (pure JDK): `Td` parser/writer for the tie-data subset used by tiec `config.parse_data` — header strip (`type tie<data>`), optional table name, bare tables, named entries, arrays, nested tables, strings with escapes, int/float/bool, `//` comments, trailing-comma tolerance / 新模块 `subterra-config`（纯 JDK）：td（tie 数据）解析/写出器——支持 tiec `config.parse_data` 同语法子集（头剥离、可选表名、裸表、命名项、数组、嵌套表、转义字符串、int/float/bool、`//` 注释、容忍尾逗号）
+* Immutable model `TdTable` + sealed `TdValue` (string/int/float/bool/table); writer round-trips the model back to td text / 不可变模型 `TdTable` + sealed `TdValue`；写出器把模型回写出 td 文本
+* Deterministic probe `ConfigProbe`: scalar/nesting/array/named-table/escape round-trips and malformed-input rejection — wired into `probeAcceptance` (now seven probes + boot gate) / 确定性探针 `ConfigProbe`：标量/嵌套/数组/命名表/转义往返与非法输入拒绝——接入 `probeAcceptance`（现七探针 + 开机门禁）
+
 ## [p.1.4.0] Optimization set: module skeleton + first self-developed optimization / 优化集：模块骨架 + 首项自研优化 (2026-09-05)
 
 * `subterra-optim` functional skeleton lands: eight category packages (memory / logic / worldgen / entity / network / server / client / render) with javadoc anchors; depends on `subterra-api` only (iron-law direction) / `subterra-optim` 功能骨架落地：八个功能包（内存/逻辑/世界生成/实体/网络/服务端/客户端/渲染）带文档锚点；仅依赖 `subterra-api`（依赖铁律方向）
