@@ -18,6 +18,12 @@ public class SubterraClient {
         // Allows NeoForge to create a config screen for this mod's configs.
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+
+        // JEC-style pinyin search (ported, MIT): preloads the bundled Chinese
+        // pinyin lexicon; the SearchTreeMixin redirects SearchTree.plainText
+        // to a pinyin-aware SuffixArray so creative-inventory / name searches
+        // match pinyin. Client-only (SearchTree is a client class).
+        io.toterra.subterra.optim.client.search.PinyinSearch.bootstrap(container);
     }
 
     @SubscribeEvent

@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8.7",
+  "package": "io.toterra.subterra.optim.client.search.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "SearchTreeMixin"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

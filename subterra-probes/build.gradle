@@ -116,6 +116,13 @@ def pronounceProbe = tasks.register('runPronounceProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.PronounceProbe'
 }
 
+def pinyinSearchProbe = tasks.register('runPinyinSearchProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the JEC-style pinyin search core probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.PinyinSearchProbe'
+}
+
 // End-to-end gate: boots the dev server on the Java 25 toolchain and asserts
 // the boot contract from the log. Event-based, never timing-based.
 def bootProbe = tasks.register('runBootProbe', JavaExec) {
@@ -130,5 +137,5 @@ def bootProbe = tasks.register('runBootProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, bootProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, pinyinSearchProbe, bootProbe
 }
