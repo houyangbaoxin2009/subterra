@@ -2,6 +2,12 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.11] Self-developed core: ticking-chunk cache / 自研核心：区块 tick 缓存 (2026-09-06)
+
+* New pure-JDK core `io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache` (clean-room re-key of the ServerCore "cache-ticking-chunks" concept, MIT/GPL-mixed surface, no upstream code): the per-tick full iteration over all loaded chunks is replaced by a cached snapshot rebuilt once per second (every 20 ticks) — `update(tickCount, ticking)` feeds the full set each tick, a sorted immutable `long[]` snapshot is rebuilt only on refresh boundaries, `isTicking(pos)` is a binary search (O(log n), no O(n²)); chunk enter/leave takes effect with at most a 1-second delay / 新增纯 JDK 核心 `io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache`（对 ServerCore "cache-ticking-chunks" 概念的 clean-room 重写，MIT/GPL 混许可面，不带上游代码）：将每 tick 对全部已加载区块的全量迭代替换为每隔 1 秒（20 刻）重建一次的缓存快照——`update(tickCount, ticking)` 每 tick 喂入全集，仅刷新边界重建排序不可变 `long[]` 快照，`isTicking(pos)` 为二分查找（O(log n)、无 O(n²)）；区块进出最多延迟 1 秒生效
+* Deterministic probe `TickingChunkCacheProbe` (13 checks) wired into `probeAcceptance` — snapshot freshness, refresh boundaries, delayed enter/leave, snapshot immutability, sorted order, 10k-chunk smoke / 确定性探针 `TickingChunkCacheProbe`（13 项断言）接入 `probeAcceptance`——快照新鲜度、刷新边界、进出延迟、快照不可变、排序、万区块冒烟
+* MC-layer `tickChunks` wiring to be landed later (mixin shell; the core is probe-ready now) / MC 层 `tickChunks` 接线后置（mixin 薄壳；核心现即可探针验收）
+
 ## [p.1.4.10] More bundled pronunciation packs: Hangul, kanji, Greek / 新增读音包：韩语谚文、日文汉字、希腊字母 (2026-09-06)
 
 * New `ko` pack: full Hangul syllable → Revised Romanization table (all 11,172 syllable blocks generated deterministically from the syllable-chart formula: 19 choseong × 21 jungseong × 28 jongseong, incl. complex codas like 닭=dalg, ㄲ initial like 꽃=kkot); syllable-level clean romanization / 新增 `ko` 包：谚文音节 → RR 罗马化全表（依音节表公式确定性生成全部 11,172 个音节块：19 初声 × 21 中声 × 28 终声，含複合终声如 닭=dalg、紧音初声如 꽃=kkot）；音节级纯罗马化
