@@ -66,6 +66,11 @@ public class Subterra {
         // loaded world keeps the server thread responsive.
         io.toterra.subterra.optim.server.dynamic.DynamicDistance.bootstrap(modContainer);
 
+        // ServerCore sync-load guard (clean-room): loads the master switch from
+        // servercore.td; incremental call-site rewrites land behind it (off by
+        // default preserves vanilla synchronous loading).
+        io.toterra.subterra.optim.server.loading.shell.SyncLoadRuntime.bootstrap(modContainer);
+
         // Item/block blacklist control (ported, Apache-2.0): preloads the td
         // config (config/subterra/item_control.td) and wires the handlers,
         // /itemban commands and recipe stripper.
