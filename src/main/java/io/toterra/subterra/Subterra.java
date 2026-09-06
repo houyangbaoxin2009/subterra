@@ -47,12 +47,12 @@ public class Subterra {
         // before the config-load stage (a commonSetup registration would be too
         // late: TagsUpdated fires before the config is ever loaded and every
         // read would throw "Cannot get config value before config is loaded").
-        io.toterra.subterra.optim.server.invadvopt.InventoryAdvancementAccelerator.bootstrap(modContainer);
+        io.toterra.subterra.optim.server.advancement.InventoryAdvancementAccelerator.bootstrap(modContainer);
 
         // Smooth Boot worker tuning (ported, MIT): preloads the td config
         // (config/subterra/smoothboot.td); the Util mixins swap the background
         // and IO worker executors lazily on first use with defaults fallback.
-        io.toterra.subterra.optim.server.smoothboot.SmoothBoot.bootstrap(modContainer);
+        io.toterra.subterra.optim.server.threading.WorkerPoolTuning.bootstrap(modContainer);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
