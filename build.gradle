@@ -46,6 +46,7 @@ sourceSets {
         java.srcDir('subterra-servercore/src/main/java')
         java.srcDir('subterra-jec/src/main/java')
         java.srcDir('subterra-c2me/src/main/java')
+        java.srcDir('subterra-itemban/src/main/java')
     }
     test {
         java.srcDir('subterra-invadvopt/src/test/java')

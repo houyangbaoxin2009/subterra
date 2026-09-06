@@ -65,6 +65,11 @@ public class Subterra {
         // (and mobcap/chunk-tick knobs) from the measured server tick time so a
         // loaded world keeps the server thread responsive.
         io.toterra.subterra.optim.server.dynamic.DynamicDistance.bootstrap(modContainer);
+
+        // Item/block blacklist control (ported, Apache-2.0): preloads the td
+        // config (config/subterra/item_control.td) and wires the handlers,
+        // /itemban commands and recipe stripper.
+        io.toterra.subterra.optim.server.item_control.shell.ItemControl.bootstrap(modContainer);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
