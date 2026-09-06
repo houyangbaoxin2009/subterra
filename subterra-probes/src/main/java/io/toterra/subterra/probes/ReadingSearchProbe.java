@@ -75,10 +75,35 @@ public final class ReadingSearchProbe {
                 "ア: a",
                 "カ: ka",
                 "ナ: na",
-                "山: san"
+                "山: san, yama",
+                "川: kawa",
+                "学: gaku",
+                "校: kou",
+                "雨: ame"
+        ));
+        // ko pack: Hangul syllable -> RR romaji (syllable blocks; selected subset
+        // mirrors what the generated ko.lex resource contains).
+        Lexicon ko = Lexicon.ofLines(List.of(
+                "가: ga",
+                "국: guk",
+                "어: eo",
+                "한: han",
+                "닭: dalg",
+                "꽃: kkot",
+                "스: seu"
+        ));
+        // gr pack: Greek letter -> Latin transliteration (upper/lower same sound).
+        Lexicon gr = Lexicon.ofLines(List.of(
+                "α: a",
+                "β: b",
+                "σ: s",
+                "ς: s",
+                "ω: o",
+                "Α: a",
+                "χ: ch"
         ));
         // Packs merge with append-and-dedup: 山 keeps both shan (zh) and san (ja).
-        PronounceMatcher m = new PronounceMatcher(zh.mergedWith(ja));
+        PronounceMatcher m = new PronounceMatcher(zh.mergedWith(ja).mergedWith(ko).mergedWith(gr));
 
         // --- Preserved pinyin assertions from p.1.4.8 (16) ---
 
@@ -134,8 +159,43 @@ public final class ReadingSearchProbe {
         // Append-merge coexistence: 山 matches both shan (zh) and san (ja).
         check("multipack co-exist append", m.contains("山", "shan") && m.contains("山", "san"));
 
+        // --- Korean Hangul assertions (ko pack, p.1.4.10) ---
+
+        // Single syllable block: 가 (g + a).
+        check("ko syllable", m.contains("가", "ga"));
+        // Word assembled from syllable blocks: 한국어 -> han + guk + eo.
+        check("ko word hangukeo", m.contains("한국어", "hangukeo"));
+        // Complex final cluster: 닭 (ㄷ d + ㅏ a + ㄺ lg).
+        check("ko complex coda", m.contains("닭", "dalg"));
+        // Double-initial: 꽃 (ㄲ kk + ㅗ o + ㅊ t).
+        check("ko double initial", m.contains("꽃", "kkot"));
+        // Korean negative.
+        check("ko negative", !m.contains("가", "ba"));
+
+        // --- Japanese kanji assertions (ja pack kanji section, p.1.4.10) ---
+
+        // On'yomi reading of a kanji.
+        check("ja kanji onyomi", m.contains("山", "san"));
+        // Word assembled per character (no euphony shift): 山川 -> yama + kawa.
+        check("ja kanji compound", m.contains("山川", "yamakawa"));
+        // Negative kanji romaji.
+        check("ja kanji negative", !m.contains("雨", "umi"));
+
+        // --- Greek letter assertions (gr pack, p.1.4.10) ---
+
+        // Plain transliteration: α + β.
+        check("gr alpha beta", m.contains("αβ", "ab"));
+        // Final sigma and omega: σ + ω -> so.
+        check("gr sigma omega", m.contains("σω", "so"));
+        // Uppercase Greek letter matches the same transliteration.
+        check("gr uppercase", m.contains("Α", "a"));
+        // Digraph transliteration: χ -> ch.
+        check("gr digraph", m.contains("χ", "ch"));
+        // Greek negative.
+        check("gr negative", !m.contains("α", "k"));
+
         if (failures == 0) {
-            System.out.println("[ReadingSearchProbe] PASS (language-agnostic reading search core, " + 24 + " checks)");
+            System.out.println("[ReadingSearchProbe] PASS (language-agnostic reading search core, " + 36 + " checks)");
             System.exit(0);
         } else {
             System.out.println("[ReadingSearchProbe] FAIL: " + failures + " assertion(s)");

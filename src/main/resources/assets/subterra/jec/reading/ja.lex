@@ -168,3 +168,67 @@
 ェ: e
 ォ: o
 ッ: tu
+// ---------------------- Kanji (curated common on'yomi + a few kun'yomi) -----
+// Single-character kanji readings so pinyin-style typed romaji finds Japanese
+// item names too. On'yomi first; kun'yomi (native reading) appended after.
+山: san, yama
+川: sen, kawa
+水: sui, mizu
+火: hi, ka
+木: moku, ki
+土: do, tsuchi
+金: kin, kane
+石: seki, ishi
+田: den, ta
+力: riki, chikara
+口: kou, kuchi
+目: moku, me
+耳: ji, mimi
+手: shu, te
+足: soku, ashi
+心: shin, kokoro
+人: jin, hito
+日: nichi, hi
+月: getsu, tsuki
+星: sei, hoshi
+天: ten, ama
+地: chi, ji
+空: kuu, sora
+海: kai, umi
+雲: un, kumo
+雨: u, ame
+雪: setsu, yuki
+風: fuu, kaze
+雷: rai, kaminari
+森: shin, mori
+林: rin, hayashi
+草: sou, kusa
+花: ka, hana
+竹: chiku, take
+米: bei, kome
+麦: baku, mugi
+豆: tou, mame
+牛: gyuu, ushi
+馬: ba, uma
+犬: ken, inu
+猫: byou, neko
+鳥: chou, tori
+魚: gyo, sakana
+虫: chuu, mushi
+羊: you, hitsuji
+豚: ton, buta
+門: mon, kado
+車: sha, kuruma
+刀: tou, katana
+剣: ken, tsurugi
+弓: kyuu, yumi
+矢: ya
+槍: sou, yari
+鎧: gai, yoroi
+盾: jun, tate
+鉄: tetsu, kurogane
+鋼: kou, hagane
+銀: gin, shirogane
+銅: dou, akagane
+玉: gyoku, tama
+宝: hou, takara

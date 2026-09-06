@@ -49,7 +49,9 @@ public final class ReadingSearch {
 
     private static final List<PackedLexicon> BUNDLED = List.of(
             new PackedLexicon("zh", READING_DIR + "zh.lex"),
-            new PackedLexicon("ja", READING_DIR + "ja.lex"));
+            new PackedLexicon("ja", READING_DIR + "ja.lex"),
+            new PackedLexicon("ko", READING_DIR + "ko.lex"),
+            new PackedLexicon("gr", READING_DIR + "gr.lex"));
 
     private static volatile Lexicon lexicon;
     private static volatile PronounceMatcher matcher;

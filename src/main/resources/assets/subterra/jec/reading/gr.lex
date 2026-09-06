@@ -1,0 +1,53 @@
+// gr.lex: Greek letters -> Latin transliteration reading pack.
+// Hand-authored; one encoding per distinct letter (upper/lower share the
+// sound), matching the standard Greek-to-Latin transliteration used in
+// mathematics/physics names (e.g. σ -> s, ω -> o).
+Α: a
+α: a
+Β: b
+β: b
+Γ: g
+γ: g
+Δ: d
+δ: d
+Ε: e
+ε: e
+Ζ: z
+ζ: z
+Η: e
+η: e
+Θ: th
+θ: th
+Ι: i
+ι: i
+Κ: k
+κ: k
+Λ: l
+λ: l
+Μ: m
+μ: m
+Ν: n
+ν: n
+Ξ: x
+ξ: x
+Ο: o
+ο: o
+Π: p
+π: p
+Ρ: r
+ρ: r
+Σ: s
+σ: s
+ς: s
+Τ: t
+τ: t
+Υ: y
+υ: y
+Φ: ph
+φ: ph
+Χ: ch
+χ: ch
+Ψ: ps
+ψ: ps
+Ω: o
+ω: o
