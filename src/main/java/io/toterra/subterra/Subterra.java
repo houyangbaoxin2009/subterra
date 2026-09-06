@@ -53,6 +53,11 @@ public class Subterra {
         // (config/subterra/smoothboot.td); the Util mixins swap the background
         // and IO worker executors lazily on first use with defaults fallback.
         io.toterra.subterra.optim.server.threading.WorkerPoolTuning.bootstrap(modContainer);
+
+        // ServerCore villager lobotomization (ported, MIT): preloads the td
+        // config (config/subterra/servercore.td); the AbstractVillagerMixin
+        // skips a stuck villager's brain tick so path-finding CPU is saved.
+        io.toterra.subterra.optim.entity.ai.VillagerLobotomize.bootstrap(modContainer);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
