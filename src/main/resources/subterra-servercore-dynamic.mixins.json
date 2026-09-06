@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8.7",
+  "package": "io.toterra.subterra.optim.server.dynamic.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChunkMapMixin",
+    "MobCategoryMixin",
+    "PlayerListMixin"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

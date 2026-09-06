@@ -58,6 +58,13 @@ public class Subterra {
         // config (config/subterra/servercore.td); the AbstractVillagerMixin
         // skips a stuck villager's brain tick so path-finding CPU is saved.
         io.toterra.subterra.optim.entity.ai.VillagerLobotomize.bootstrap(modContainer);
+
+        // ServerCore dynamic view/simulation distance (ported, MIT): preloads
+        // the td config (config/subterra/servercore.td) and wires the server
+        // lifecycle listeners; the DynamicManager auto-tunes view/sim distance
+        // (and mobcap/chunk-tick knobs) from the measured server tick time so a
+        // loaded world keeps the server thread responsive.
+        io.toterra.subterra.optim.server.dynamic.DynamicDistance.bootstrap(modContainer);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
