@@ -8,6 +8,9 @@
   ],
   "client": [],
   "server": [
+    "BaseSpawnerMixin",
+    "InfestedMobEffectMixin",
+    "NetherPortalBlockMixin",
     "ZombieReinforcementMixin"
   ],
   "injectors": {
