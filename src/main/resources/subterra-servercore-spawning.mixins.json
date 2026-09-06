@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8.7",
+  "package": "io.toterra.subterra.optim.entity.spawning.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ServerChunkCacheAccessor"
+  ],
+  "client": [],
+  "server": [
+    "ZombieReinforcementMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

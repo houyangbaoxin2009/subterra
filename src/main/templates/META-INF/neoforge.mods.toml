@@ -73,6 +73,11 @@ config="subterra-servercore.mixins.json"
 [[mixins]]
 config="subterra-servercore-activation.mixins.json"
 
+# ServerCore (clean-room) mixins: special-spawn-source enforcement — zombie
+# reinforcements consult the enforced category pool (off by default).
+[[mixins]]
+config="subterra-servercore-spawning.mixins.json"
+
 # ServerCore (ported) mixins: dynamic view/simulation-distance tuning
 # (ChunkMap/MobCategory/PlayerList).
 [[mixins]]
