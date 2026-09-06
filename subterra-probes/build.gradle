@@ -158,6 +158,13 @@ def syncLoadGuardProbe = tasks.register('runSyncLoadGuardProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.SyncLoadGuardProbe'
 }
 
+def pipelineFacesProbe = tasks.register('runPipelineFacesProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the worldgen pipeline faces probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.PipelineFacesProbe'
+}
+
 def itemControlProbe = tasks.register('runItemControlProbe', JavaExec) {
     group = 'verification'
     description = 'Run the item/block blacklist pure core probe (pure JVM)'
@@ -179,5 +186,5 @@ def bootProbe = tasks.register('runBootProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, itemControlProbe, bootProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, itemControlProbe, bootProbe
 }
