@@ -2,17 +2,24 @@ package io.toterra.subterra.optim.logic.pronounce;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * Character → pronunciation lexicon (the multi-language pronunciation data
- * seam for the JEC-style pinyin search port): readings use the PinIn data
+ * seam for the JEC-style reading search port): readings use the PinIn data
  * format {@code '<char>: r1, r2'} and may carry tone digits (stripped for
- * matching). Extensions merge over base data so other scripts (kana romaji,
- * Hangul romanization, extra CJK) plug in without touching the core.
- * Entirely deterministic and immutable after construction.
+ * matching).
+ *
+ * <p>Two merge semantics are provided: {@link #withExtension(Lexicon)}
+ * <em>replaces</em> a character's readings with the extension's (single-language
+ * override), while {@link #mergedWith(Lexicon)} <em>appends and dedups</em>
+ * readings so pronunciation packs from different languages can coexist on the
+ * same character (e.g. 山 = shan from zh + san from ja). Entirely
+ * deterministic and immutable after construction.</p>
  */
 public final class Lexicon {
 
@@ -68,6 +75,29 @@ public final class Lexicon {
         Map<Character, List<String>> merged = new HashMap<>(readings);
         for (Map.Entry<Character, List<String>> e : extra.readings.entrySet()) {
             merged.put(e.getKey(), e.getValue());
+        }
+        return new Lexicon(merged);
+    }
+
+    /**
+     * Merged lexicon with append-and-dedup semantics: for each character,
+     * {@code other}'s readings are appended after this lexicon's, dropping
+     * exact duplicates while preserving insertion order (base readings first,
+     * then {@code other}'s). This lets pronunciation packs from different
+     * languages coexist on the same character (e.g. 山 = shan + san).
+     * Single pass, deterministic, no O(n²).
+     */
+    public Lexicon mergedWith(Lexicon other) {
+        Map<Character, LinkedHashSet<String>> acc = new LinkedHashMap<>();
+        for (Map.Entry<Character, List<String>> e : readings.entrySet()) {
+            acc.computeIfAbsent(e.getKey(), k -> new LinkedHashSet<>()).addAll(e.getValue());
+        }
+        for (Map.Entry<Character, List<String>> e : other.readings.entrySet()) {
+            acc.computeIfAbsent(e.getKey(), k -> new LinkedHashSet<>()).addAll(e.getValue());
+        }
+        Map<Character, List<String>> merged = new HashMap<>();
+        for (Map.Entry<Character, LinkedHashSet<String>> e : acc.entrySet()) {
+            merged.put(e.getKey(), List.copyOf(e.getValue()));
         }
         return new Lexicon(merged);
     }

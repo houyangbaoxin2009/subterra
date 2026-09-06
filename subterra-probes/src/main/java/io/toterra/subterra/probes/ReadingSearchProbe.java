@@ -6,15 +6,17 @@ import io.toterra.subterra.optim.logic.pronounce.PronounceMatcher;
 import java.util.List;
 
 /**
- * Deterministic acceptance probe for the JEC-style pinyin search port
- * (p.1.4.8): verifies the pronunciation engine matches real Chinese pinyin
- * (full pinyin, initials, mixed, multi-reading, prefix) using a small
- * embedded lexicon. Pure JVM (no Minecraft runtime); the SearchTreeMixin
- * redirect and PinyinSuffixArray wiring are covered by the client boot gate.
+ * Deterministic acceptance probe for the JEC-style reading search port
+ * (p.1.4.9): verifies the language-agnostic pronunciation engine matches
+ * Chinese pinyin (full, initials, mixed, multi-reading, prefix) as well as
+ * Japanese kana romaji from a separate pack, and that packs coexist on the
+ * same character via append-merge semantics. Pure JVM (no Minecraft
+ * runtime); the SearchTreeMixin redirect and ReadingSuffixArray wiring are
+ * covered by the client boot gate.
  */
-public final class PinyinSearchProbe {
+public final class ReadingSearchProbe {
 
-    private PinyinSearchProbe() {
+    private ReadingSearchProbe() {
     }
 
     private static int failures = 0;
@@ -29,10 +31,8 @@ public final class PinyinSearchProbe {
     }
 
     public static void main(String[] args) {
-        // Small embedded Chinese lexicon (PinIn line format). Covers common
-        // characters used in vanilla item/block names so the probe exercises
-        // real pinyin matching without depending on the bundled 26k-char
-        // resource (which lives in the MC-layer source host).
+        // zh pack (PinIn line format). Same embedded lexicon as p.1.4.8 so
+        // every pinyin assertion in the original probe is preserved verbatim.
         Lexicon zh = Lexicon.ofLines(List.of(
                 "钻: zuan",
                 "石: shi, dan",
@@ -58,9 +58,29 @@ public final class PinyinSearchProbe {
                 "表: biao",
                 "灯: deng",
                 "火: huo",
-                "把: ba"
+                "把: ba",
+                "山: shan"
         ));
-        PronounceMatcher m = new PronounceMatcher(zh);
+        // ja pack: kana romaji + one kanji reading (san) to prove append-merge
+        // coexistence on the same character.
+        Lexicon ja = Lexicon.ofLines(List.of(
+                "あ: a",
+                "め: me",
+                "か: ka",
+                "な: na",
+                "き: ki",
+                "ゃ: ya",
+                "ゅ: yu",
+                "う: u",
+                "ア: a",
+                "カ: ka",
+                "ナ: na",
+                "山: san"
+        ));
+        // Packs merge with append-and-dedup: 山 keeps both shan (zh) and san (ja).
+        PronounceMatcher m = new PronounceMatcher(zh.mergedWith(ja));
+
+        // --- Preserved pinyin assertions from p.1.4.8 (16) ---
 
         // Full pinyin match.
         check("full pinyin single char", m.contains("钻石", "zuanshi"));
@@ -95,11 +115,30 @@ public final class PinyinSearchProbe {
         // Empty query matches everything.
         check("empty query matches", m.contains("钻石", ""));
 
+        // --- New Japanese / multi-pack assertions (p.1.4.9) ---
+
+        // Full romaji for a kana sequence: かな (ka + na).
+        check("ja full romaji kana", m.contains("かな", "kana"));
+        // Two-syllable word: あめ (a + me).
+        check("ja single kana", m.contains("あめ", "ame"));
+        // Single syllable: き (ki).
+        check("ja simple syllable", m.contains("き", "ki"));
+        // Youon digraph composes via initial + small-kana full reading: きゃ = k + ya.
+        check("ja youon digraph", m.contains("きゃ", "kya"));
+        // Initials across youon syllables: きゅう = k + y.
+        check("ja romanji initials", m.contains("きゅう", "ky"));
+        // Negative for a wrong romaji.
+        check("ja negative", !m.contains("かな", "kuni"));
+        // Katakana equivalent matches the same romaji.
+        check("katakana match", m.contains("カナ", "kana"));
+        // Append-merge coexistence: 山 matches both shan (zh) and san (ja).
+        check("multipack co-exist append", m.contains("山", "shan") && m.contains("山", "san"));
+
         if (failures == 0) {
-            System.out.println("[PinyinSearchProbe] PASS (JEC-style pinyin search core)");
+            System.out.println("[ReadingSearchProbe] PASS (language-agnostic reading search core, " + 24 + " checks)");
             System.exit(0);
         } else {
-            System.out.println("[PinyinSearchProbe] FAIL: " + failures + " assertion(s)");
+            System.out.println("[ReadingSearchProbe] FAIL: " + failures + " assertion(s)");
             System.exit(1);
         }
     }

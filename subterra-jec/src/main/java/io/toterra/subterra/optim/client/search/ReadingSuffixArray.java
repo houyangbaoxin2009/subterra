@@ -1,8 +1,8 @@
 // Ported surface from JustEnoughCharacters (github.com/Towdium/JustEnoughCharacters),
-// MIT (c) Towdium. The pinyin matching engine is Subterra's own
+// MIT (c) Towdium. The reading matching engine is Subterra's own
 // (io.toterra.subterra.optim.logic.pronounce); this class mirrors JEC's
 // FakeArray approach: extend SuffixArray and replace its add/generate/search
-// with a pinyin-aware linear scan.
+// with a reading-aware linear scan.
 package io.toterra.subterra.optim.client.search;
 
 import io.toterra.subterra.optim.logic.pronounce.PronounceMatcher;
@@ -13,18 +13,19 @@ import java.util.List;
 
 /**
  * A drop-in replacement for {@link SuffixArray} that matches search queries
- * against pinyin readings as well as the literal text.
+ * against pronunciation readings (pinyin, kana romaji, …) as well as the
+ * literal text.
  *
  * <p>Vanilla {@code SearchTree.plainText} builds a {@code SuffixArray} from
- * the item names; JEC replaces that construction with a pinyin-aware tree.
+ * the item names; JEC replaces that construction with a reading-aware tree.
  * We do the same via a mixin redirect on {@code SearchTree.plainText}, so
- * every creative-inventory / name search gains pinyin support for free.</p>
+ * every creative-inventory / name search gains reading support for free.</p>
  *
  * <p>The scan is linear in the number of entries. For the creative inventory
  * (a few thousand stacks) this is well within a frame budget; the engine
  * keeps the per-character match recursion bounded by the query length.</p>
  */
-public final class PinyinSuffixArray<T> extends SuffixArray<T> {
+public final class ReadingSuffixArray<T> extends SuffixArray<T> {
 
     private final List<Entry<T>> entries = new ArrayList<>();
 
@@ -50,7 +51,7 @@ public final class PinyinSuffixArray<T> extends SuffixArray<T> {
             }
             return all;
         }
-        PronounceMatcher matcher = PinyinSearch.matcher();
+        PronounceMatcher matcher = ReadingSearch.matcher();
         List<T> result = new ArrayList<>();
         for (Entry<T> e : entries) {
             if (matcher.contains(e.key, query)) {

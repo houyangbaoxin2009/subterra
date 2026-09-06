@@ -19,11 +19,12 @@ public class SubterraClient {
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
 
-        // JEC-style pinyin search (ported, MIT): preloads the bundled Chinese
-        // pinyin lexicon; the SearchTreeMixin redirects SearchTree.plainText
-        // to a pinyin-aware SuffixArray so creative-inventory / name searches
-        // match pinyin. Client-only (SearchTree is a client class).
-        io.toterra.subterra.optim.client.search.PinyinSearch.bootstrap(container);
+        // JEC-style reading search (ported, MIT): language-agnostic — loads the
+        // bundled pronunciation packs (zh pinyin, ja kana romaji, …); the
+        // SearchTreeMixin redirects SearchTree.plainText to a reading-aware
+        // SuffixArray so creative-inventory / name searches match readings.
+        // Client-only (SearchTree is a client class).
+        io.toterra.subterra.optim.client.search.ReadingSearch.bootstrap(container);
     }
 
     @SubscribeEvent

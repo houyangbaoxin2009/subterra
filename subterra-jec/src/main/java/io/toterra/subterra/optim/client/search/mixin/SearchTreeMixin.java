@@ -1,7 +1,7 @@
 package io.toterra.subterra.optim.client.search.mixin;
 
-import io.toterra.subterra.optim.client.search.PinyinSearch;
-import io.toterra.subterra.optim.client.search.PinyinSuffixArray;
+import io.toterra.subterra.optim.client.search.ReadingSearch;
+import io.toterra.subterra.optim.client.search.ReadingSuffixArray;
 import net.minecraft.client.searchtree.FullTextSearchTree;
 import net.minecraft.client.searchtree.SearchTree;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 
 /**
  * Replaces the plain-text search tree inside {@link FullTextSearchTree} with a
- * pinyin-aware {@link PinyinSuffixArray}.
+ * reading-aware {@link ReadingSuffixArray}.
  *
  * <p>In Minecraft 1.21.1 {@link SearchTree} is an interface whose static
  * {@code plainText} factory builds a vanilla {@code SuffixArray}. We cannot
@@ -28,14 +28,14 @@ public abstract class SearchTreeMixin {
             method = "<init>",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/searchtree/SearchTree;plainText(Ljava/util/List;Ljava/util/function/Function;)Lnet/minecraft/client/searchtree/SearchTree;")
     )
-    private <T> SearchTree<T> subterra_jec$usePinyinSuffixArray(
+    private <T> SearchTree<T> subterra_jec$useReadingSuffixArray(
             List<T> entries, Function<T, Stream<String>> keyExtractor) {
-        if (PinyinSearch.enabled()) {
-            PinyinSuffixArray<T> array = new PinyinSuffixArray<>();
+        if (ReadingSearch.enabled()) {
+            ReadingSuffixArray<T> array = new ReadingSuffixArray<>();
             for (T entry : entries) {
                 keyExtractor.apply(entry).forEach(text -> array.add(entry, text));
             }
-            // SearchTree is a functional interface; expose the pinyin-aware
+            // SearchTree is a functional interface; expose the reading-aware
             // suffix array's search method directly.
             return array::search;
         }

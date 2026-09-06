@@ -73,8 +73,9 @@ config="subterra-servercore.mixins.json"
 [[mixins]]
 config="subterra-servercore-dynamic.mixins.json"
 
-# JEC-style pinyin search (ported, MIT): SearchTree.plainText redirect to a
-# pinyin-aware SuffixArray so creative-inventory / name searches match pinyin.
+# JEC-style reading search (ported, MIT): SearchTree.plainText redirect to a
+# reading-aware SuffixArray so creative-inventory / name searches match
+# pronunciation packs (zh pinyin, ja kana romaji, ...).
 [[mixins]]
 config="subterra-jec.mixins.json"
 
