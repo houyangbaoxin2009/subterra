@@ -68,6 +68,11 @@ config="subterra-smoothboot.mixins.json"
 [[mixins]]
 config="subterra-servercore.mixins.json"
 
+# ServerCore (clean-room) mixins: entity activation-range — far-away mobs
+# skip their customServerAiStep except on 1-second wake-up intervals.
+[[mixins]]
+config="subterra-servercore-activation.mixins.json"
+
 # ServerCore (ported) mixins: dynamic view/simulation-distance tuning
 # (ChunkMap/MobCategory/PlayerList).
 [[mixins]]

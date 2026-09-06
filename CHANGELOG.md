@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.19] MC-layer shell: entity activation-range / MC 层薄壳：实体激活范围 (2026-09-06)
+
+* MC mixin shell for the p.1.4.15 core: `MobMixin` (new `subterra-servercore-activation.mixins.json`) wraps the `customServerAiStep()` call inside the final `Mob#serverAiStep()` with `@WrapWithCondition`, skipping the brain/behaviour body while the entity is out of the activation range and not on a wake-up interval, so far-away entities stop brain and path-finding work — distance to nearest player, new-entity grace, falling/ recently-hurt immunity and interval wake-up all come from `Activator.isActive` (panic immunity not surfaced: Mob has no brain field; villagers keep their own lobotomize shell) / p.1.4.15 核心的 MC mixin 薄壳：`MobMixin`（新增 `subterra-servercore-activation.mixins.json`）以 `@WrapWithCondition` 包裹 `Mob#serverAiStep()`（final）内 `customServerAiStep()` 调用，实体超激活范围且不在唤醒间隔时跳过脑/行为体，远处实体停止脑与寻路工作——到最近玩家距离、新实体恩惠、下落/受击豁免、间隔唤醒全部来自 `Activator.isActive`（恐慌豁免未表出：Mob 无 brain 字段；村民保留独立脑死亡壳）
+* Boot gate PASS with the mixin applied (`Mixing MobMixin into net.minecraft.world.entity.Mob`) / mixin 生效下开机门禁 PASS
+
 ## [p.1.4.18] MC-layer shell: chunk-ticking cache / MC 层薄壳：区块 tick 缓存 (2026-09-06)
 
 * MC mixin shell for the p.1.4.11 core: `ServerChunkCacheMixin` (registered in new `subterra-servercore-loading.mixins.json`) redirects the per-tick full loaded-chunk scan inside `ServerChunkCache#tickChunks()` (`ChunkMap#getChunks()`) to a cached list of currently-ticking holders rebuilt once per second — chunk enter/leave takes effect with at most 1s delay (the core's contract), per-tick scan cost drops to the size of the ticking set; `ChunkMapAccessor` (@Invoker) exposes the package-private iterator; core gains `refreshedLastUpdate()` + public `isRefreshBoundary` (probe 13 → 17 checks) / p.1.4.11 核心的 MC mixin 薄壳：`ServerChunkCacheMixin`（注册进新增 `subterra-servercore-loading.mixins.json`）将 `ServerChunkCache#tickChunks()` 内每 tick 对全部已加载区块的扫描（`ChunkMap#getChunks()`）重定向到每隔 1 秒重建一次的"正在 tick 的 holder"缓存列表——区块进出最多延迟 1 秒生效（核心契约），每 tick 扫描代价降至 ticking 集大小；`ChunkMapAccessor`（@Invoker）暴露包私有迭代器；核心新增 `refreshedLastUpdate()` + 公开 `isRefreshBoundary`（探针 13 → 17 项）
