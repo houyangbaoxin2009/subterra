@@ -87,6 +87,11 @@ public class Subterra {
         // Logging module boot-time wiring: td config, sinks, module registry,
         // and the crash-report diagnostics callable.
         SubterraLogging.bootstrap();
+
+        // C2ME coexistence (adopted, MIT, optional peer): detects the official
+        // C2ME jar (ModList is queryable only after mod loading) and logs
+        // coexistence guidance on the shared control surfaces; no code bundled.
+        io.toterra.subterra.optim.worldgen.async.C2meCoexistence.bootstrap(modContainer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
