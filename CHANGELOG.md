@@ -2,6 +2,12 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.12] Self-developed core: per-player mobcap / 自研核心：按玩家 mobcap (2026-09-06)
+
+* New pure-JDK core `io.toterra.subterra.optim.entity.spawning.MobcapCalculator` (clean-room re-key of the per-player-spawns family / ServerCore mob-spawning MIT face, no upstream code): the global mobcap is divided among participating players (`Quota(capacity, added, players)` with equal floor share), a spawn location is allowed while any involved player still has free quota (overlapping areas take the fullest), special spawn sources may borrow `additional` capacity against the enforced pool; integer math, deterministic, no O(n²) / 新增纯 JDK 核心 `io.toterra.subterra.optim.entity.spawning.MobcapCalculator`（对 per-player-spawns 家族 / ServerCore mob-spawning 的 MIT 面 clean-room 重写，不带上游代码）：全局 mobcap 在参与玩家间均分（`Quota(capacity, added, players)` 向下取整均分），任一关联玩家仍有配额即允许该处刷怪（重叠区取最满），特殊刷怪源可借 `additional` 容量计入强制配额；整数运算、确定性、无 O(n²)
+* Deterministic probe `MobcapProbe` (14 checks) wired into `probeAcceptance` — validation, per-player division, additional-capacity borrowing, overlap-takes-fullest semantics, boundaries / 确定性探针 `MobcapProbe`（14 项断言）接入 `probeAcceptance`——校验、按玩家均分、加池借容、重叠取最满语义、边界
+* MC-layer `NaturalSpawner`/`MobCategory` wiring to be landed later (mixin shell; the core is probe-ready now) / MC 层 `NaturalSpawner`/`MobCategory` 接线后置（mixin 薄壳；核心现即可探针验收）
+
 ## [p.1.4.11] Self-developed core: ticking-chunk cache / 自研核心：区块 tick 缓存 (2026-09-06)
 
 * New pure-JDK core `io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache` (clean-room re-key of the ServerCore "cache-ticking-chunks" concept, MIT/GPL-mixed surface, no upstream code): the per-tick full iteration over all loaded chunks is replaced by a cached snapshot rebuilt once per second (every 20 ticks) — `update(tickCount, ticking)` feeds the full set each tick, a sorted immutable `long[]` snapshot is rebuilt only on refresh boundaries, `isTicking(pos)` is a binary search (O(log n), no O(n²)); chunk enter/leave takes effect with at most a 1-second delay / 新增纯 JDK 核心 `io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache`（对 ServerCore "cache-ticking-chunks" 概念的 clean-room 重写，MIT/GPL 混许可面，不带上游代码）：将每 tick 对全部已加载区块的全量迭代替换为每隔 1 秒（20 刻）重建一次的缓存快照——`update(tickCount, ticking)` 每 tick 喂入全集，仅刷新边界重建排序不可变 `long[]` 快照，`isTicking(pos)` 为二分查找（O(log n)、无 O(n²)）；区块进出最多延迟 1 秒生效
