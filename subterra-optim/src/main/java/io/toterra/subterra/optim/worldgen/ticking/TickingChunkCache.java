@@ -23,11 +23,13 @@ public final class TickingChunkCache {
 
     private long[] active = new long[0]; // sorted snapshot, never mutated after rebuild
     private int lastRefreshTick = -1;
+    private boolean refreshedLastUpdate;
 
     /**
      * Feeds the full current set of ticking chunk positions once per tick
      * (positions in {@code ChunkPos.toLong(x, z)} encoding). The snapshot is
-     * only rebuilt when {@code tickCount} reaches the next refresh boundary.
+     * only rebuilt when {@code tickCount} reaches the next refresh boundary;
+     * {@link #refreshedLastUpdate()} reports whether this call rebuilt it.
      */
     public void update(int tickCount, Collection<Long> ticking) {
         if (lastRefreshTick < 0 || tickCount > lastRefreshTick && isRefreshBoundary(tickCount)) {
@@ -39,10 +41,19 @@ public final class TickingChunkCache {
             Arrays.sort(next);
             this.active = next;
             this.lastRefreshTick = tickCount;
+            this.refreshedLastUpdate = true;
+        } else {
+            this.refreshedLastUpdate = false;
         }
     }
 
-    private static boolean isRefreshBoundary(int tickCount) {
+    /** True when the last {@link #update} call rebuilt the snapshot. */
+    public boolean refreshedLastUpdate() {
+        return refreshedLastUpdate;
+    }
+
+    /** True when {@code tickCount} is a snapshot refresh boundary. */
+    public static boolean isRefreshBoundary(int tickCount) {
         return tickCount % REFRESH_INTERVAL == 0;
     }
 

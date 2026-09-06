@@ -58,6 +58,17 @@ public final class TickingChunkCacheProbe {
         check("refresh boundary applies", !c.isTicking(pos(0, 0)) && c.isTicking(pos(2, 0)));
         check("snapshot replaces", c.size() == 1);
 
+        // refreshedLastUpdate reports rebuild events.
+        TickingChunkCache ref = new TickingChunkCache();
+        ref.update(0, List.of(pos(0, 0)));
+        check("first update reports refreshed", ref.refreshedLastUpdate());
+        ref.update(1, List.of(pos(0, 0)));
+        check("in-interval update not refreshed", !ref.refreshedLastUpdate());
+        ref.update(20, List.of(pos(0, 0)));
+        check("boundary update reports refreshed", ref.refreshedLastUpdate());
+        check("refresh boundary helper", TickingChunkCache.isRefreshBoundary(20)
+                && TickingChunkCache.isRefreshBoundary(40) && !TickingChunkCache.isRefreshBoundary(21));
+
         // Another boundary 40 ticks later rebuilds again.
         c.update(40, List.of(pos(3, 0), pos(3, 1), pos(3, 2)));
         check("second rebuild", c.size() == 3 && c.isTicking(pos(3, 1)));
@@ -85,7 +96,7 @@ public final class TickingChunkCacheProbe {
                 && !big.isTicking(pos(-1, -1)));
 
         if (failures == 0) {
-            System.out.println("[TickingChunkCacheProbe] PASS (chunk-ticking cache core, " + 13 + " checks)");
+            System.out.println("[TickingChunkCacheProbe] PASS (chunk-ticking cache core, " + 17 + " checks)");
             System.exit(0);
         } else {
             System.out.println("[TickingChunkCacheProbe] FAIL: " + failures + " assertion(s)");

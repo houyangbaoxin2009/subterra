@@ -1,0 +1,16 @@
+{
+  "required": false,
+  "minVersion": "0.8.7",
+  "package": "io.toterra.subterra.optim.worldgen.ticking.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChunkMapAccessor"
+  ],
+  "client": [],
+  "server": [
+    "ServerChunkCacheMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

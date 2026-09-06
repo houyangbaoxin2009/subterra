@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.1.4.18] MC-layer shell: chunk-ticking cache / MC 层薄壳：区块 tick 缓存 (2026-09-06)
+
+* MC mixin shell for the p.1.4.11 core: `ServerChunkCacheMixin` (registered in new `subterra-servercore-loading.mixins.json`) redirects the per-tick full loaded-chunk scan inside `ServerChunkCache#tickChunks()` (`ChunkMap#getChunks()`) to a cached list of currently-ticking holders rebuilt once per second — chunk enter/leave takes effect with at most 1s delay (the core's contract), per-tick scan cost drops to the size of the ticking set; `ChunkMapAccessor` (@Invoker) exposes the package-private iterator; core gains `refreshedLastUpdate()` + public `isRefreshBoundary` (probe 13 → 17 checks) / p.1.4.11 核心的 MC mixin 薄壳：`ServerChunkCacheMixin`（注册进新增 `subterra-servercore-loading.mixins.json`）将 `ServerChunkCache#tickChunks()` 内每 tick 对全部已加载区块的扫描（`ChunkMap#getChunks()`）重定向到每隔 1 秒重建一次的"正在 tick 的 holder"缓存列表——区块进出最多延迟 1 秒生效（核心契约），每 tick 扫描代价降至 ticking 集大小；`ChunkMapAccessor`（@Invoker）暴露包私有迭代器；核心新增 `refreshedLastUpdate()` + 公开 `isRefreshBoundary`（探针 13 → 17 项）
+* Boot gate PASS with both mixins applied (`Mixing ServerChunkCacheMixin into net.minecraft.server.level.ServerChunkCache`, `Mixing ChunkMapAccessor into net.minecraft.server.level.ChunkMap`) / 两 mixin 生效下开机门禁 PASS
+
 ## [p.1.4.17] Self-developed core: sync-load guard / 自研核心：同步加载守卫 (2026-09-06)
 
 * New pure-JDK core `io.toterra.subterra.optim.server.loading.SyncLoadGuard` (clean-room re-key of the ServerCore "reduce-sync-loads" concept, GPL family surface re-written from contract, no upstream code): a known hot-spot registry (map ticking / pathfinding / entity teleport / command level / locate / compass / projectile hits / village siege) with a master-switch `Setting`; `shouldApply(setting, hotSpot)` gates whether each site consults the loaded-chunk guard instead of synch-blocking a not-yet-ready chunk; immutable, deterministic, no O(n²) / 新增纯 JDK 核心 `io.toterra.subterra.optim.server.loading.SyncLoadGuard`（对 ServerCore "reduce-sync-loads" 概念的 clean-room 重写，GPL 族面按契约自研、不带上游代码）：已知同步加载热点注册表（地图 tick / 寻路 / 实体传送 / 命令跨维 / 定位 / 指南针 / 投射物命中 / 村庄袭击）+ 主开关 `Setting`；`shouldApply(setting, hotSpot)` 决定各站点是否改查已加载区块守卫而非同步阻塞未就绪区块；不可变、确定性、无 O(n²)

@@ -73,6 +73,11 @@ config="subterra-servercore.mixins.json"
 [[mixins]]
 config="subterra-servercore-dynamic.mixins.json"
 
+# ServerCore (clean-room) mixins: chunk-ticking cache — the per-tick full
+# loaded-chunk scan in ServerChunkCache.tickChunks is rebuilt once per second.
+[[mixins]]
+config="subterra-servercore-loading.mixins.json"
+
 # JEC-style reading search (ported, MIT): SearchTree.plainText redirect to a
 # reading-aware SuffixArray so creative-inventory / name searches match
 # pronunciation packs (zh pinyin, ja kana romaji, ...).
