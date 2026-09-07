@@ -12,6 +12,8 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import io.toterra.subterra.Subterra;
 
+import java.util.List;
+
 /**
  * Registration + seed-wiring hub for Subterra's MC-layer worldgen adoption
  * (p.1.8.21, td-gated): makes "Subterra" selectable as a world type by
@@ -100,9 +102,21 @@ public final class SubterraWorldgen {
 
     /** Captures the world seed once world data exists (well before chunk generation). */
     public static void onServerStarting(ServerStartingEvent event) {
-        worldSeed = event.getServer().getWorldData().worldGenOptions().seed();
+        MinecraftServer server = event.getServer();
+        worldSeed = server.getWorldData().worldGenOptions().seed();
         Subterra.LOGGER.info("Subterra worldgen: captured world seed {} for {}",
                 worldSeed, DENSITY_TYPE_ID);
+        var registryAccess = server.registryAccess();
+        List<ResourceLocation> worldPresets = registryAccess
+                .registryOrThrow(Registries.WORLD_PRESET).keySet().stream()
+                .filter(k -> k.getNamespace().equals("subterra"))
+                .toList();
+        List<ResourceLocation> noiseSettings = registryAccess
+                .registryOrThrow(Registries.NOISE_SETTINGS).keySet().stream()
+                .filter(k -> k.getNamespace().equals("subterra"))
+                .toList();
+        Subterra.LOGGER.info("Subterra worldgen: present subterra world_presets={} "
+                + "noise_settings={}", worldPresets, noiseSettings);
     }
 
     /**

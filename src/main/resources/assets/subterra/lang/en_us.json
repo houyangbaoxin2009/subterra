@@ -6,5 +6,6 @@
   "subterra.configuration.section.subterra.common.toml.title": "Subterra Configs",
   "subterra.configuration.l1_verify_on_boot": "L1 Verify on Boot",
 
-  "subterra.world_preset.subterra": "Subterra"
+  "subterra.world_preset.subterra": "Subterra",
+  "generator.subterra.subterra": "Subterra"
 }

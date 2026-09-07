@@ -6,5 +6,6 @@
   "subterra.configuration.section.subterra.common.toml.title": "Subterra 配置",
   "subterra.configuration.l1_verify_on_boot": "启动时进行 L1 校验",
 
-  "subterra.world_preset.subterra": "Subterra（自定义地形）"
+  "subterra.world_preset.subterra": "Subterra（自定义地形）",
+  "generator.subterra.subterra": "Subterra（自定义地形）"
 }
