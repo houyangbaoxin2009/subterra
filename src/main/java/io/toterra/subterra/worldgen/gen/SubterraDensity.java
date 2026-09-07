@@ -129,6 +129,8 @@ public final class SubterraDensity implements DensityFunction {
     // ---- lazily seeded router cache (keyed by the world seed) ----
     private volatile long cachedSeed = Long.MIN_VALUE;
     private volatile NoiseRouter cachedRouter;
+    /** Logged once per JVM if the router cache ever sees a mid-world seed change. */
+    private static volatile boolean SEED_SWITCH_LOGGED = false;
 
     public SubterraDensity(Kind kind) {
         this.kind = Objects.requireNonNull(kind, "kind");
@@ -141,13 +143,10 @@ public final class SubterraDensity implements DensityFunction {
 
     @Override
     public double compute(DensityFunction.FunctionContext context) {
-        long seed = SubterraWorldgen.worldSeedOrUnknown();
-        // Before a server-seed capture (e.g. datapack / datagen wiring) fall back to a
-        // fixed seed so future compute is still well-defined; the preset is unused by
-        // default so this path is only exercised when the Subterra preset is actually selected.
-        if (seed == SubterraWorldgen.SEED_UNKNOWN) {
-            seed = 0L;
-        }
+        // Hot-path seed query: reads the captured world seed directly (phase-guaranteed at
+        // ServerAboutToStart), never touches ServerLifecycleHooks here, never drifts between
+        // threads, and logs loudly once if the fallback constant is ever used.
+        long seed = SubterraWorldgen.worldSeed();
         return routerFor(seed).finalDensity()
                 .eval((double) context.blockX(), (double) context.blockY(), (double) context.blockZ());
     }
@@ -191,6 +190,15 @@ public final class SubterraDensity implements DensityFunction {
         synchronized (this) {
             current = cachedRouter;
             if (current == null || cachedSeed != seed) {
+                // A cached router for a DIFFERENT seed means the seed drifted mid-world.
+                // Never silently switch: log loudly once (would have caught any drift).
+                if (cachedRouter != null && cachedSeed != seed && !SEED_SWITCH_LOGGED) {
+                    SEED_SWITCH_LOGGED = true;
+                    io.toterra.subterra.Subterra.LOGGER.error(
+                            "Subterra density: world seed changed mid-world from {} to {}; terrain is regenerating "
+                                    + "with the new seed (this should never occur with phase-guaranteed capture).",
+                            cachedSeed, seed);
+                }
                 current = NoiseRouter.overworld(seed, kind.minY, kind.maxY);
                 cachedSeed = seed;
                 cachedRouter = current;

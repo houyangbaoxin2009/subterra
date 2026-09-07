@@ -6,7 +6,9 @@ import net.minecraft.server.MinecraftServer;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
@@ -55,6 +57,9 @@ public final class SubterraWorldgen {
     /** Sentinel: no world seed captured yet. */
     public static final long SEED_UNKNOWN = Long.MIN_VALUE;
 
+    /** Fixed deterministic seed used only if capture is impossible (pre-server init / datagen wiring). */
+    public static final long FALLBACK_SEED = 0L;
+
     /** The density-function type id: {@code {"type": "subterra:density", ...}}. */
     public static final ResourceLocation DENSITY_TYPE_ID =
             ResourceLocation.parse("subterra:density");
@@ -67,6 +72,8 @@ public final class SubterraWorldgen {
 
     private static volatile long worldSeed = SEED_UNKNOWN;
     private static volatile boolean densityTypeRegistered = false;
+    /** Only the first hot-path fallback-to-constant is logged loudly per JVM. */
+    private static volatile boolean fallbackLogged = false;
 
     private SubterraWorldgen() {
     }
@@ -78,7 +85,11 @@ public final class SubterraWorldgen {
      */
     public static void bootstrap(IEventBus modEventBus) {
         modEventBus.addListener(SubterraWorldgen::registerDensityFunctionType);
+        // Capture the seed as early as guaranteed (server data is present before any
+        // chunk generation) and clear it on stop so a world switch never reuses a stale seed.
+        NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onServerAboutToStart);
         NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onServerStarting);
+        NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onServerStopped);
     }
 
     /**
@@ -100,12 +111,16 @@ public final class SubterraWorldgen {
                 + "(preset {} / noise_settings {})", DENSITY_TYPE_ID, WORLD_PRESET, NOISE_SETTINGS_OVERWORLD);
     }
 
-    /** Captures the world seed once world data exists (well before chunk generation). */
+    /** Captures the world seed at {@link ServerAboutToStartEvent}: world data exists,
+     * strictly before any chunk generation, so the leaf is never evaluated seedless. */
+    public static void onServerAboutToStart(ServerAboutToStartEvent event) {
+        captureSeed(event.getServer());
+    }
+
+    /** Recomputes + logs the captured seed and the shipped subterra datapack ids. */
     public static void onServerStarting(ServerStartingEvent event) {
         MinecraftServer server = event.getServer();
-        worldSeed = server.getWorldData().worldGenOptions().seed();
-        Subterra.LOGGER.info("Subterra worldgen: captured world seed {} for {}",
-                worldSeed, DENSITY_TYPE_ID);
+        captureSeed(server);
         var registryAccess = server.registryAccess();
         List<ResourceLocation> worldPresets = registryAccess
                 .registryOrThrow(Registries.WORLD_PRESET).keySet().stream()
@@ -119,6 +134,43 @@ public final class SubterraWorldgen {
                 + "noise_settings={}", worldPresets, noiseSettings);
     }
 
+    /** Clears the captured seed on server stop so a world switch never reuses a stale seed. */
+    public static void onServerStopped(ServerStoppedEvent event) {
+        worldSeed = SEED_UNKNOWN;
+        fallbackLogged = false;
+        Subterra.LOGGER.info("Subterra worldgen: world seed cleared (server stopped)");
+    }
+
+    /** Shared capture: read the authoritative world seed from {@code worldGenOptions}. */
+    private static void captureSeed(MinecraftServer server) {
+        if (server == null || server.getWorldData() == null) {
+            return;
+        }
+        worldSeed = server.getWorldData().worldGenOptions().seed();
+        Subterra.LOGGER.info("Subterra worldgen: captured world seed {} for {}",
+                worldSeed, DENSITY_TYPE_ID);
+    }
+
+    /**
+     * Hot-path seed getter used by {@link SubterraDensity#compute}. Returns the captured
+     * world seed, or the process-wide {@link #FALLBACK_SEED} if capture has not happened
+     * (pre-server-init / datagen wiring), logging the fallback loudly once per JVM. This
+     * never touches {@link ServerLifecycleHooks} (thread-safe, allocation-free, consistent —
+     * a seed can never drift between threads mid-world).
+     */
+    public static long worldSeed() {
+        long seed = SubterraWorldgen.worldSeed;
+        if (seed != SEED_UNKNOWN) {
+            return seed;
+        }
+        if (!fallbackLogged) {
+            fallbackLogged = true;
+            Subterra.LOGGER.error("Subterra worldgen: computed density BEFORE world seed capture; "
+                    + "using fixed fallback seed {} (should not happen after ServerAboutToStart)", FALLBACK_SEED);
+        }
+        return FALLBACK_SEED;
+    }
+
     /**
      * The captured world seed, or {@link #SEED_UNKNOWN} if no server is live yet.
      * Stored {@code volatile} so the multi-threaded chunk-generation workers observe
@@ -126,6 +178,7 @@ public final class SubterraWorldgen {
      * a boot (defensive; see {@link #onServerStarting}), falls back to asking
      * {@link ServerLifecycleHooks#getCurrentServer()} for the live server's seed once,
      * so {@link SubterraDensity} is always seed-sensitive by the time a chunk generates.
+     * Not used on the hot path (use {@link #worldSeed()}).
      */
     public static long worldSeedOrUnknown() {
         long seed = SubterraWorldgen.worldSeed;
