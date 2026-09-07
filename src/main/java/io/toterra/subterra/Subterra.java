@@ -80,6 +80,11 @@ public class Subterra {
         // density-function type and captures the world seed so "Subterra" can be
         // selected as a world generator. Zero effect while the preset is unused.
         io.toterra.subterra.worldgen.gen.SubterraWorldgen.bootstrap(modEventBus);
+
+        // Worldgen option gate (p.1.8.22): loads config/subterra/worldgen.td and
+        // logs whether the Subterra generator is the default — OFF unless enabled
+        // via config ([ use_subterra_generator = true ]) or API. No boot impact.
+        io.toterra.subterra.worldgen.gen.WorldgenConfig.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
