@@ -23,26 +23,40 @@ import io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand;
  *   initial = overworldSlide( clamp(4*qn(depthNoJag*factor) - 0.703125, -64, 64), y )
  *   cheese  = 4*qn((depth + jaggedness*halfNeg(jagged)) * factor) + base3d
  *   final   = min( overworldSlide( rangeChoice(cheese, -1e6, 1.5625,
- *                                                min(cheese, 5*entrances), cheese) ), noodle )
+ *                                                min(cheese, 5*entrances),
+ *                                                caveFamily(cheese)) ),
+ *                   noodle )
  * </pre>
  *
  * with {@code qn = quarter_negative}, {@code blend_alpha = 1} (a fresh world with no
  * old-chunk blending) and {@code jagged} the {@code "minecraft:jagged"} field at
  * {@code xz_scale = 1500}. The {@code offset} and {@code factor} climate terms are the
- * faithful 1.21.1 2-D splines over {@code continents() × erosion()} ({@link Spline2D},
- * see {@link #OFFSET_SPLINE} / {@link #FACTOR_SPLINE}), which restore a normal
- * land/sea elevation distribution (p.1.8.26); the jaggedness multiplier is a compact
- * {@link SplineFn} 1-D arm. All leaves are pure functions of the router's seed, so the
- * result is deterministic, finite and allocation-free in the hot path.
+ * faithful 1.21.1 nested {@code continents → erosion → ridge} splines
+ * ({@link ClimateSpline}, {@link ClimateSpline#OFFSET} / {@link ClimateSpline#FACTOR}),
+ * sampled with the router's real {@code ridges()} field at the surface point
+ * (p.1.8.27A upgrades the p.1.8.26 2-D reduction that fixed the ridge axis at folded = 0),
+ * and the jaggedness multiplier is the same nested spline ({@link ClimateSpline#JAGGEDNESS})
+ * instead of the old compact 1-D arm. Since p.1.8.27B the {@code when_out_of_range} of the
+ * cheese range-choice is the vanilla cave family ({@link CaveFamilyFn}: cheese/spaghetti/
+ * pillars + entrances) and the outer {@code min} is the noodle-cave arm
+ * ({@link NoodleFn}), closing the "noodle/normal-caves disabled" artifact gap. All
+ * leaves are pure functions of the router's seed, so the result is deterministic,
+ * finite and allocation-free in the hot path.
 
  * <p>主世界复合密度场装配（p.1.8.14），在既有 {@link NoiseRouter} 的气候字段
  * （{@code continents}/{@code erosion}/{@code ridges}）之上、严格按已验证的 1.21.1
  * 配方构造路由器的三个被修正的组合字段 —— {@code depth}、
  * {@code initialDensityWithoutJaggedness}、{@code finalDensity}。配方见上。
- * {@code offset}、{@code factor} 气候项采用真实的 1.21.1 二维样条
- * {@code continents() × erosion()}（{@link Spline2D}，见 {@link #OFFSET_SPLINE}/
- * {@link #FACTOR_SPLINE}），以此恢复正常的海陆高程分布（p.1.8.26）；锯齿倍数为
- * {@link SplineFn} 一维支。所有叶子都是路由器种子的纯函数，故结果确定、有限、热路径零分配。
+ * {@code offset}、{@code factor} 气候项采用真实的 1.21.1 嵌套
+ * {@code continents → erosion → ridge} 样条（{@link ClimateSpline}，
+ * {@link ClimateSpline#OFFSET} / {@link ClimateSpline#FACTOR}），并在表面点采样路由器的
+ * 真实 {@code ridges()} 场（p.1.8.27A 将 p.1.8.26 的二维归约升级为真实 ridge 扭曲；
+ * 旧归约把 ridge 轴固定在 folded=0）；锯齿倍数为同一嵌套样条
+ * （{@link ClimateSpline#JAGGEDNESS}），取代旧的一维紧凑支。自 p.1.8.27B 起，奶酪
+ * range-choice 的 {@code when_out_of_range} 采用原生洞穴族（{@link CaveFamilyFn}：
+ * cheese/spaghetti/pillars + entrances）、外层 {@code min} 采用面条洞穴支
+ * （{@link NoodleFn}），从而闭合"面条/常规洞穴被禁用"的伪影缺口。所有叶子都是
+ * 路由器种子的纯函数，故结果确定、有限、热路径零分配。
  */
 public final class DensityComposite {
 
@@ -79,18 +93,19 @@ public final class DensityComposite {
         Density erosion = router.erosion();
         Density ridges = router.ridges();
 
-        // --- climate coordinate splines (p.1.8.26): faithful 2-D continents×erosion ---
+        // --- climate coordinate splines (p.1.8.27A): faithful 3-axis continents×erosion×ridge ---
         // blend_alpha = 1 (no old-chunk blending), so offset collapses to
-        // spline(continents,erosion) + OFFSET_BASE and factor to spline(continents,erosion);
-        // both are the vanilla 2-D climate spline (innermost ridge axis reduced at ridge=0).
-        Density offsetDensity = (x, y, z) -> OFFSET_BASE
-                + OFFSET_SPLINE.eval(continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z));
-        Density factorDensity = (x, y, z) ->
-                FACTOR_SPLINE.eval(continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z));
-        Density jaggednessFactor = (x, y, z) -> spline1D(continents,
-                new double[]{-0.11, 0.03, 0.65, 1.0},
-                new double[]{0.0, 0.5, 0.1, 0.6},
-                new double[]{0.0, 0.0, 0.0, 0.0}, x, z);
+        // spline(continents,erosion,ridge) + OFFSET_BASE and factor to
+        // spline(continents,erosion,ridge); the vanilla nested splines are evaluated
+        // by {@link ClimateSpline} with the real {@code ridges()} field sampled at the
+        // surface point (the p.1.8.26 Spline2D reduction fixed the ridge axis at
+        // folded = 0; this upgrades it to the actual ridge warp).
+        Density offsetDensity = (x, y, z) -> OFFSET_BASE + ClimateSpline.OFFSET.eval(
+                continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
+        Density factorDensity = (x, y, z) -> ClimateSpline.FACTOR.eval(
+                continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
+        Density jaggednessFactor = (x, y, z) -> ClimateSpline.JAGGEDNESS.eval(
+                continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
 
         // --- jagged / base3d / entrance deterministic noise leaves (over the seed) ---
         Density jaggedNoise = noise2d(seed, "minecraft:jagged", 1500.0);
@@ -113,9 +128,14 @@ public final class DensityComposite {
                 cheeseDepth.eval(x, y, z) * factorDensity.eval(x, y, z));
         Density slopedCheese = add(cheeseQn, base3d);
         Density entrances = noise3d(seed, "minecraft:caves_entrances", 0.08, 0.08);
+        // p.1.8.27B: the when_out_of_range of the cheese range-choice is the vanilla cave
+        // family (cheese/spaghetti/pillars + entrances) instead of the raw sloped cheese;
+        // and the outer final_density term is the noodle-cave arm (was a no-op NOODLE_FLOOR).
+        Density caveFamily = CaveFamilyFn.overworld(seed, slopedCheese);
         Density finalCheese = rangeChoice(slopedCheese, -1.0e6, 1.5625,
-                min(slopedCheese, mul(constant(5.0), entrances)), slopedCheese);
-        Density finalDensity = min(SlideFn.overworld(finalCheese), constant(NOODLE_FLOOR));
+                min(slopedCheese, mul(constant(5.0), entrances)), caveFamily);
+        Density noodle = NoodleFn.overworld(seed);
+        Density finalDensity = min(SlideFn.overworld(finalCheese), noodle);
 
         String td = "[ seed = " + seed + ", minY = " + minY + ", maxY = " + maxY + " ]";
         return new Overworld(depth, initialDensity, finalDensity, td);
@@ -183,8 +203,6 @@ public final class DensityComposite {
     public static final double CHEESE_SCALE = 4.0;
     public static final double CHEESE_RANGE_MIN = -1.0e6;
     public static final double CHEESE_RANGE_MAX = 1.5625;
-    /** Noodle excluded (rendered as a no-op floor in this composite); positive keeps the cheese. */
-    public static final double NOODLE_FLOOR = 1.0e12;
 
     /** Rebuilds an {@link Overworld} from a {@code td()} snippet (default block range). */
     public static Overworld fromTd(String source) {
@@ -215,12 +233,6 @@ public final class DensityComposite {
     }
 
     // ============================ composition helpers ============================
-
-    /** 1-D spline over {@code coordinate} evaluated at {@code (x, z)} (y-independent). */
-    static double spline1D(Density coordinate, double[] loc, double[] val, double[] der, double x, double z) {
-        double c = coordinate.eval(x, 0.0, z);
-        return SplineFn.eval(loc, val, der, c);
-    }
 
     /** {@code a + b}. */
     private static Density add(Density a, Density b) {

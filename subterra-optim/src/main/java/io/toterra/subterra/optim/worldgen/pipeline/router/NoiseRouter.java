@@ -3,6 +3,7 @@ package io.toterra.subterra.optim.worldgen.pipeline.router;
 import java.util.Objects;
 
 import io.toterra.subterra.optim.worldgen.pipeline.composite.DensityComposite;
+import io.toterra.subterra.optim.worldgen.pipeline.composite.ShiftedNoiseFn;
 import io.toterra.subterra.optim.worldgen.pipeline.composite.SlideFn;
 import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
 import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
@@ -306,15 +307,15 @@ public final class NoiseRouter {
         double midY = (minY + maxY) / 2.0;
 
         // --- per-noise climate / aquifer fields (exact vanilla labels + data) ---
-        Density cont = noise(worldSeed, "minecraft:continents",
+        Density contRaw = noise(worldSeed, "minecraft:continents",
                 CONTINENTS_FIRST_OCTAVE, CONTINENTS_AMPLITUDES, 1.0, 1.0, 1.0);
-        Density eros = noise(worldSeed, "minecraft:erosion",
+        Density erosRaw = noise(worldSeed, "minecraft:erosion",
                 EROSION_FIRST_OCTAVE, EROSION_AMPLITUDES, 1.0, 1.0, 1.0);
-        Density ridge = noise(worldSeed, "minecraft:ridge",
+        Density ridgeRaw = noise(worldSeed, "minecraft:ridge",
                 RIDGE_FIRST_OCTAVE, RIDGE_AMPLITUDES, 1.0, 1.0, 1.0);
 
         // shift_x / shift_z share the SHIFT ("minecraft:offset") parameters.
-        Density shift = noise(worldSeed, "minecraft:offset",
+        Density shiftRaw = noise(worldSeed, "minecraft:offset",
                 SHIFT_FIRST_OCTAVE, SHIFT_AMPLITUDES, 1.0, 1.0, 1.0);
 
         Density tempRaw = noise(worldSeed, "minecraft:temperature",
@@ -322,11 +323,20 @@ public final class NoiseRouter {
         Density vegRaw = noise(worldSeed, "minecraft:vegetation",
                 VEGETATION_FIRST_OCTAVE, VEGETATION_AMPLITUDES, 1.0, 1.0, 1.0);
 
-        // temperature()/vegetation() = shiftedNoise2d(shiftX, shiftZ, 0.25, ...):
-        // domain-shift x/z by 0.25 * the shift noise (reduced to a 3-D shift).
-        double shiftScale = 0.25;
-        Density temperature = shifted2d(tempRaw, shift, shiftScale);
-        Density vegetation = shifted2d(vegRaw, shift, shiftScale);
+        // p.1.8.27A: the vanilla climate warp. overworld.json's five climate fields are
+        // shifted_noise over shift_x/shift_z (verified via the shipped 1.21.1 client jar
+        // data/minecraft/worldgen/density_function/{shift_x,shift_z}.json and the
+        // ShiftA/ShiftB bytecode): shift_x(x,z) = 4*offset(0.25x, 0, 0.25z) and
+        // shift_z(x,z) = 4*offset(0.25z, 0.25x, 0) — both y-independent. Every climate
+        // leaf is then sampled at (x*0.25 + shift_x, 0, z*0.25 + shift_z).
+        Density shiftX = shiftX(shiftRaw);
+        Density shiftZ = shiftZ(shiftRaw);
+        double climateScale = 0.25;
+        Density temperature = ShiftedNoiseFn.shiftedNoise2d(tempRaw, shiftX, shiftZ, climateScale);
+        Density vegetation = ShiftedNoiseFn.shiftedNoise2d(vegRaw, shiftX, shiftZ, climateScale);
+        Density continents = ShiftedNoiseFn.shiftedNoise2d(contRaw, shiftX, shiftZ, climateScale);
+        Density erosion = ShiftedNoiseFn.shiftedNoise2d(erosRaw, shiftX, shiftZ, climateScale);
+        Density ridges = ShiftedNoiseFn.shiftedNoise2d(ridgeRaw, shiftX, shiftZ, climateScale);
 
         Density barrier = noise(worldSeed, "minecraft:aquifer_barrier", -3, single(), 1.0,
                 BARRIER_XZ_SCALE, 1.0);
@@ -349,24 +359,25 @@ public final class NoiseRouter {
         // --- composite fields: REDUCED stand-ins (p.1.8.12), replaced below (p.1.8.14) ---
         // These laminas are used only to form a throwaway base router whose climate
         // fields feed DensityComposite; the final router carries the corrected fields.
-        Density baseDepth = (x, y, z) -> 2.0 * (y - midY) / height + 0.5 * eros.eval(x, y, z);
-        Density baseInitial = (x, y, z) -> 4.0 - 1.5625 * (1.0 + 0.5 * cont.eval(x, y, z) + 0.5 * eros.eval(x, y, z));
+        Density baseDepth = (x, y, z) -> 2.0 * (y - midY) / height + 0.5 * erosion.eval(x, y, z);
+        Density baseInitial = (x, y, z) -> 4.0 - 1.5625 * (1.0 + 0.5 * continents.eval(x, y, z)
+                + 0.5 * erosion.eval(x, y, z));
         Density baseFinal = (x, y, z) -> {
             double d = baseInitial.eval(x, y, z);
             double vertical = 2.0 * (y - midY) / height;
-            return vertical + 0.5 * d + 0.25 * ridge.eval(x, y, z);
+            return vertical + 0.5 * d + 0.25 * ridges.eval(x, y, z);
         };
 
         // p.1.8.14: install the vanilla-compatible composite pipeline (spline / slide /
         // jaggedness / shiftedNoise / range-choice) onto depth(8), initial(10), final(11).
         NoiseRouter base = new NoiseRouter(worldSeed, barrier, floodedness, spread, lava,
-                temperature, vegetation, cont, eros, baseDepth, ridge, baseInitial, baseFinal,
+                temperature, vegetation, continents, erosion, baseDepth, ridges, baseInitial, baseFinal,
                 veinToggle, veinRidged, veinGap);
         DensityComposite.Overworld comp = DensityComposite.overworld(base, minY, maxY);
 
         return new NoiseRouter(worldSeed, barrier, floodedness, spread, lava, temperature, vegetation,
-                cont, eros, comp.depth(), ridge, comp.initialDensityWithoutJaggedness(), comp.finalDensity(),
-                veinToggle, veinRidged, veinGap);
+                continents, erosion, comp.depth(), ridges, comp.initialDensityWithoutJaggedness(),
+                comp.finalDensity(), veinToggle, veinRidged, veinGap);
     }
 
     /** A single-octave-{1.0} amplitude list stand-in for empty vanilla lists. */
@@ -418,14 +429,15 @@ public final class NoiseRouter {
             throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
         }
         Density zero = C0;
-        Density shift = noise(worldSeed, "minecraft:offset",
+        Density shiftRaw = noise(worldSeed, "minecraft:offset",
                 SHIFT_FIRST_OCTAVE, SHIFT_AMPLITUDES, 1.0, 1.0, 1.0);
         Density tempRaw = noise(worldSeed, "minecraft:temperature",
                 TEMPERATURE_FIRST_OCTAVE, TEMPERATURE_AMPLITUDES, TEMPERATURE_AMPLITUDE, 1.0, 1.0);
         Density vegRaw = noise(worldSeed, "minecraft:vegetation",
                 VEGETATION_FIRST_OCTAVE, VEGETATION_AMPLITUDES, 1.0, 1.0, 1.0);
-        Density temperature = shifted2d(tempRaw, shift, 0.25);
-        Density vegetation = shifted2d(vegRaw, shift, 0.25);
+        // nether.json reuses the same shift_x/shift_z warp as the overworld (p.1.8.27A).
+        Density temperature = ShiftedNoiseFn.shiftedNoise2d(tempRaw, shiftX(shiftRaw), shiftZ(shiftRaw), 0.25);
+        Density vegetation = ShiftedNoiseFn.shiftedNoise2d(vegRaw, shiftX(shiftRaw), shiftZ(shiftRaw), 0.25);
         Density finalDensity = cheese(worldSeed, NETHER_BASE_3D_LABEL, NETHER_BASE_3D_XZ_SCALE,
                 NETHER_BASE_3D_Y_SCALE, -8.0, 24.0, 104.0, 128.0, 2.5);
         return new NoiseRouter(worldSeed, zero, zero, zero, zero, temperature, vegetation,
@@ -531,9 +543,22 @@ public final class NoiseRouter {
         return (x, y, z) -> amplitude * n.getValue(x * xzScale, y * yScale, z * xzScale);
     }
 
-    /** shiftedNoise2d-style domain shift: sample at {@code (x + s*shift, y, z + s*shift)}. */
-    private static Density shifted2d(Density base, Density shift, double s) {
-        return (x, y, z) -> base.eval(x + s * shift.eval(x, y, z), y, z + s * shift.eval(x, y, z));
+    /**
+     * Vanilla {@code shift_x} (p.1.8.27A, verified against the 1.21.1 client jar's
+     * {@code DensityFunctions$ShiftA} bytecode): {@code 4 * offset(0.25x, 0, 0.25z)}.
+     * y-independent, matching the {@code flat_cache(cache_2d(...))} wrapper.
+     */
+    private static Density shiftX(Density offset) {
+        return (x, y, z) -> 4.0 * offset.eval(0.25 * x, 0.0, 0.25 * z);
+    }
+
+    /**
+     * Vanilla {@code shift_z} (p.1.8.27A, verified against the 1.21.1 client jar's
+     * {@code DensityFunctions$ShiftB} bytecode): {@code 4 * offset(0.25z, 0.25x, 0)}.
+     * y-independent, matching the {@code flat_cache(cache_2d(...))} wrapper.
+     */
+    private static Density shiftZ(Density offset) {
+        return (x, y, z) -> 4.0 * offset.eval(0.25 * z, 0.25 * x, 0.0);
     }
 
     /** A deterministic 3-D normal-noise leaf from a derived per-label seed (reduced stand-in). */

@@ -5,8 +5,11 @@
  * {@link SplineFn} (the {@code CubicSpline$Multipoint} 1-D cubic-Hermite basis),
  * {@link SlideFn} (the {@code NoiseRouterData$slide} / {@code final_density} clamped
  * top / bottom slide), {@link JaggednessFn} (the {@code sloped_cheese} jaggedness
- * term {@code jaggedness * half_negative(jagged)}), and {@link ShiftedNoiseFn} (the
- * {@code ShiftedNoise} coordinate-domain-shifted field). {@link DensityComposite}
+ * term {@code jaggedness * half_negative(jagged)}), {@link ShiftedNoiseFn} (the
+ * {@code ShiftedNoise} coordinate-domain-shifted field), {@link NoodleFn} (the
+ * {@code overworld/caves/noodle.json} ridge-based noodle-cave arm) and
+ * {@link CaveFamilyFn} (the {@code when_out_of_range} cheese/spaghetti/pillars + entrances
+ * cave carve). {@link DensityComposite}
  * wires them into the exact 1.21.1 overworld recipe
  * ({@code depth + jaggedness*halfNeg(jagged)} {@code -> quarter_negative -> *factor
  * -> clamp -> slide}), constructed over a {@code router.NoiseRouter}'s climate
@@ -18,7 +21,10 @@
  * 一维三次 Hermite 基）、{@link SlideFn}（{@code NoiseRouterData$slide} /
  * {@code final_density} 顶部/底部夹取滑移）、{@link JaggednessFn}
  * （{@code sloped_cheese} 的锯齿项 {@code jaggedness * half_negative(jagged)}）、
- * {@link ShiftedNoiseFn}（{@code ShiftedNoise} 坐标域平移场）。{@link DensityComposite}
+ * {@link ShiftedNoiseFn}（{@code ShiftedNoise} 坐标域平移场）、{@link NoodleFn}
+ * （{@code overworld/caves/noodle.json} 脊线面条洞穴支）与 {@link CaveFamilyFn}
+ * （{@code when_out_of_range} 的 cheese/spaghetti/pillars + entrances 洞穴雕刻）。
+ * {@link DensityComposite}
  * 按 1.21.1 主世界配方把三者装配起来
  * （{@code depth + jaggedness*halfNeg(jagged)} {@code -> quarter_negative -> *factor
  * -> clamp -> slide}），建于 {@code router.NoiseRouter} 的气候字段之上
