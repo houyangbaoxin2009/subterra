@@ -249,6 +249,20 @@ def chunkGridProbe = tasks.register('runChunkGridProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.ChunkGridProbe'
 }
 
+def compositeProbe = tasks.register('runCompositeProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the vanilla-compatible composite density-fields probe (spline/slide/jaggedness)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.CompositeProbe'
+}
+
+def surfaceBridgeProbe = tasks.register('runSurfaceBridgeProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the vanilla surface-rules bridge probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SurfaceBridgeProbe'
+}
+
 // End-to-end gate: boots the dev server on the Java 25 toolchain and asserts
 // the boot contract from the log. Event-based, never timing-based.
 def bootProbe = tasks.register('runBootProbe', JavaExec) {
@@ -263,5 +277,5 @@ def bootProbe = tasks.register('runBootProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, bootProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, bootProbe
 }
