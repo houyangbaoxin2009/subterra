@@ -28,26 +28,21 @@ import io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand;
  *
  * with {@code qn = quarter_negative}, {@code blend_alpha = 1} (a fresh world with no
  * old-chunk blending) and {@code jagged} the {@code "minecraft:jagged"} field at
- * {@code xz_scale = 1500}. The two climate coordinates ({@link SplineFn} over
- * {@code continents} here) carry compact, structurally faithful knot sub-tables; the
- * exact evaluators ({@link SplineFn} / {@link SlideFn} / {@link JaggednessFn} /
- * {@link ShiftedNoiseFn}) and this assembly are the p.1.8.14 deliverable, while full
- * byte-level reproduction of the vanilla knot arrays is a later data-focused sibling's
- * concern. All leaves are pure functions of the router's seed, so the result is
- * deterministic, finite and allocation-free in the hot path.
- *
+ * {@code xz_scale = 1500}. The {@code offset} and {@code factor} climate terms are the
+ * faithful 1.21.1 2-D splines over {@code continents() × erosion()} ({@link Spline2D},
+ * see {@link #OFFSET_SPLINE} / {@link #FACTOR_SPLINE}), which restore a normal
+ * land/sea elevation distribution (p.1.8.26); the jaggedness multiplier is a compact
+ * {@link SplineFn} 1-D arm. All leaves are pure functions of the router's seed, so the
+ * result is deterministic, finite and allocation-free in the hot path.
+
  * <p>主世界复合密度场装配（p.1.8.14），在既有 {@link NoiseRouter} 的气候字段
  * （{@code continents}/{@code erosion}/{@code ridges}）之上、严格按已验证的 1.21.1
  * 配方构造路由器的三个被修正的组合字段 —— {@code depth}、
- * {@code initialDensityWithoutJaggedness}、{@code finalDensity}。组合镜像
- * {@code data/minecraft/worldgen/noise_settings/overworld.json} 及
- * {@code overworld/depth.json}、{@code overworld/factor.json}、
- * {@code overworld/jaggedness.json}、{@code overworld/sloped_cheese.json}
- * （均对照随包 1.21.1 jar 验证），配方见上。两个气候坐标（此处为
- * {@code continents} 上、基于 {@link SplineFn} 的一维样条）携带紧凑、结构忠实的
- * 结点子表；精确求值器（{@link SplineFn}/{@link SlideFn}/{@link JaggednessFn}/
- * {@link ShiftedNoiseFn}）与本装配才是 p.1.8.14 的交付，完整逐字节复现原生结点数组
- * 交给后续数据导向平级项。所有叶子都是路由器种子的纯函数，故结果确定、有限、热路径零分配。
+ * {@code initialDensityWithoutJaggedness}、{@code finalDensity}。配方见上。
+ * {@code offset}、{@code factor} 气候项采用真实的 1.21.1 二维样条
+ * {@code continents() × erosion()}（{@link Spline2D}，见 {@link #OFFSET_SPLINE}/
+ * {@link #FACTOR_SPLINE}），以此恢复正常的海陆高程分布（p.1.8.26）；锯齿倍数为
+ * {@link SplineFn} 一维支。所有叶子都是路由器种子的纯函数，故结果确定、有限、热路径零分配。
  */
 public final class DensityComposite {
 
@@ -84,17 +79,14 @@ public final class DensityComposite {
         Density erosion = router.erosion();
         Density ridges = router.ridges();
 
-        // --- climate coordinate splines (compact structural sub-tables) ---
-        // blend_alpha = 1 (no old-chunk blending), so factor/offset/jaggedness collapse to
-        // their plain spline arms (plus the verified offset constant).
-        Density offsetDensity = (x, y, z) -> OFFSET_BASE + spline1D(continents,
-                new double[]{-1.1, -0.44, -0.18, -0.1, 0.25, 1.0},
-                new double[]{0.05, -0.22, -0.16, -0.1, 0.3, 0.55},
-                new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, x, z);
-        Density factorDensity = (x, y, z) -> spline1D(continents,
-                new double[]{-1.1, -0.6, -0.1, 0.25, 1.0},
-                new double[]{6.3, 5.7, 5.0, 4.9, 4.5},
-                new double[]{0.0, 0.0, 0.0, 0.0, 0.0}, x, z);
+        // --- climate coordinate splines (p.1.8.26): faithful 2-D continents×erosion ---
+        // blend_alpha = 1 (no old-chunk blending), so offset collapses to
+        // spline(continents,erosion) + OFFSET_BASE and factor to spline(continents,erosion);
+        // both are the vanilla 2-D climate spline (innermost ridge axis reduced at ridge=0).
+        Density offsetDensity = (x, y, z) -> OFFSET_BASE
+                + OFFSET_SPLINE.eval(continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z));
+        Density factorDensity = (x, y, z) ->
+                FACTOR_SPLINE.eval(continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z));
         Density jaggednessFactor = (x, y, z) -> spline1D(continents,
                 new double[]{-0.11, 0.03, 0.65, 1.0},
                 new double[]{0.0, 0.5, 0.1, 0.6},
@@ -131,6 +123,57 @@ public final class DensityComposite {
 
     /** Verified vanilla offset constant ({@code overworld/offset.json}). */
     public static final double OFFSET_BASE = -0.5037500262260437;
+
+    // ------------------------------------------------------------------
+    //  p.1.8.26: faithful vanilla 2-D climate splines (continents × erosion).
+    //  Transcribed from the 1.21.1 client jar
+    //  (data/minecraft/worldgen/density_function/overworld/{offset,factor}.json).
+    //  Each is a {continents → erosion} nested spline whose innermost ridge axis is
+    //  reduced at ridge = 0 (all interior knot derivatives are 0.0 in vanilla); the
+    //  resulting continents×erosion surface is a tensor-product cubic Hermite.
+    // ------------------------------------------------------------------
+
+    /** Continentalness X-levels of the vanilla offset spline. */
+    public static final double[] OFFSET_X = {
+            -1.1, -1.02, -0.51, -0.44, -0.18, -0.16, -0.15, -0.1, 0.25, 1.0
+    };
+    /** Erosion Y-levels of the vanilla offset spline. */
+    public static final double[] OFFSET_Y = {
+            -0.85, -0.7, -0.4, -0.35, -0.1, 0.2, 0.4, 0.45, 0.55, 0.58, 0.7
+    };
+    /** Offset value matrix {@code [x][y]} (inner ridge axis reduced at ridge=0). */
+    public static final double[][] OFFSET_V = {
+            {0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044},
+            {-0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222},
+            {-0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222},
+            {-0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12},
+            {-0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12},
+            {0.300599, 0.26212, 0.0, 0.05, 0.0, 0.0, -0.01056, -0.015, -0.02352, -0.025645, -0.03},
+            {0.300599, 0.26212, 0.0, 0.05, 0.0, 0.0, -0.01056, -0.015, -0.02352, -0.025645, -0.03},
+            {0.300599, 0.26212, 0.0, 0.05, 0.003, 0.01, -0.00408, -0.01, -0.02136, -0.024194, -0.03},
+            {0.716175, 0.44682, 0.308295, 0.35, 0.021, 0.01, 0.01, 0.17, 0.17, 0.01, -0.03},
+            {0.923963, 0.53917, 0.53917, 0.5, 0.03, 0.01, 0.01, 0.17, 0.17, 0.01, 0.01},
+    };
+
+    /** Continentalness X-levels of the vanilla factor spline. */
+    public static final double[] FACTOR_X = {-0.19, -0.15, -0.1, 0.03, 0.06};
+    /** Erosion Y-levels of the vanilla factor spline. */
+    public static final double[] FACTOR_Y = {
+            -0.6, -0.5, -0.35, -0.25, -0.1, 0.03, 0.05, 0.35, 0.4, 0.45, 0.55, 0.58, 0.62
+    };
+    /** Factor value matrix {@code [x][y]}. */
+    public static final double[][] FACTOR_V = {
+            {3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95},
+            {6.275, 4.485, 6.275, 6.275, 4.485, 6.275, 6.274719, 6.25, 6.25, 6.25, 6.25, 6.25, 6.25},
+            {5.885, 4.485, 5.885, 5.885, 4.485, 5.885, 5.880339, 5.47, 5.47, 5.47, 5.47, 5.47, 5.47},
+            {5.69, 4.485, 5.69, 5.69, 4.485, 5.69, 5.683149, 5.08, 5.08, 5.08, 5.08, 5.08, 5.08},
+            {5.495, 4.485, 5.495, 5.495, 4.485, 5.495, 5.495, 5.495, 5.495, 1.37, 1.37, 4.69, 4.69},
+    };
+
+    /** The faithful 2-D offset spline used in {@code depth}. */
+    public static final Spline2D OFFSET_SPLINE = new Spline2D(OFFSET_X, OFFSET_Y, OFFSET_V);
+    /** The faithful 2-D factor spline used in {@code depth*factor} / cheese. */
+    public static final Spline2D FACTOR_SPLINE = new Spline2D(FACTOR_X, FACTOR_Y, FACTOR_V);
     /** Verified vanilla initial-density shift before the slide ({@code overworld.json}). */
     public static final double DEPTH_SHIFT = -0.703125;
     /** Verified vanilla slide constants ({@code overworld.json}). */
