@@ -39,9 +39,11 @@ import java.util.Map;
  *   <li>{@code vegetation} / {@code fauna} / {@code relic} — reserved slots,
  *       default {@link Density} = constant 0; semantic seams deferred</li>
  * </ul>
- * The formula path (p.1.8.10) is <em>not</em> used by any default — this
- * package does not depend on the {@code terrain} (formula) or {@code formula}
- * packages; the formula algorithm enters per-dimension via
+ * The formula path (p.1.8.10) is <em>not</em> used by any default — the
+ * default mirrors do not depend on the {@code terrain} (formula) packages
+ * (the {@code dimension} package as a whole imports the p.1.8.10
+ * {@code FormulaTerrain} only for {@link DimensionPlan} FORMULA entries); the
+ * formula algorithm enters per-dimension via
  * {@link #with(EcoDim, Density, DimAlgo)} with {@link DimAlgo#FORMULA} (or,
  * wholesale, via {@link #fromPlan(DimensionPlan, long)}). Everything is
  * immutable, deterministic
@@ -50,8 +52,9 @@ import java.util.Map;
  * <p>
  * 九维地形集合（第 2 步），以 {@link io.toterra.subterra.api.worldgen.EcoDim}
  * 的 ALL 为键，由不可变的 {@link DimensionSlot} 组成。默认构造产出五维标量原版
- * 兼容镜像场与预留槽。公式路径（p.1.8.10）不参与任何默认——本包不依赖 terrain
- * （公式）或 formula 包；公式算法经 {@link #with} + {@link DimAlgo#FORMULA}
+ * 兼容镜像场与预留槽。公式路径（p.1.8.10）不参与任何默认——默认镜像不依赖 terrain
+ * （公式）包（整个 dimension 包仅 {@link DimensionPlan} 的 FORMULA 条目会引用
+ * p.1.8.10 {@code FormulaTerrain}）；公式算法经 {@link #with} + {@link DimAlgo#FORMULA}
  * （后续亦有 {@code DimensionPlan}）逐维进入。一切不可变、确定（固定种子→相同场），
  * 无 O(n²) 构造；热路径 {@code Density.eval} 无分配。
  */
@@ -239,7 +242,11 @@ public final class DimensionTerrain {
      * {@link WaterClass#NONE} / {@link WaterClass#OCEAN} (never a
      * {@link WaterClass#isReserved() reserved} class). This accessor reads the
      * <em>current</em> slot: if {@link #with} replaced the terrain field, this
-     * reverts to classification over that replacement.
+     * reverts to classification over that replacement. Note the classification
+     * threshold is the fixed {@code bounds().seaLevel()}, independent of the
+     * current {@link #waterLevel()} (swapping only the hydro height does not
+     * move the shoreline); the later hydrology batch replaces both samplers
+     * together.
      *
      * @return the current water-class sampler (never null)
      */

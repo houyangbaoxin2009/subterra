@@ -250,6 +250,22 @@ public final class DimensionProbe {
         }
         check("fromPlan deterministic + eval matches formula", det);
 
+        // ---- 种子敏感：不同 seed 的默认 terrain 镜像产生不同场 --------------
+        DimensionTerrain s1 = DimensionTerrain.fromPlan(DimensionPlan.defaultPlan(), 1L);
+        DimensionTerrain s2 = DimensionTerrain.fromPlan(DimensionPlan.defaultPlan(), 2L);
+        boolean anyDiff = false;
+        boolean allFinite = true;
+        for (int i = 0; i < 4; i++) {
+            double x = i * 3.7;
+            double y = i * 1.3;
+            double z = i * 5.1;
+            double v1 = s1.slot(EcoDim.of("terrain")).density().eval(x, y, z);
+            double v2 = s2.slot(EcoDim.of("terrain")).density().eval(x, y, z);
+            allFinite &= Double.isFinite(v1) && Double.isFinite(v2);
+            anyDiff |= !near(v1, v2);
+        }
+        check("default vanilla mirrors seed-sensitive across seeds", anyDiff && allFinite);
+
         if (failures == 0) {
             System.out.println("[DimensionProbe] PASS (nine-dimension generator, " + 40 + " checks)");
             System.exit(0);

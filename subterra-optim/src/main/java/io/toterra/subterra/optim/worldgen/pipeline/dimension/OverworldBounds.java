@@ -18,7 +18,7 @@ package io.toterra.subterra.optim.worldgen.pipeline.dimension;
  *
  * @param minY       the lowest block y (inclusive; negative is fine)
  * @param height     the vertical extent in blocks (must be &gt; 0)
- * @param seaLevel   the water surface y (must be below {@code height})
+ * @param seaLevel   the water surface y (must be inside {@code [minY, minY + height)})
  * @param buildLimit the inclusive build ceiling (must be within
  *                   {@code [minY, minY + height]})
  */
@@ -39,8 +39,10 @@ public record OverworldBounds(int minY, int height, int seaLevel, int buildLimit
         if (height <= 0) {
             throw new IllegalArgumentException("height must be > 0: " + height);
         }
-        if (seaLevel >= height) {
-            throw new IllegalArgumentException("seaLevel must be < height (" + height + "): " + seaLevel);
+        if (seaLevel < minY || seaLevel >= minY + height) {
+            throw new IllegalArgumentException(
+                    "seaLevel must be within [minY, minY + height) ["
+                            + minY + ", " + (minY + height) + "): " + seaLevel);
         }
         if (buildLimit > minY + height) {
             throw new IllegalArgumentException(
