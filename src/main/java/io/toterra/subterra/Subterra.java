@@ -75,6 +75,11 @@ public class Subterra {
         // config (config/subterra/item_control.td) and wires the handlers,
         // /itemban commands and recipe stripper.
         io.toterra.subterra.optim.server.item_control.shell.ItemControl.bootstrap(modContainer);
+
+        // Worldgen (p.1.8.21, td-gated): registers the subterra:density
+        // density-function type and captures the world seed so "Subterra" can be
+        // selected as a world generator. Zero effect while the preset is unused.
+        io.toterra.subterra.worldgen.gen.SubterraWorldgen.bootstrap(modEventBus);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
