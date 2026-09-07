@@ -292,3 +292,28 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// p.1.8.17 same-seed authoritative compare bridge: samples the vanilla NoiseRouter density
+// fields at fixed coordinates for a world seed and compares them against Subterra's pure-JDK
+// mirror (SameSeedCompare in the ROOT main source set, so the MC classpath is present). Plain
+// JavaExec runs the main class directly (no game launch): mirror + self-check run headless;
+// the MC-sampling path needs a booted NeoForge server. CSV lands in run/compare/<seed>.csv.
+tasks.register('runWorldCompare', JavaExec) {
+    group = 'verification'
+    description = 'p.1.8.17: compare vanilla NoiseRouter vs Subterra mirror on a shared seed (self-check headless; MC sampling needs a booted server).'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.worldgen.compare.SameSeedCompare'
+    workingDir = project.file('run')
+    // Mirror the dev-run JVM tuning / reflection opens from runs.configureEach.
+    jvmArguments.addAll([
+            '-XX:+UseZGC',
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+    ])
+    // Overridable: gradle -Dsubterra.compareSeed=... / -Dsubterra.compareSelfCheck=true (JVM/IDE), or
+    // -Psubterra.compareSeed=... / -Psubterra.compareSelfCheck=true for the Gradle daemon/CLI. Default off.
+    systemProperty 'subterra.compareSeed',
+            System.getProperty('subterra.compareSeed', project.findProperty('subterra.compareSeed') ?: '44905237')
+    systemProperty 'subterra.compareSelfCheck',
+            System.getProperty('subterra.compareSelfCheck', project.findProperty('subterra.compareSelfCheck') ?: 'false')
+}
