@@ -2,6 +2,7 @@ package io.toterra.subterra.optim.worldgen.pipeline.router;
 
 import java.util.Objects;
 
+import io.toterra.subterra.optim.worldgen.pipeline.composite.DensityComposite;
 import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
 import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
 
@@ -26,12 +27,13 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * amplitude lists; the aquifer / vein noises are registered with <em>empty</em>
  * amplitude lists in 1.21.1 (which pure-{@code NormalNoise} turns into a constant
  * zero), so here an empty list is interpreted as a deterministic single-octave
- * stand-in so the seam yields a usable, seed-sensitive field. The composite
+ * handle -- so the seam yields a usable, seed-sensitive field. The composite
  * fields ({@code depth}, {@code initialDensityWithoutJaggedness},
- * {@code finalDensity}) are REDUCED stand-ins — vanilla builds them from dense
- * spline/slide/jaggedness composition that is a later pipeline sub-item — so their
- * values are finite, deterministic and seed-relative but do NOT yet reproduce the
- * vanilla shapes bit-exactly.
+ * {@code finalDensity}) are built by the p.1.8.14 composite density-fields core
+ * ({@link DensityComposite}) from the vanilla spline / slide / jaggedness /
+ * shiftedNoise composition (see the {@code pipeline.composite} package); their values
+ * are finite, deterministic and seed-relative, and now reproduce the vanilla composite
+ * structure over the router's climate fields.
  * <p>
  * 与原生兼容的噪声路由器装配表（p.1.8.12），镜像 MC 1.21.1 {@code NoiseRouter}
  * record 字段与访问器（名称经 javap 对照反混淆后的 1.21.1 类验证）。路由器恰有
@@ -49,8 +51,9 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * <em>空</em>振幅注册（纯 {@code NormalNoise} 会将其退化为常量 0），故此处把空
  * 列表解释为确定性单 octave 占位，使接缝产出可用的种子敏感场。组合字段
  * （{@code depth}、{@code initialDensityWithoutJaggedness}、{@code finalDensity}）
- * 是<em>降级</em>占位——原生以密集的 spline/slide/jaggedness 组合构建，属后续
- * 管线子项——其值有限、确定且随种子变化，但尚未逐位复现原生形状。
+ * 由 p.1.8.14 组合密度场核心（{@link DensityComposite}）按原生 spline / slide /
+ * jaggedness / shiftedNoise 组合构建（见 {@code pipeline.composite} 包）；其值有限、
+ * 确定且随种子变化，并在路由器气候字段之上复现原生组合结构。
  */
 public final class NoiseRouter {
 
@@ -315,20 +318,27 @@ public final class NoiseRouter {
         Density veinRidged = (x, y, z) -> Math.abs(veinA.eval(x, y, z)) + Math.abs(veinB.eval(x, y, z));
         Density veinGap = gap;
 
-        // --- composite fields: REDUCED stand-ins (documented) ---
-        // Vanilla builds these from dense spline/slide/jaggedness composition
-        // (a later pipeline sub-item); here they stay finite, deterministic and
-        // seed-relative by referencing the real seed-derived bases above.
-        Density depth = (x, y, z) -> 2.0 * (y - midY) / height + 0.5 * eros.eval(x, y, z);
-        Density initialDensity = (x, y, z) -> 4.0 - 1.5625 * (1.0 + 0.5 * cont.eval(x, y, z) + 0.5 * eros.eval(x, y, z));
-        Density finalDensity = (x, y, z) -> {
-            double d = initialDensity.eval(x, y, z);
+        // --- composite fields: REDUCED stand-ins (p.1.8.12), replaced below (p.1.8.14) ---
+        // These laminas are used only to form a throwaway base router whose climate
+        // fields feed DensityComposite; the final router carries the corrected fields.
+        Density baseDepth = (x, y, z) -> 2.0 * (y - midY) / height + 0.5 * eros.eval(x, y, z);
+        Density baseInitial = (x, y, z) -> 4.0 - 1.5625 * (1.0 + 0.5 * cont.eval(x, y, z) + 0.5 * eros.eval(x, y, z));
+        Density baseFinal = (x, y, z) -> {
+            double d = baseInitial.eval(x, y, z);
             double vertical = 2.0 * (y - midY) / height;
             return vertical + 0.5 * d + 0.25 * ridge.eval(x, y, z);
         };
 
+        // p.1.8.14: install the vanilla-compatible composite pipeline (spline / slide /
+        // jaggedness / shiftedNoise / range-choice) onto depth(8), initial(10), final(11).
+        NoiseRouter base = new NoiseRouter(worldSeed, barrier, floodedness, spread, lava,
+                temperature, vegetation, cont, eros, baseDepth, ridge, baseInitial, baseFinal,
+                veinToggle, veinRidged, veinGap);
+        DensityComposite.Overworld comp = DensityComposite.overworld(base, minY, maxY);
+
         return new NoiseRouter(worldSeed, barrier, floodedness, spread, lava, temperature, vegetation,
-                cont, eros, depth, ridge, initialDensity, finalDensity, veinToggle, veinRidged, veinGap);
+                cont, eros, comp.depth(), ridge, comp.initialDensityWithoutJaggedness(), comp.finalDensity(),
+                veinToggle, veinRidged, veinGap);
     }
 
     /** A single-octave-{1.0} amplitude list stand-in for empty vanilla lists. */
