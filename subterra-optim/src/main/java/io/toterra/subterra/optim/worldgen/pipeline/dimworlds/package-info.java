@@ -11,8 +11,8 @@
  * DimensionWorlds} holds the three {@code DimensionSection}s plus a per-world
  * {@link io.toterra.subterra.optim.worldgen.pipeline.dimension.DimensionPlan},
  * exposes a {@code td()} / {@code fromTd(String)} round-trip, a
- * {@code materializeRouter(seed, WorldDim)} slot (overworld now, nether/end
- * deferred to a later batch) and a {@code validate()} health-check. Everything
+ * {@code materializeRouter(seed, WorldDim)} slot (overworld p.1.8.12, nether/end
+ * p.1.8.20) and a {@code validate()} health-check. Everything
  * here is pure, deterministic and immutable; the default table IS the vanilla
  * triple so the default pipeline stays bit-identical.
  * <p>
@@ -24,7 +24,7 @@
  * 标志作为用户可覆盖默认；{@link DimensionWorlds} 持有三个 {@code DimensionSection} 及逐
  * 世界 {@link io.toterra.subterra.optim.worldgen.pipeline.dimension.DimensionPlan}，提供
  * {@code td()} / {@code fromTd(String)} 往返、{@code materializeRouter(seed, WorldDim)}
- * 槽（主世界现可用，下界/末地延后到后续批次）与 {@code validate()} 健康检查。本包纯粹、确定、
+ * 槽（主世界 p.1.8.12，下界/末地 p.1.8.20）与 {@code validate()} 健康检查。本包纯粹、确定、
  * 不可变；默认表即原版三元组，故默认管线保持逐位一致。
  */
 package io.toterra.subterra.optim.worldgen.pipeline.dimworlds;

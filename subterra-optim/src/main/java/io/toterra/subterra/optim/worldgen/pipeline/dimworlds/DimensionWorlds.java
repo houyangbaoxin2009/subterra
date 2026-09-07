@@ -18,8 +18,8 @@ import java.util.Map;
  * triple; {@link #fromTd(String)} accepts the same shape with optional per-world
  * overrides (partial bodies default to the pinned vanilla values). {@link
  * #materializeRouter(long, WorldDim)} deploys the p.1.8.12 overworld
- * {@link NoiseRouter} for the overworld and returns {@code null} for the nether
- * / end (their router recipes are a later batch — documented deferral). {@link
+ * {@link NoiseRouter} for the overworld and the p.1.8.20 nether / end routers for
+ * the nether and end ({@code null} only for an unknown world). {@link
  * #validate()} health-checks the relations (positive coordinate scales, windows
  * within limits, plans present). Immutable, deterministic; construction and
  * parsing are linear in the number of fields (no O(n²)).
@@ -28,8 +28,8 @@ import java.util.Map;
  * 加逐世界 {@link DimensionPlan}，默认全部为原生六件套以保证默认管线与 1.21.1 逐位一致。
  * {@link #td()} 输出完整原生三元组；{@link #fromTd(String)} 接受同形并允许逐世界可选覆盖
  * （部分主体回落到已钉定的原生值）。{@link #materializeRouter(long, WorldDim)} 为主世界部署
- * p.1.8.12 {@link NoiseRouter}，对下界/末地返回 {@code null}（其路由器配方属后续批次——
- * 文档化延后）。{@link #validate()} 做关系健康检查（正坐标尺度、窗口在限内、规划在场）。
+ * p.1.8.12 {@link NoiseRouter}，并对下界/末地分别部署 p.1.8.20 的 nether / end 路由器
+ * （仅未知世界返回 {@code null}）。{@link #validate()} 做关系健康检查（正坐标尺度、窗口在限内、规划在场）。
  * 不可变、确定；构建与解析按字段数线性（无 O(n²)）。
  */
 public final class DimensionWorlds {
@@ -276,26 +276,28 @@ public final class DimensionWorlds {
     }
 
     /**
-     * Materialises the world's noise router at the given seed. The overworld
-     * builds the p.1.8.12 {@link NoiseRouter} over the section's
-     * {@code [minY, minY + height)} window (vanilla {@code [-64, 320)}); the
-     * nether and end return {@code null} — their router recipes are deferred to
-     * a later batch (documented).
+     * Materialises the world's noise router at the given seed. The overworld builds
+     * the p.1.8.12 {@link NoiseRouter} over the section's {@code [minY,
+     * minY + height)} window (vanilla {@code [-64, 320)}); the nether and end build
+     * the p.1.8.20 nether / end routers over their sections' windows (vanilla
+     * {@code [0, 256)} each). Only an unknown / unsupported world returns {@code null}.
      *
      * @param seed the deterministic world seed
      * @param wd   the world to materialise (never null)
-     * @return the overworld router, or {@code null} for the nether / end
+     * @return the world's router, or {@code null} for an unknown world
      */
     public NoiseRouter materializeRouter(long seed, WorldDim wd) {
         if (wd == null) {
             throw new IllegalArgumentException("wd must not be null");
         }
-        if (wd == WorldDim.OVERWORLD) {
-            OverworldBounds win = section(wd).window();
-            return NoiseRouter.overworld(seed, win.minY(), win.minY() + win.height());
-        }
-        // Nether / end: p.1.8.19 defers their recipes to a later batch.
-        return null;
+        OverworldBounds win = section(wd).window();
+        int minY = win.minY();
+        int maxY = minY + win.height();
+        return switch (wd) {
+            case OVERWORLD -> NoiseRouter.overworld(seed, minY, maxY);
+            case THE_NETHER -> NoiseRouter.nether(seed, minY, maxY);
+            case THE_END -> NoiseRouter.end(seed, minY, maxY);
+        };
     }
 
     @Override

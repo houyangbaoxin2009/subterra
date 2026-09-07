@@ -3,6 +3,7 @@ package io.toterra.subterra.optim.worldgen.pipeline.router;
 import java.util.Objects;
 
 import io.toterra.subterra.optim.worldgen.pipeline.composite.DensityComposite;
+import io.toterra.subterra.optim.worldgen.pipeline.composite.SlideFn;
 import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
 import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
 
@@ -34,6 +35,13 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * shiftedNoise composition (see the {@code pipeline.composite} package); their values
  * are finite, deterministic and seed-relative, and now reproduce the vanilla composite
  * structure over the router's climate fields.
+ * <p>
+ * {@link #nether(long,int,int)} and {@link #end(long,int,int)} (p.1.8.20) assemble the
+ * vanilla nether / end routers, mirroring {@code noise_settings/nether.json} and
+ * {@code noise_settings/end.json}: most fields are the pinned constant {@code 0}, with
+ * the nether's {@code temperature}/{@code vegetation} + cheese {@code finalDensity} and
+ * the end's island {@code erosion}/{@code initialDensity}/{@code finalDensity} composed
+ * from seed-sensitive reduced leaves over the same seam.
  * <p>
  * 与原生兼容的噪声路由器装配表（p.1.8.12），镜像 MC 1.21.1 {@code NoiseRouter}
  * record 字段与访问器（名称经 javap 对照反混淆后的 1.21.1 类验证）。路由器恰有
@@ -111,6 +119,23 @@ public final class NoiseRouter {
     /** AQUIFER_FLUID_LEVEL_SPREAD field coordinate xz-scale. */
     public static final double SPREAD_XZ_SCALE = 0.7142857142857143;
 
+    // ---- nether / end recipe constants (verified against noise_settings/nether.json & end.json) ----
+    /**
+     * The shared {@code final_density} scale factor (nether.json and end.json both
+     * wrap the cheese in {@code mul(0.64, …)} then {@code squeeze} to [−1, 1]).
+     */
+    public static final double CHEESE_SCALE = 0.64;
+    /** Nether {@code nether/base_3d_noise} density-function label. */
+    public static final String NETHER_BASE_3D_LABEL = "minecraft:nether/base_3d_noise";
+    /** End {@code end/base_3d_noise} density-function label. */
+    public static final String END_BASE_3D_LABEL = "minecraft:end/base_3d_noise";
+    /** Nether {@code nether/base_3d_noise} coordinate scales (old_blended_noise json). */
+    public static final double NETHER_BASE_3D_XZ_SCALE = 0.25;
+    public static final double NETHER_BASE_3D_Y_SCALE = 0.375;
+    /** End {@code end/base_3d_noise} coordinate scales (old_blended_noise json). */
+    public static final double END_BASE_3D_XZ_SCALE = 0.25;
+    public static final double END_BASE_3D_Y_SCALE = 0.25;
+
     private final Density barrierNoise;
     private final Density fluidLevelFloodednessNoise;
     private final Density fluidLevelSpreadNoise;
@@ -128,6 +153,9 @@ public final class NoiseRouter {
     private final Density veinGap;
 
     private final long worldSeed;
+
+    /** The constant-zero {@code Density}, shared by every constant-0 nether/end field. */
+    private static final Density C0 = (x, y, z) -> 0.0;
 
     private NoiseRouter(long worldSeed, Density barrierNoise, Density fluidLevelFloodednessNoise,
                         Density fluidLevelSpreadNoise, Density lavaNoise, Density temperature,
@@ -346,6 +374,155 @@ public final class NoiseRouter {
         return new double[]{1.0};
     }
 
+    // ===================================================================
+    //  nether recipe
+    // ===================================================================
+
+    /** Vanilla nether router with the vanilla block window {@code [0, 256)}. */
+    public static NoiseRouter nether(long worldSeed) {
+        return nether(worldSeed, 0, 256);
+    }
+
+    /**
+     * Assembles the vanilla nether router (p.1.8.20), mirroring the fifteen-field
+     * overview of {@code noise_settings/nether.json}: the aquifer / lava /
+     * climate / vein fields that nether.json pins to the constant {@code 0.0}
+     * ({@code barrier}, the two fluid levels, {@code lava}, {@code continents},
+     * {@code erosion}, {@code depth}, {@code ridges},
+     * {@code initialDensityWithoutJaggedness}, and the three vein fields) are
+     * rendered as the constant-zero {@code Density}; {@code temperature} and
+     * {@code vegetation} are the nether.json {@code shifted_noise} over the
+     * overworld {@code temperature}/{@code vegetation} noises (xz_scale 0.25);
+     * and {@code finalDensity} is the nether cheese — a {@code base_3d_noise}
+     * leaf wrapped in two {@code y_clamped_gradient} falls, an offset chain and
+     * {@code mul(0.64, …)} then {@code squeeze} (clamped to [−1, 1]):
+     *
+     * <pre>
+     *   base = nether/base_3d_noise (xz 0.25, y 0.375)
+     *   final = clamp( 0.64 * (2.5 + g1(a) * (−2.5 + 0.9375 + g2(a) * (base − 0.9375))),
+     *                  −1, 1 )
+     *   g1 = yClamp(y, −8, 24, 0, 1);  g2 = yClamp(y, 104, 128, 1, 0)
+     * </pre>
+     *
+     * Deterministic, immortal, allocation-free in the hot path; the base_3d / shift
+     * leaves are seed-sensitive reduced stand-ins in the same style as the overworld
+     * factory (per the p.1.8.20 deferred recipe batch).
+     *
+     * @param worldSeed the master world seed.
+     * @param minY      minimum block Y (inclusive).
+     * @param maxY      maximum block Y (exclusive).
+     * @throws IllegalArgumentException if {@code minY >= maxY}.
+     */
+    public static NoiseRouter nether(long worldSeed, int minY, int maxY) {
+        if (minY >= maxY) {
+            throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
+        }
+        Density zero = C0;
+        Density shift = noise(worldSeed, "minecraft:offset",
+                SHIFT_FIRST_OCTAVE, SHIFT_AMPLITUDES, 1.0, 1.0, 1.0);
+        Density tempRaw = noise(worldSeed, "minecraft:temperature",
+                TEMPERATURE_FIRST_OCTAVE, TEMPERATURE_AMPLITUDES, TEMPERATURE_AMPLITUDE, 1.0, 1.0);
+        Density vegRaw = noise(worldSeed, "minecraft:vegetation",
+                VEGETATION_FIRST_OCTAVE, VEGETATION_AMPLITUDES, 1.0, 1.0, 1.0);
+        Density temperature = shifted2d(tempRaw, shift, 0.25);
+        Density vegetation = shifted2d(vegRaw, shift, 0.25);
+        Density finalDensity = cheese(worldSeed, NETHER_BASE_3D_LABEL, NETHER_BASE_3D_XZ_SCALE,
+                NETHER_BASE_3D_Y_SCALE, -8.0, 24.0, 104.0, 128.0, 2.5);
+        return new NoiseRouter(worldSeed, zero, zero, zero, zero, temperature, vegetation,
+                zero, zero, zero, zero, zero, finalDensity, zero, zero, zero);
+    }
+
+    // ===================================================================
+    //  end recipe
+    // ===================================================================
+
+    /** Vanilla end router with the vanilla block window {@code [0, 256)}. */
+    public static NoiseRouter end(long worldSeed) {
+        return end(worldSeed, 0, 256);
+    }
+
+    /**
+     * Assembles the vanilla end router (p.1.8.20), mirroring the fifteen-field
+     * overview of {@code noise_settings/end.json}: the twelve fields end.json pins
+     * to the constant {@code 0.0} ({@code barrier}, the two fluid levels,
+     * {@code lava}, {@code temperature}, {@code vegetation}, {@code continents},
+     * {@code depth}, {@code ridges}, and the three vein fields) are rendered as
+     * the constant-zero {@code Density}. {@code erosion} is
+     * {@code cache_2d(end_islands)} (a reduced 2-D seed-sensitive leaf); and both
+     * {@code initialDensityWithoutJaggedness} and {@code finalDensity} compose that
+     * island signal with two {@code y_clamped_gradient} falls plus the
+     * {@code end/sloped_cheese} ({@code end_islands + end/base_3d_noise}) —
+     * {@code finalDensity} additionally scaled by 0.64 and {@code squeeze}d:
+     *
+     * <pre>
+     *   islands = end_islands (2-D, seed-sensitive reduced leaf)
+     *   base    = end/base_3d_noise (xz 0.25, y 0.25)
+     *   sc      = islands + base
+     *   g1 = yClamp(y, 4, 32, 0, 1);  g2 = yClamp(y, 56, 312, 1, 0)
+     *   initial = −0.234375 + g1 * (0.234375 + g2 * (23.4375 + (−0.703125 + islands)) − 23.4375)
+     *   final   = clamp( 0.64 * (−0.234375 + g1 * (0.234375 + g2 * (23.4375 + sc) − 23.4375)), −1, 1 )
+     * </pre>
+     *
+     * Deterministic, immortal, allocation-free in the hot path; the island / base
+     * leaves are seed-sensitive reduced stand-ins (the island shape is structurally
+     * per-coordinate in the same reduced style as the overworld factory).
+     *
+     * @param worldSeed the master world seed.
+     * @param minY      minimum block Y (inclusive).
+     * @param maxY      maximum block Y (exclusive).
+     * @throws IllegalArgumentException if {@code minY >= maxY}.
+     */
+    public static NoiseRouter end(long worldSeed, int minY, int maxY) {
+        if (minY >= maxY) {
+            throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
+        }
+        Density zero = C0;
+        Density islands = noise2d(worldSeed, "minecraft:end_islands", 1.0);
+        Density base = noise3d(worldSeed, END_BASE_3D_LABEL, END_BASE_3D_XZ_SCALE, END_BASE_3D_Y_SCALE);
+        Density initial = endInitial(islands);
+        Density finalDensity = endFinal(islands, base);
+        return new NoiseRouter(worldSeed, zero, zero, zero, zero, zero, zero, zero,
+                islands, zero, zero, initial, finalDensity, zero, zero, zero);
+    }
+
+    /** {@code initial_density_without_jaggedness} of the end.json recipe. */
+    private static Density endInitial(Density islands) {
+        return (x, y, z) -> {
+            double e = islands.eval(x, 0.0, z);
+            double g1 = SlideFn.grad(y, 4.0, 32.0, 0.0, 1.0);
+            double g2 = SlideFn.grad(y, 56.0, 312.0, 1.0, 0.0);
+            return -0.234375 + g1 * (0.234375 + g2 * (23.4375 + (-0.703125 + e)) - 23.4375);
+        };
+    }
+
+    /** {@code final_density} (cheese + squeeze) of the end.json recipe. */
+    private static Density endFinal(Density islands, Density base) {
+        return (x, y, z) -> {
+            double sc = islands.eval(x, 0.0, z) + base.eval(x, y, z);
+            double g1 = SlideFn.grad(y, 4.0, 32.0, 0.0, 1.0);
+            double g2 = SlideFn.grad(y, 56.0, 312.0, 1.0, 0.0);
+            double raw = CHEESE_SCALE * (-0.234375 + g1 * (0.234375 + g2 * (23.4375 + sc) - 23.4375));
+            return clamp01(raw);
+        };
+    }
+
+    /** The nether cheese {@code final_density} (base_3d + twin y-gradients + squeeze). */
+    private static Density cheese(long worldSeed, String baseLabel, double xzScale, double yScale,
+                                  double g1FromY, double g1ToY, double g2FromY, double g2ToY, double water) {
+        Density base = noise3d(worldSeed, baseLabel, xzScale, yScale);
+        return (x, y, z) -> {
+            double b = base.eval(x, y, z);
+            double g1 = SlideFn.grad(y, g1FromY, g1ToY, 0.0, 1.0);
+            double g2 = SlideFn.grad(y, g2FromY, g2ToY, 1.0, 0.0);
+            double raw = CHEESE_SCALE * (water + g1 * (-water + 0.9375 + g2 * (b - 0.9375)));
+            return clamp01(raw);
+        };
+    }
+
+    private static double clamp01(double v) {
+        return v < -1.0 ? -1.0 : (v > 1.0 ? 1.0 : v);
+    }
+
     /** Builds a {@link Density} that samples a {@link NormalNoise} seeded from the
      * label and scales coordinates by {@code (xzScale, yScale, xzScale)}. */
     private static Density noise(long worldSeed, String label, int firstOctave, double[] amps,
@@ -357,6 +534,18 @@ public final class NoiseRouter {
     /** shiftedNoise2d-style domain shift: sample at {@code (x + s*shift, y, z + s*shift)}. */
     private static Density shifted2d(Density base, Density shift, double s) {
         return (x, y, z) -> base.eval(x + s * shift.eval(x, y, z), y, z + s * shift.eval(x, y, z));
+    }
+
+    /** A deterministic 3-D normal-noise leaf from a derived per-label seed (reduced stand-in). */
+    private static Density noise3d(long worldSeed, String label, double xzScale, double yScale) {
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label), -2, single());
+        return (x, y, z) -> n.getValue(x * xzScale, y * yScale, z * xzScale);
+    }
+
+    /** A deterministic 2-D normal-noise leaf (xz plane) from a derived per-label seed. */
+    private static Density noise2d(long worldSeed, String label, double xzScale) {
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label), -3, single());
+        return (x, y, z) -> n.getValue(x * xzScale, 0.0, z * xzScale);
     }
 
     @Override

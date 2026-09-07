@@ -19,13 +19,13 @@ import java.util.Map;
  * the three primary worlds' ids and coordinate scales, the pinned vanilla
  * 1.21.1 dimension-type flags and windows, the {@code td()} /
  * {@code fromTd(String)} round-trip and overrides, parser rejections,
- * {@code materializeRouter(seed, WorldDim)} (overworld now, nether/end
- * deferred), and {@code validate()} health-checking. Pure JVM — no Minecraft
+ * {@code materializeRouter(seed, WorldDim)} (overworld plus the p.1.8.20 nether /
+ * end routers), and {@code validate()} health-checking. Pure JVM — no Minecraft
  * runtime. Exit 0 = PASS, exit 1 = FAIL.
  * <p>
  * p.1.8.19 td 维度接线核心的确定性验收探针：三个主世界的 id 与坐标尺度、钉定的原生
  * 1.21.1 维度型标志与窗口、{@code td()} / {@code fromTd(String)} 往返与覆盖、解析拒绝、
- * {@code materializeRouter(seed, WorldDim)}（主世界现可用，下界/末地延后）与
+ * {@code materializeRouter(seed, WorldDim)}（主世界 + p.1.8.20 下界/末地路由器）与
  * {@code validate()} 健康检查。纯 JVM——无 Minecraft 运行时。退出 0 = 通过，1 = 失败。
  */
 public final class DimensionWorldsProbe {
@@ -171,8 +171,19 @@ public final class DimensionWorldsProbe {
                 !near(r3.finalDensity().eval(8.5, 63.0, -12.5),
                         r1.finalDensity().eval(8.5, 63.0, -12.5)));
         check("router worldSeed matches seed", r1.worldSeed() == seed);
-        check("nether router deferred (null)", d.materializeRouter(seed, WorldDim.THE_NETHER) == null);
-        check("end router deferred (null)", d.materializeRouter(seed, WorldDim.THE_END) == null);
+        // p.1.8.20: nether/end now materialise real routers (previously deferred to null).
+        NoiseRouter nr = d.materializeRouter(seed, WorldDim.THE_NETHER);
+        NoiseRouter er = d.materializeRouter(seed, WorldDim.THE_END);
+        check("nether router built (non-null, 15 fields)", nr != null && nr.fieldCount() == 15);
+        check("end router built (non-null, 15 fields)", er != null && er.fieldCount() == 15);
+        check("nether router deterministic across fresh calls",
+                nr.finalDensity().eval(8.5, 63.0, -12.5) == d.materializeRouter(seed, WorldDim.THE_NETHER)
+                        .finalDensity().eval(8.5, 63.0, -12.5));
+        check("end router deterministic across fresh calls",
+                er.finalDensity().eval(8.5, 63.0, -12.5) == d.materializeRouter(seed, WorldDim.THE_END)
+                        .finalDensity().eval(8.5, 63.0, -12.5));
+        check("nether finalDensity finite", finite(nr.finalDensity().eval(8.5, 63.0, -12.5)));
+        check("end finalDensity finite", finite(er.finalDensity().eval(8.5, 63.0, -12.5)));
         boolean allFieldsDeterministic = true;
         boolean allFieldsFinite = true;
         for (int i = 0; i < 15; i++) {
