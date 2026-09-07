@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -42,15 +44,16 @@ import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
  * {@link DensityFunction.FunctionContext} (vanilla multiplies by its per-field
  * xz/y/scale internally), i.e. only {@code blockX()/blockY()/blockZ()} are surfaced.
  * <p>
- * Two entry paths share one {@link #main(String[])}:
+ * Entry paths (p.1.8.18 wires these into a booted server):
  * <ul>
  *   <li>self-check ({@code subterra.compareSelfCheck=true}): skips MC entirely and runs
  *       the mirror twice, printing PASS if deterministic — proves the tool without a world;</li>
- *   <li>full compare: resolves the booted server via {@link ServerLifecycleHooks#getCurrentServer()},
- *       samples vanilla + mirror, writes the report. No booted server is reported as
- *       {@code BLOCKED} (exit 2).</li>
+ *   <li>full compare: resolves the booted server via {@link ServerLifecycleHooks#getCurrentServer()}
+ *       (standalone launcher path), or is invoked in-process by {@link SameSeedCompareHook}
+ *       on server start (system property {@code subterra.compareSeed}) or via the
+ *       {@code /subterra compare <seed>} command. Samples vanilla + mirror, writes the report.</li>
  * </ul>
- * All MC-touching code is guarded and never throws past {@link #main}.
+ * All MC-touching code is guarded and never throws past {@link #main} / the caller.
  * <p>
  * 同种子权威对拍桥（p.1.8.17）：自包含静态启动器，在给定的 {@code worldSeed}（系统属性
  * {@code subterra.compareSeed}，默认 {@code 44905237L}）下的固定坐标处采样原生
@@ -67,14 +70,15 @@ import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
  * 经最小 {@link DensityFunction.FunctionContext} 在原始方块坐标处求值（原生在内部按各场
  * xz/y 比例缩放），即仅暴露 {@code blockX()/blockY()/blockZ()}。
  * <p>
- * 两条入口共享一个 {@link #main(String[])}：
+ * 入口路径（p.1.8.18 将下文接入已启动的服务器）：
  * <ul>
  *   <li>自检（{@code subterra.compareSelfCheck=true}）：完全不触碰 MC，镜像连跑两次，确定性则打印
  *       PASS——无需世界即可验证工具；</li>
- *   <li>完整对拍：经 {@link ServerLifecycleHooks#getCurrentServer()} 取已启动服务器，采样原生+镜像并写报告。
- *       无服务器则以 {@code BLOCKED}（退出码 2）报告。</li>
+ *   <li>完整对拍：独立启动路径经 {@link ServerLifecycleHooks#getCurrentServer()} 取已启动服务
+ *       器；进程内则由 {@link SameSeedCompareHook} 在服务启动时（系统属性 {@code subterra.compareSeed}）
+ *       或经 {@code /subterra compare <seed>} 命令调用。采样原生+镜像并写报告。</li>
  * </ul>
- * 所有触碰 MC 的代码均受保护，绝不从 {@link #main} 抛异常。
+ * 所有触碰 MC 的代码均受保护，绝不从 {@link #main} 或调用方抛出异常。
  */
 public final class SameSeedCompare {
 
@@ -88,15 +92,19 @@ public final class SameSeedCompare {
     /**
      * A mid-altitude altitude per column is chosen near sea level (y=64) because the
      * composite density fields (depth / initial / final) transition sharply there; a second
-     * low sample (y=16) sits in the common cave / ore-vein band above bedrock. The three
-     * columns span different octave regimes: origin, a modest offset, and a large offset.
+     * low sample (y=16) sits in the common cave / ore-vein band above bedrock. Two deeper
+     * samples cover the bedrock band (y=0 transition, and the top of the deepslate/base
+     * rock at y=-40); all Y values sit within the mirror build range [-64, 320] and are
+     * fully deterministic. The three columns span different octave regimes: origin, a
+     * modest offset, and a large offset.
      * 每个列的中部采样高度选在海面附近（y=64），因为组合密度场（depth / initial / final）在
-     * 此处变化剧烈；第二个低采样（y=16）位于基岩之上的常见洞穴 / 矿脉带。三个列跨越不同 octave
-     * 量纲：原点、中等偏移、较大偏移。
+     * 此处变化剧烈；第二个低采样（y=16）位于基岩之上的常见洞穴 / 矿脉带。另有两个更深采样覆盖
+     * 基岩带（y=0 的过渡地带，以及深板岩/底部基岩顶部的 y=-40）；所有 Y 值均落在镜像构建范围
+     * [-64, 320] 内且完全确定。三个列跨越不同 octave 量纲：原点、中等偏移、较大偏移。
      */
     private static List<SamplePoint> samplePoints() {
         final long[][] columns = { {0L, 0L}, {123L, -456L}, {9999L, 3L} };
-        final int[] ys = {16, 64};
+        final int[] ys = {-40, 0, 16, 64};
         List<SamplePoint> out = new ArrayList<>();
         for (long[] c : columns) {
             for (int y : ys) {
@@ -144,6 +152,76 @@ public final class SameSeedCompare {
      * @return a process exit code (0 = ok, 2 = blocked).
      */
     public static int runAgainst(ServerLevel level, long seed) {
+        runAgainstReport(level, seed);
+        return 0;
+    }
+
+    /**
+     * In-server compare entry (p.1.8.18): computes the vanilla-vs-mirror matrices, renders
+     * the stdout report + CSV (same output as {@link #runAgainst}), and returns the aggregate
+     * summary so callers can log it (e.g. at INFO on server start). Throws the guarded
+     * {@code CompareBlocked} signal on router/server failure — callers must catch it.
+     * 服务端对拍入口（p.1.8.18）：计算原生 vs 镜像矩阵，渲染 stdout 报告与 CSV（与
+     * {@link #runAgainst} 相同输出），并返回聚合摘要供调用方记录（如服务启动时以 INFO 级别）。
+     * 路由器/服务器不可用时抛出受保护的 {@code CompareBlocked} 信号——调用方必须捕获。
+     *
+     * @param level the booted overworld level.
+     * @param seed  the world seed to compare against.
+     * @return the aggregate bit-equality summary.
+     */
+    public static CompareReport runAgainstReport(ServerLevel level, long seed) {
+        CompareResult r = compute(level, seed);
+        renderStdout(r, seed);
+        FieldStats s = stats(r);
+        return new CompareReport(seed, s.bitEqualTotal, r.fieldCount * r.pointCount);
+    }
+
+    /**
+     * Command-facing entry (p.1.8.18): runs the same compare on the command source's level
+     * with the given seed and sends a compact per-field summary to the sender. Never throws
+     * past the caller; failures are sent to the sender and logged as {@code BLOCKED}.
+     * 命令入口（p.1.8.18）：在命令源所在维度以给定种子执行同一对拍，并向发送者发送紧凑的逐场
+     * 摘要。绝不向调用方抛异常；失败会以 {@code BLOCKED} 发送给发送者并记录。
+     *
+     * @param stack the command source (its level is used; may differ from the overworld).
+     * @param seed  the world seed to compare against.
+     */
+    public static void reportToSender(CommandSourceStack stack, long seed) {
+        try {
+            ServerLevel level = stack.getLevel();
+            if (level == null) {
+                stack.sendFailure(Component.literal("[SameSeedCompare] BLOCKED: no ServerLevel for the command source."));
+                return;
+            }
+            CompareResult r = compute(level, seed);
+            renderStdout(r, seed);
+            FieldStats s = stats(r);
+            stack.sendSuccess(() -> Component.literal("[SameSeedCompare] compare seed=" + seed), false);
+            for (int i = 0; i < r.fieldCount(); i++) {
+                final int fi = i;
+                stack.sendSuccess(() -> Component.literal(String.format(
+                        "  %-30s bitEqual %d/%d  maxAbsDiff %g",
+                        NoiseRouter.FIELD_NAMES[fi], s.bitEqualCount[fi], r.pointCount(), s.maxAbs[fi])), false);
+            }
+            stack.sendSuccess(() -> Component.literal(String.format(
+                    "[SameSeedCompare] %d/%d field-samples bit-equal; csv=run/compare/%d.csv",
+                    s.bitEqualTotal, r.fieldCount() * r.pointCount(), seed)), false);
+        } catch (CompareBlocked e) {
+            stack.sendFailure(Component.literal("[SameSeedCompare] BLOCKED: " + e.getMessage()));
+        } catch (Throwable t) {
+            String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
+            stack.sendFailure(Component.literal("[SameSeedCompare] BLOCKED: " + reason));
+        }
+    }
+
+    /**
+     * Samples the fifteen vanilla and mirror router fields at every fixed point for a seed and
+     * packages them as a positioned matrix. Mirrors are unbounded here except the guarded
+     * {@code CompareBlocked} on router/server failure.
+     * 对给定种子在每个固定点采样十五个原生与镜像路由器场，并封装为带坐标的矩阵。除受保护的
+     * {@code CompareBlocked}（路由器/服务器失败）外不向调用方抛其他异常。
+     */
+    private static CompareResult compute(ServerLevel level, long seed) {
         final List<SamplePoint> points = samplePoints();
         final int fieldCount = NoiseRouter.FIELD_NAMES.length; // 15
         final int pointCount = points.size();
@@ -171,51 +249,72 @@ public final class SameSeedCompare {
                 va[i][pi] = v[i];
             }
         }
+        return new CompareResult(points, fieldCount, pointCount, mi, va);
+    }
 
-        // Report.
+    /**
+     * Computes the per-field bit-equal counts and per-field max absolute diff from the
+     * vanilla/mirror matrices. 由原生/镜像矩阵计算逐场逐位相等计数与逐场最大绝对差。
+     */
+    private static FieldStats stats(CompareResult r) {
+        int[] bitEqualCount = new int[r.fieldCount()];
+        double[] maxAbs = new double[r.fieldCount()];
+        int bitEqualTotal = 0;
+        for (int i = 0; i < r.fieldCount(); i++) {
+            for (int pi = 0; pi < r.pointCount(); pi++) {
+                double van = r.va()[i][pi];
+                double m = r.mi()[i][pi];
+                if (Double.doubleToLongBits(van) == Double.doubleToLongBits(m)) {
+                    bitEqualCount[i]++;
+                }
+                maxAbs[i] = Math.max(maxAbs[i], Math.abs(van - m));
+            }
+            bitEqualTotal += bitEqualCount[i];
+        }
+        return new FieldStats(bitEqualCount, maxAbs, bitEqualTotal);
+    }
+
+    /**
+     * Writes the CSV ({@code run/compare/<seed>.csv}) and prints the deterministic per-field
+     * summary lines to stdout (shared by every in-server/standalone entry).
+     * 写 CSV（{@code run/compare/<seed>.csv}）并向 stdout 打印确定的逐场摘要行（所有服务端/独立
+     * 入口共用）。
+     */
+    private static void renderStdout(CompareResult r, long seed) {
         try {
             Files.createDirectories(Path.of("compare"));
         } catch (IOException e) {
             System.out.println("[SameSeedCompare] WARN: could not create run/compare dir: " + e);
         }
         Path csv = Path.of("compare", seed + ".csv");
-        int[] bitEqualCount = new int[fieldCount];
-        double[] maxAbs = new double[fieldCount];
-        Arrays.fill(maxAbs, 0.0);
-        int bitEqualTotal = 0;
-
         try (PrintWriter w = new PrintWriter(Files.newBufferedWriter(csv, StandardCharsets.UTF_8))) {
             w.println("field,x,y,z,vanilla,mirror,absDiff,bitEqual");
-            for (int i = 0; i < fieldCount; i++) {
-                for (int pi = 0; pi < pointCount; pi++) {
-                    SamplePoint p = points.get(pi);
-                    double van = va[i][pi];
-                    double m = mi[i][pi];
-                    double abs = Math.abs(van - m);
-                    boolean eq = Double.doubleToLongBits(van) == Double.doubleToLongBits(m);
-                    if (eq) {
-                        bitEqualCount[i]++;
-                    }
-                    maxAbs[i] = Math.max(maxAbs[i], abs);
+            for (int i = 0; i < r.fieldCount(); i++) {
+                for (int pi = 0; pi < r.pointCount(); pi++) {
+                    SamplePoint p = r.points().get(pi);
+                    double van = r.va()[i][pi];
+                    double m = r.mi()[i][pi];
                     w.printf("%s,%d,%d,%d,%.17g,%.17g,%.3g,%s%n",
-                            NoiseRouter.FIELD_NAMES[i], p.x(), p.y(), p.z(), van, m, abs, eq);
+                            NoiseRouter.FIELD_NAMES[i], p.x(), p.y(), p.z(), van, m, Math.abs(van - m),
+                            Double.doubleToLongBits(van) == Double.doubleToLongBits(m));
                 }
-                bitEqualTotal += bitEqualCount[i];
-                System.out.printf("[SameSeedCompare] field %-30s bitEqual %d/%d  maxAbsDiff %g%n",
-                        NoiseRouter.FIELD_NAMES[i], bitEqualCount[i], pointCount, maxAbs[i]);
             }
-            int samples = fieldCount * pointCount;
-            System.out.printf("[SameSeedCompare] %d/%d field-samples bit-equal; max abs diff per field above; csv=%s%n",
-                    bitEqualTotal, samples, csv.toAbsolutePath());
         } catch (IOException e) {
             System.out.println("[SameSeedCompare] WARN: could not write csv " + csv + ": " + e);
         }
-        return 0;
+        FieldStats s = stats(r);
+        for (int i = 0; i < r.fieldCount(); i++) {
+            System.out.printf("[SameSeedCompare] field %-30s bitEqual %d/%d  maxAbsDiff %g%n",
+                    NoiseRouter.FIELD_NAMES[i], s.bitEqualCount[i], r.pointCount(), s.maxAbs[i]);
+        }
+        int samples = r.fieldCount() * r.pointCount();
+        System.out.printf("[SameSeedCompare] %d/%d field-samples bit-equal; max abs diff per field above; csv=%s%n",
+                s.bitEqualTotal, samples, csv.toAbsolutePath());
     }
 
     /**
      * Samples the fifteen vanilla router fields at {@code p}, returning the field values in
-     * {@link NoiseRouter#FIELD_NAMES} order. Guarded and never thrown past {@link #main}.
+     * {@link NoiseRouter#FIELD_NAMES} order. Guarded and never thrown past the caller.
      * 在 {@code p} 处采样十五个原生路由器场，按 {@link NoiseRouter#FIELD_NAMES} 顺序返回场值。
      */
     private static double[] sampleVanillaFields(ServerLevel level, SamplePoint p) {
@@ -300,7 +399,11 @@ public final class SameSeedCompare {
         System.exit(2);
     }
 
-    /** Minimal {@link DensityFunction.FunctionContext} surfacing the raw block coordinates. */
+    // ---- records ----
+
+    /**
+     * Minimal {@link DensityFunction.FunctionContext} surfacing the raw block coordinates.
+     */
     private record BlockContext(int x, int y, int z) implements DensityFunction.FunctionContext {
         @Override
         public int blockX() { return x; }
@@ -315,7 +418,20 @@ public final class SameSeedCompare {
         public Blender getBlender() { return Blender.empty(); }
     }
 
-    /** Internal signal meaning "vanilla router / server unavailable" (never escapes main). */
+    /** Computed compare matrices for one seed+level run (parallel to {@link SamplePoint} order). */
+    private record CompareResult(List<SamplePoint> points, int fieldCount, int pointCount,
+                                 double[][] mi, double[][] va) {
+    }
+
+    /** Per-field summary stats (bit-equal counts + per-field max abs diff). */
+    private record FieldStats(int[] bitEqualCount, double[] maxAbs, int bitEqualTotal) {
+    }
+
+    /** Aggregate bit-equality summary returned to in-server callers for logging. */
+    public record CompareReport(long seed, int bitEqualTotal, int totalSamples) {
+    }
+
+    /** Internal signal meaning "vanilla router / server unavailable" (never escapes a caller). */
     private static final class CompareBlocked extends RuntimeException {
         CompareBlocked(String message) {
             super(message);
