@@ -263,6 +263,13 @@ def surfaceBridgeProbe = tasks.register('runSurfaceBridgeProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.SurfaceBridgeProbe'
 }
 
+def biomeSourceProbe = tasks.register('runBiomeSourceProbe', JavaExec) {
+    group = 'verification'
+    description = 'Run the vanilla-compatible MultiNoiseBiomeSource core probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.BiomeSourceProbe'
+}
+
 // End-to-end gate: boots the dev server on the Java 25 toolchain and asserts
 // the boot contract from the log. Event-based, never timing-based.
 def bootProbe = tasks.register('runBootProbe', JavaExec) {
@@ -277,5 +284,5 @@ def bootProbe = tasks.register('runBootProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, bootProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, bootProbe
 }
