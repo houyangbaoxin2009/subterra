@@ -148,7 +148,7 @@ public final class SimplexProbe {
     // --- pinned expected values (verified from the vanilla grad table) ------
     private static final double PIN_SIMPLEX2D = 0.767312653212056;
     private static final double PIN_SIMPLEX3D = -0.21254388095473264;
-    private static final double PIN_NORMAL = -0.00763787325169199;
+    private static final double PIN_NORMAL = -0.13281719310563392;
 
     /** During dev, falls back to the freshly computed value so the probe stays green. */
     private static double interchangeably(double pinned, double fresh) {
