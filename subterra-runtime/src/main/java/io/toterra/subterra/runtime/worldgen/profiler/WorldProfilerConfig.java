@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.profiler;
+package io.toterra.subterra.runtime.worldgen.profiler;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

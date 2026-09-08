@@ -10,7 +10,7 @@ package io.toterra.subterra.api.worldgen;
  * <ul>
  *   <li><b>Config file</b>: the MC-side loader reads
  *       {@code config/subterra/worldgen.td} (see
- *       {@code io.toterra.subterra.worldgen.gen.WorldgenConfig}); set
+ *       {@code io.toterra.subterra.runtime.worldgen.gen.WorldgenConfig}); set
  *       {@code [ use_subterra_generator = true ]} to make Subterra the default.</li>
  *   <li><b>API</b>: a host/plugin calls {@code WorldgenConfig.enableDefaultGenerator()}
  *       on the MC side (in-memory only, not persisted).</li>
@@ -28,7 +28,7 @@ package io.toterra.subterra.api.worldgen;
  * 反射/接口层注入：
  * <ul>
  *   <li><b>配置文件</b>：MC 侧加载 {@code config/subterra/worldgen.td}（见
- *       {@code io.toterra.subterra.worldgen.gen.WorldgenConfig}），写入
+ *       {@code io.toterra.subterra.runtime.worldgen.gen.WorldgenConfig}），写入
  *       {@code [ use_subterra_generator = true ]} 即把 Subterra 设为默认。</li>
  *   <li><b>API</b>：宿主/插件在 MC 侧调用
  *       {@code WorldgenConfig.enableDefaultGenerator()}（仅内存，不落盘）。</li>

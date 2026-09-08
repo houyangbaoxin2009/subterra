@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.compare;
+package io.toterra.subterra.runtime.worldgen.compare;
 
 import org.slf4j.Logger;
 

@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.gen;
+package io.toterra.subterra.runtime.worldgen.gen;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;

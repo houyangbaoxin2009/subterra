@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.profiler;
+package io.toterra.subterra.runtime.worldgen.profiler;
 
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -30,7 +30,7 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 import io.toterra.subterra.Subterra;
-import io.toterra.subterra.worldgen.gen.SubterraDensity;
+import io.toterra.subterra.runtime.worldgen.gen.SubterraDensity;
 import io.toterra.subterra.api.worldgen.profiler.ProfileAxis;
 import io.toterra.subterra.api.worldgen.profiler.ProfileCategory;
 import io.toterra.subterra.api.worldgen.profiler.ProfilePlan;

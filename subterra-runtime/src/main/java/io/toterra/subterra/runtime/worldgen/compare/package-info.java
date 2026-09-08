@@ -18,4 +18,4 @@
  * {@code ServerLifecycleHooks.getCurrentServer()} 取得，否则打印 {@code BLOCKED}
  * 并以 2 退出，绝不使游戏崩溃）。
  */
-package io.toterra.subterra.worldgen.compare;
+package io.toterra.subterra.runtime.worldgen.compare;

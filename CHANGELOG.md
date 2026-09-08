@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.8] Move root MC worldgen into runtime.worldgen / root MC worldgen 迁入 runtime.worldgen (2026-09-08)
+
+* The root main-sourceSet worldgen wiring (`worldgen.gen` SubterraDensity / `worldgen.profiler` hooks / `worldgen.compare`) moves into the runtime source-host as `io.toterra.subterra.runtime.worldgen.*`; the mod entry classes stay at `io.toterra.subterra`; `runWorldCompare` main class re-pointed / root main sourceSet 的 worldgen 接线（`worldgen.gen` SubterraDensity / `worldgen.profiler` 钩子 / `worldgen.compare`）迁入 runtime source-host 的 `io.toterra.subterra.runtime.worldgen.*`；mod 入口类留在 `io.toterra.subterra`；`runWorldCompare` 主类改指
+
 ## [p.2.0.7] Move launch + compat into runtime.{launch,fix} / launch + compat 迁入 runtime.{launch,fix} (2026-09-08)
 
 * `subterra-launch` (JvmEnv / JvmLaunchArgs) moves into the runtime source-host as `io.toterra.subterra.runtime.launch.*`, `subterra-compat` (Java25Gaps) as `io.toterra.subterra.runtime.fix.*`; both modules are dropped; devkit now depends on the root main output (one-way file dep) / `subterra-launch`（JvmEnv / JvmLaunchArgs）迁入 runtime source-host 的 `io.toterra.subterra.runtime.launch.*`，`subterra-compat`（Java25Gaps）迁为 `io.toterra.subterra.runtime.fix.*`；两模块移除；devkit 改依赖 root main 输出（单向文件依赖）

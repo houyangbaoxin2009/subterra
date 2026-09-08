@@ -305,7 +305,7 @@ tasks.register('runWorldCompare', JavaExec) {
     group = 'verification'
     description = 'p.1.8.17: compare vanilla NoiseRouter vs Subterra mirror on a shared seed (self-check headless; MC sampling needs a booted server).'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'io.toterra.subterra.worldgen.compare.SameSeedCompare'
+    mainClass = 'io.toterra.subterra.runtime.worldgen.compare.SameSeedCompare'
     workingDir = project.file('run')
     // Mirror the dev-run JVM tuning / reflection opens from runs.configureEach.
     jvmArguments.addAll([

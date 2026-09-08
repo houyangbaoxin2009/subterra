@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.gen;
+package io.toterra.subterra.runtime.worldgen.gen;
 
 import java.util.Objects;
 

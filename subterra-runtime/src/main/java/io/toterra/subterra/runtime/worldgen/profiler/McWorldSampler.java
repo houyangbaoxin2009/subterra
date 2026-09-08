@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.profiler;
+package io.toterra.subterra.runtime.worldgen.profiler;
 
 import java.lang.reflect.InvocationTargetException;
 

@@ -1,4 +1,4 @@
-package io.toterra.subterra.worldgen.compare;
+package io.toterra.subterra.runtime.worldgen.compare;
 
 /**
  * One fixed sampling point: a block column {@code (x, z)} at altitude {@code y}
