@@ -2,6 +2,7 @@ package io.toterra.subterra.probes;
 
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
+import io.toterra.subterra.engine.datapack.DatapackPack;
 import io.toterra.subterra.engine.datapack.Datapack;
 import io.toterra.subterra.engine.datapack.DatapackEntry;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
@@ -114,7 +115,21 @@ public final class DatapackProbe {
             check("重复装载注册表一致",
                     dp.entries().keySet().equals(DatapackLoader.load(packDir).entries().keySet()));
 
-            // 6. malformed td names the offender
+            // 6. pack round-trip: datapack dir -> single td doc -> unpack -> reload
+            String packed = DatapackPack.export(packDir);
+            Path unpacked = tmp.resolve("mini_rt");
+            DatapackPack.unpack(packed, unpacked);
+            Datapack rt = DatapackLoader.load(unpacked);
+            check("打包往返 注册表一致", rt.entries().keySet().equals(dp.entries().keySet()));
+            check("打包往返 包名与 manifest 名保留", rt.name().equals(dp.name()));
+            DatapackEntry rtRecipe = rt.get(EntryKind.RECIPE, "toterra", "example");
+            DatapackEntry srcRecipe = recipe;
+            check("打包往返 recipe payload 精确", rtRecipe != null && srcRecipe != null
+                    && io.toterra.subterra.engine.config.Td.write(rtRecipe.payload())
+                    .equals(io.toterra.subterra.engine.config.Td.write(srcRecipe.payload())));
+            check("打包往返 pack.td 携带", rt.tieLibraries().equals(dp.tieLibraries()));
+
+            // 7. malformed td names the offender
             Path bad = tmp.resolve("bad_pack");
             Files.createDirectories(bad.resolve("data/broken/function"));
             Files.writeString(bad.resolve("data/broken/function/x.td"), "type tie<data>\nfunction = [\n");
