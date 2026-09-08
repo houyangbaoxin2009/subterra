@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.core;
+package io.toterra.subterra.engine.worldgen.profiler.core;
 
 import java.util.ArrayList;
 import java.util.HashMap;

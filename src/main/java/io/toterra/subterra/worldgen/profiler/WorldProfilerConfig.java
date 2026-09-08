@@ -17,7 +17,7 @@ import io.toterra.subterra.api.worldgen.profiler.ProfilePlan;
 import io.toterra.subterra.api.worldgen.profiler.ProfileSink;
 import io.toterra.subterra.api.worldgen.profiler.ProfileStep;
 import io.toterra.subterra.api.worldgen.profiler.ProfileWindow;
-import io.toterra.subterra.profiler.facade.ProfilePlanTd;
+import io.toterra.subterra.engine.worldgen.profiler.facade.ProfilePlanTd;
 
 /**
  * Config-file loader + runtime gate for the World Profiler (p.1.8.30). Reads

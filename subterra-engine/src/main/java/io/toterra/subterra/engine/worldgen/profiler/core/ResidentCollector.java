@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.core;
+package io.toterra.subterra.engine.worldgen.profiler.core;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -6,7 +6,7 @@ import java.util.Objects;
 import io.toterra.subterra.api.worldgen.profiler.ProfilePlan;
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
 import io.toterra.subterra.api.worldgen.profiler.WorldSampler;
-import io.toterra.subterra.profiler.core.ProfileRegion.Box;
+import io.toterra.subterra.engine.worldgen.profiler.core.ProfileRegion.Box;
 
 /**
  * Incremental resident collector (p.1.8.30): samples each freshly generated

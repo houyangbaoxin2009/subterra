@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.6] Move profiler into engine.worldgen.profiler / profiler 迁入 engine.worldgen.profiler (2026-09-08)
+
+* `subterra-profiler` moves into `subterra-engine` as `io.toterra.subterra.engine.worldgen.profiler.*` (core/facade/report); the module is dropped; run-injection now only api + engine (+ launch); the MC-layer profiler hooks re-pointed / `subterra-profiler` 迁入 `subterra-engine` 的 `io.toterra.subterra.engine.worldgen.profiler.*`（core/facade/report）；模块移除；run 注入收敛为 api + engine（+ launch）；MC 层 profiler 钩子同步改指
+
 ## [p.2.0.5] Move log into engine.log / log 迁入 engine.log (2026-09-08)
 
 * `subterra-log` moves into `subterra-engine` as `io.toterra.subterra.engine.log.*` (incl. `.analysis`); the module is dropped; boot-time logging wiring re-pointed / `subterra-log` 迁入 `subterra-engine` 的 `io.toterra.subterra.engine.log.*`（含 `.analysis`）；模块移除；启动日志接线同步改指

@@ -30,14 +30,14 @@ import io.toterra.subterra.api.worldgen.profiler.SliceUnit;
 import io.toterra.subterra.api.worldgen.profiler.WorldSampler;
 import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
-import io.toterra.subterra.profiler.core.ProfileRegion;
-import io.toterra.subterra.profiler.core.ProfileRegion.Box;
-import io.toterra.subterra.profiler.core.ResidentCollector;
-import io.toterra.subterra.profiler.core.StatsEngine;
-import io.toterra.subterra.profiler.facade.ApiRegistry;
-import io.toterra.subterra.profiler.facade.ProfilePlanTd;
-import io.toterra.subterra.profiler.report.TdWriter;
-import io.toterra.subterra.profiler.report.ZdWriter;
+import io.toterra.subterra.engine.worldgen.profiler.core.ProfileRegion;
+import io.toterra.subterra.engine.worldgen.profiler.core.ProfileRegion.Box;
+import io.toterra.subterra.engine.worldgen.profiler.core.ResidentCollector;
+import io.toterra.subterra.engine.worldgen.profiler.core.StatsEngine;
+import io.toterra.subterra.engine.worldgen.profiler.facade.ApiRegistry;
+import io.toterra.subterra.engine.worldgen.profiler.facade.ProfilePlanTd;
+import io.toterra.subterra.engine.worldgen.profiler.report.TdWriter;
+import io.toterra.subterra.engine.worldgen.profiler.report.ZdWriter;
 
 /**
  * Deterministic acceptance probe for the p.1.8.30 "World Profiler" pure-JDK

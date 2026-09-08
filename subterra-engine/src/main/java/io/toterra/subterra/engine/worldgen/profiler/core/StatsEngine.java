@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.core;
+package io.toterra.subterra.engine.worldgen.profiler.core;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +16,7 @@ import io.toterra.subterra.api.worldgen.profiler.ProfilePlan;
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
 import io.toterra.subterra.api.worldgen.profiler.SliceReport;
 import io.toterra.subterra.api.worldgen.profiler.WorldSampler;
-import io.toterra.subterra.profiler.core.ProfileRegion.Box;
+import io.toterra.subterra.engine.worldgen.profiler.core.ProfileRegion.Box;
 
 /**
  * The pure-JDK world-profiling engine (p.1.8.30): a single deterministic scan

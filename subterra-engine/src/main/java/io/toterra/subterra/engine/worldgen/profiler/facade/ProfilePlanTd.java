@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.facade;
+package io.toterra.subterra.engine.worldgen.profiler.facade;
 
 import java.util.ArrayList;
 import java.util.EnumSet;

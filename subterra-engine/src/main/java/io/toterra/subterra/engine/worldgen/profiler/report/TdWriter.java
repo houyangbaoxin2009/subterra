@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.report;
+package io.toterra.subterra.engine.worldgen.profiler.report;
 
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
 import io.toterra.subterra.engine.config.Td;

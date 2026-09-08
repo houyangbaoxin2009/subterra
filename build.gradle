@@ -110,9 +110,6 @@ neoForge {
             // (e.g. the JEC pinyin search port uses engine.optim.logic.pronounce).
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-api')))
-            // World profiler: pure-JDK statistics/slice cores consumed by the MC-layer profiler hooks.
-            additionalRuntimeClasspathConfiguration.dependencies.add(
-                    project.dependencies.create(project(':subterra-profiler')))
             // p.2.0.2: root MC layer references engine.worldgen classes in dev runs.
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-engine')))
@@ -220,8 +217,6 @@ dependencies {
     // API + engine cores are referenced by MC-layer source hosts
     // (e.g. the JEC pinyin search port uses engine.optim.logic.pronounce).
     implementation project(':subterra-api')
-    // World profiler: pure-JDK statistics/slice cores consumed by the MC-layer profiler hooks.
-    implementation project(':subterra-profiler')
     // p.2.0 pure-JDK engine core (worldgen/optim/config/log/export migrate into engine.*).
     implementation project(':subterra-engine')
 

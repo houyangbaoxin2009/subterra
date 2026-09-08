@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.report;
+package io.toterra.subterra.engine.worldgen.profiler.report;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;

@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.core;
+package io.toterra.subterra.engine.worldgen.profiler.core;
 
 import io.toterra.subterra.api.worldgen.profiler.ProfileAxis;
 import io.toterra.subterra.api.worldgen.profiler.ProfileSlice;

@@ -1,4 +1,4 @@
-package io.toterra.subterra.profiler.facade;
+package io.toterra.subterra.engine.worldgen.profiler.facade;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,9 +17,9 @@ import io.toterra.subterra.api.worldgen.profiler.ProfilePlan;
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
 import io.toterra.subterra.api.worldgen.profiler.ProfileSink;
 import io.toterra.subterra.api.worldgen.profiler.WorldSampler;
-import io.toterra.subterra.profiler.core.StatsEngine;
-import io.toterra.subterra.profiler.report.TdWriter;
-import io.toterra.subterra.profiler.report.ZdWriter;
+import io.toterra.subterra.engine.worldgen.profiler.core.StatsEngine;
+import io.toterra.subterra.engine.worldgen.profiler.report.TdWriter;
+import io.toterra.subterra.engine.worldgen.profiler.report.ZdWriter;
 
 /**
  * The pure-JDK entry point that runs a world profile and persists it

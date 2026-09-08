@@ -39,10 +39,10 @@ import io.toterra.subterra.api.worldgen.profiler.ProfileSink;
 import io.toterra.subterra.api.worldgen.profiler.ProfileSlice;
 import io.toterra.subterra.api.worldgen.profiler.ProfileWindow;
 import io.toterra.subterra.api.worldgen.profiler.SliceUnit;
-import io.toterra.subterra.profiler.core.ProfileRegion;
-import io.toterra.subterra.profiler.core.ResidentCollector;
-import io.toterra.subterra.profiler.facade.ApiRegistry;
-import io.toterra.subterra.profiler.facade.WorldProfileRunner;
+import io.toterra.subterra.engine.worldgen.profiler.core.ProfileRegion;
+import io.toterra.subterra.engine.worldgen.profiler.core.ResidentCollector;
+import io.toterra.subterra.engine.worldgen.profiler.facade.ApiRegistry;
+import io.toterra.subterra.engine.worldgen.profiler.facade.WorldProfileRunner;
 
 /**
  * p.1.8.30 in-server World Profiler wiring: binds the pure-JDK profiler engine
