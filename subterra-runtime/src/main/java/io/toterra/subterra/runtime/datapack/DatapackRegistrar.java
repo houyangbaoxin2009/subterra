@@ -1,5 +1,6 @@
 package io.toterra.subterra.runtime.datapack;
 
+import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.datapack.Datapack;
@@ -22,6 +23,12 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.item.crafting.SmokingRecipe;
+import net.minecraft.world.level.storage.loot.LootPool;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.entries.LootItem;
+import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.io.IOException;
@@ -145,6 +152,8 @@ public final class DatapackRegistrar implements AutoCloseable {
         registerRecipes();
         registerTie();
         registerStaged();
+        registerTdCanonical();
+        buildLootTables();
         for (Map.Entry<String, List<String>> e : tagValues.entrySet()) {
             DatapackRuntime.LOGGER.info("{} tag {} values={}", MARKER, e.getKey(), e.getValue());
         }
@@ -323,9 +332,189 @@ public final class DatapackRegistrar implements AutoCloseable {
         return loc == null ? null : BuiltInRegistries.ITEM.get(loc);
     }
 
-    /** Staged kinds (loot_table / worldgen / structure): schema-free indexes with
-     *  markers; the vanilla injection wiring (LootDataManager / RegisterEvent)
-     *  lands in a later datapack block — until then these travel as staged. */
+    /** A canonical-input check: derive a deterministic canonical string from the
+     *  built vanilla recipe and from the source td payload — the td -> vanilla
+     *  translation must agree exactly (marker ok/mismatch per recipe). */
+    private void registerTdCanonical() {
+        RegistryAccess ra = server.registryAccess();
+        for (RecipeHolder<?> holder : recipes) {
+            DatapackEntry entry = byKind.get(EntryKind.RECIPE).stream()
+                    .filter(e -> (e.namespace() + ":" + e.path()).equals(holder.id().toString()))
+                    .findFirst().orElse(null);
+            String fromObject = holderCanonical(holder, ra);
+            String fromTd = entry != null ? tdCanonical(entry) : null;
+            boolean ok = fromTd != null && fromObject.equals(fromTd);
+            DatapackRuntime.LOGGER.info("{} recipe canonical {} {}",
+                    MARKER, holder.id(), ok ? "ok" : "mismatch");
+        }
+    }
+
+    /** Canonical string of a built recipe holder (public API only). */
+    private static String holderCanonical(RecipeHolder<?> holder, RegistryAccess ra) {
+        Recipe<?> value = holder.value();
+        StringBuilder sb = new StringBuilder();
+        if (value instanceof ShapedRecipe shaped) {
+            ShapedRecipePattern p = shaped.pattern; // public final field (ShapedRecipe.pattern)
+            sb.append("shaped").append('|').append(p.width()).append('x').append(p.height());
+            for (Ingredient i : p.ingredients()) {
+                sb.append('|').append(ingredientKey(i));
+            }
+            ItemStack res = shaped.getResultItem(ra);
+            sb.append('|').append(itemKey(res));
+        } else if (value instanceof SmokingRecipe smoking) {
+            sb.append("smoking").append('|').append(ingredientKey(smoking.getIngredients().get(0)));
+            ItemStack res = smoking.getResultItem(ra);
+            sb.append('|').append(itemKey(res));
+            sb.append('|').append(smoking.getExperience()).append('|').append(smoking.getCookingTime());
+        }
+        return sb.toString();
+    }
+
+    /** Canonical string derived from the td payload (parse-side mirror). */
+    private static String tdCanonical(DatapackEntry e) {
+        TdTable p = e.payload();
+        String type = p.get("type") != null ? p.get("type").asString() : "";
+        switch (type) {
+            case "minecraft:crafting_shaped" -> {
+                List<String> rows = tdStrings(p.get("pattern"));
+                if (rows.isEmpty()) {
+                    return null;
+                }
+                int h = rows.size();
+                int w = 0;
+                for (String row : rows) {
+                    w = Math.max(w, row.length());
+                }
+                w = Math.max(1, w);
+                java.util.Map<Character, String> keyItem = tdKeyItems(p.get("key"));
+                StringBuilder sb = new StringBuilder("shaped").append('|').append(w).append('x').append(h);
+                for (String row : rows) {
+                    for (int c = 0; c < w; c++) {
+                        char ch = c < row.length() ? row.charAt(c) : ' ';
+                        String itemId = keyItem.get(ch);
+                        sb.append('|').append(itemId == null ? " " : itemId + "x1");
+                    }
+                }
+                TdValue resultValue = p.get("result");
+                if (!(resultValue instanceof TdTable result)) {
+                    return null;
+                }
+                sb.append('|').append(itemKeyOf(result));
+                return sb.toString();
+            }
+            case "minecraft:smoking" -> {
+                TdValue ingredientValue = p.get("ingredient");
+                TdValue resultValue = p.get("result");
+                if (!(ingredientValue instanceof TdTable ingredient)
+                        || !(resultValue instanceof TdTable result)) {
+                    return null;
+                }
+                String inputId = ingredient.get("item") != null ? ingredient.get("item").asString() : "";
+                StringBuilder sb = new StringBuilder("smoking").append('|').append(inputId + "x1")
+                        .append('|').append(itemKeyOf(result));
+                sb.append('|').append(result.get("experience") != null
+                        ? Float.toString((float) result.get("experience").asFloat()) : "0.0");
+                sb.append('|').append(result.get("cooking_time") != null
+                        ? Long.toString(Math.max(1L, result.get("cooking_time").asInt())) : "200");
+                return sb.toString();
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
+    private static List<String> tdStrings(TdValue v) {
+        if (!(v instanceof TdTable t)) {
+            return List.of();
+        }
+        return t.elements().stream().map(TdValue::asString).toList();
+    }
+
+    private static java.util.Map<Character, String> tdKeyItems(TdValue v) {
+        java.util.Map<Character, String> out = new HashMap<>();
+        if (!(v instanceof TdTable keys)) {
+            return out;
+        }
+        for (TdValue item : keys.elements()) {
+            if (!(item instanceof TdTable kv)) {
+                continue;
+            }
+            String k = kv.get("k") != null ? kv.get("k").asString() : "";
+            TdValue vv = kv.get("v");
+            if (k.length() == 1 && vv instanceof TdTable vt && vt.get("item") != null) {
+                out.put(k.charAt(0), vt.get("item").asString());
+            }
+        }
+        return out;
+    }
+
+    private static String itemKeyOf(TdTable t) {
+        String id = t.get("item") != null ? t.get("item").asString() : "";
+        String count = t.get("count") != null ? t.get("count").toString() : "1";
+        return id + "x" + count;
+    }
+
+    private static String ingredientKey(Ingredient ingredient) {
+        ItemStack[] items = ingredient.getItems();
+        return items.length == 0 ? " " : itemKey(items[0]);
+    }
+
+    private static String itemKey(ItemStack stack) {
+        return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString() + "x" + stack.getCount();
+    }
+
+    /** Builds LootTables from staged td entries (chest schema, single pool, constant rolls). */
+    private void buildLootTables() {
+        for (DatapackEntry e : byKind.get(EntryKind.LOOT_TABLE)) {
+            int pools = buildLootTable(e);
+            if (pools == 0) {
+                DatapackRuntime.LOGGER.warn("{} skip loot_table {} (unsupported or malformed)", MARKER, e.id());
+                continue;
+            }
+            DatapackRuntime.LOGGER.info("{} loot built {} (pools={}, LootDataManager merge deferred)", MARKER, e.id(), pools);
+        }
+    }
+
+    /** Returns the number of pools built (0 = malformed/unsupported). */
+    private static int buildLootTable(DatapackEntry e) {
+        TdTable p = e.payload();
+        if (!"minecraft:chest".equals(p.get("type") != null ? p.get("type").asString() : "")) {
+            return 0;
+        }
+        TdValue poolsValue = p.get("pools");
+        if (!(poolsValue instanceof TdTable pools)) {
+            return 0;
+        }
+        LootTable.Builder tableBuilder = LootTable.lootTable();
+        int built = 0;
+        for (TdValue poolItem : pools.elements()) {
+            if (!(poolItem instanceof TdTable pool)) {
+                continue;
+            }
+            LootPool.Builder poolBuilder = LootPool.lootPool();
+            poolBuilder.setRolls(ConstantValue.exactly(pool.get("rolls") != null
+                    ? (float) Math.max(1L, pool.get("rolls").asInt()) : 1.0f));
+            TdValue entriesValue = pool.get("entries");
+            if (entriesValue instanceof TdTable entries) {
+                for (TdValue entryItem : entries.elements()) {
+                    if (!(entryItem instanceof TdTable entry)) {
+                        continue;
+                    }
+                    Item item = itemById(entry.get("item") != null ? entry.get("item").asString() : "");
+                    if (item == null || item == Items.AIR) {
+                        continue;
+                    }
+                    int weight = (int) (entry.get("weight") != null
+                            ? Math.max(1L, entry.get("weight").asInt()) : 1L);
+                    poolBuilder.add(LootItem.lootTableItem(item).setWeight(weight));
+                }
+            }
+            tableBuilder.withPool(poolBuilder);
+            built++;
+        }
+        return built;
+    }
     private void registerStaged() {
         for (Map.Entry<EntryKind, List<DatapackEntry>> e : byKind.entrySet()) {
             if (e.getKey() == EntryKind.LOOT_TABLE || e.getKey() == EntryKind.WORLDGEN

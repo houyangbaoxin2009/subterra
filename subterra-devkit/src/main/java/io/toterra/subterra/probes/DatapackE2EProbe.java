@@ -66,7 +66,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[10];
+        boolean[] seen = new boolean[13];
         boolean fatal = false;
         boolean signaled = false;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
@@ -105,6 +105,15 @@ public final class DatapackE2EProbe {
                 }
                 if (line.contains(DP_MARKER + " tie toterra:function/farewell -> 108")) {
                     seen[9] = true;
+                }
+                if (line.contains(DP_MARKER + " recipe canonical toterra:example ok")) {
+                    seen[10] = true;
+                }
+                if (line.contains(DP_MARKER + " recipe canonical toterra:smoke ok")) {
+                    seen[11] = true;
+                }
+                if (line.contains(DP_MARKER + " loot built toterra:loot_table/chest/bonus (pools=1")) {
+                    seen[12] = true;
                 }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
@@ -149,7 +158,8 @@ public final class DatapackE2EProbe {
         System.out.println("[DatapackE2EProbe] done=" + seen[0] + " loaded=" + seen[1] + " tag=" + seen[2]
                 + " lang=" + seen[3] + " langTotal=" + seen[4] + " recipe=" + seen[5]
                 + " smoke=" + seen[6] + " recipeTotal=" + seen[7] + " tieGreet=" + seen[8]
-                + " tieFarewell=" + seen[9] + " fatal=" + fatal);
+                + " tieFarewell=" + seen[9] + " canonicalShaped=" + seen[10]
+                + " canonicalSmoke=" + seen[11] + " lootBuilt=" + seen[12] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
