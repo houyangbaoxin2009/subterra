@@ -1,4 +1,4 @@
-package io.toterra.subterra.log.analysis;
+package io.toterra.subterra.engine.log.analysis;
 
 /**
  * Plug-in point for crash diagnostics: given the crash text (exception, stack

@@ -2,12 +2,12 @@ package io.toterra.subterra;
 
 import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
-import io.toterra.subterra.log.CrashDumper;
-import io.toterra.subterra.log.FileLogSink;
-import io.toterra.subterra.log.LogConfig;
-import io.toterra.subterra.log.LogHub;
-import io.toterra.subterra.log.Logger;
-import io.toterra.subterra.log.ModuleReg;
+import io.toterra.subterra.engine.log.CrashDumper;
+import io.toterra.subterra.engine.log.FileLogSink;
+import io.toterra.subterra.engine.log.LogConfig;
+import io.toterra.subterra.engine.log.LogHub;
+import io.toterra.subterra.engine.log.Logger;
+import io.toterra.subterra.engine.log.ModuleReg;
 import net.neoforged.fml.CrashReportCallables;
 import net.neoforged.fml.loading.FMLPaths;
 

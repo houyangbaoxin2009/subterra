@@ -1,6 +1,6 @@
-package io.toterra.subterra.log.analysis;
+package io.toterra.subterra.engine.log.analysis;
 
-import io.toterra.subterra.log.LogConfig;
+import io.toterra.subterra.engine.log.LogConfig;
 
 /**
  * Analyzer selection. The mini-AI path is opt-in via td config

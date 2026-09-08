@@ -1,4 +1,4 @@
-package io.toterra.subterra.log;
+package io.toterra.subterra.engine.log;
 
 import java.io.BufferedWriter;
 import java.io.IOException;

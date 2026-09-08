@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.5] Move log into engine.log / log 迁入 engine.log (2026-09-08)
+
+* `subterra-log` moves into `subterra-engine` as `io.toterra.subterra.engine.log.*` (incl. `.analysis`); the module is dropped; boot-time logging wiring re-pointed / `subterra-log` 迁入 `subterra-engine` 的 `io.toterra.subterra.engine.log.*`（含 `.analysis`）；模块移除；启动日志接线同步改指
+
 ## [p.2.0.4] Move config into engine.config / config 迁入 engine.config (2026-09-08)
 
 * `subterra-config` moves into `subterra-engine` as `io.toterra.subterra.engine.config.*`; the module is dropped; log/profiler now consume config via engine; td config loaders (root + host shells) re-pointed / `subterra-config` 迁入 `subterra-engine` 的 `io.toterra.subterra.engine.config.*`；模块移除；log/profiler 经 engine 消费 config；td 配置加载器（root + host 壳）同步改指

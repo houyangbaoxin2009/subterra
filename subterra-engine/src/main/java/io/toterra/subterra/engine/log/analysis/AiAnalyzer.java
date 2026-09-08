@@ -1,6 +1,6 @@
-package io.toterra.subterra.log.analysis;
+package io.toterra.subterra.engine.log.analysis;
 
-import io.toterra.subterra.log.LogConfig;
+import io.toterra.subterra.engine.log.LogConfig;
 
 /**
  * Opt-in local mini-AI crash analyzer (Intel platform GPU/NPU acceleration,

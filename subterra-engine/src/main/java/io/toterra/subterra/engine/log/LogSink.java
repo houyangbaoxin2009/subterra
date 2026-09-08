@@ -1,4 +1,4 @@
-package io.toterra.subterra.log;
+package io.toterra.subterra.engine.log;
 
 /**
  * Output destination for {@link LogRecord}s (file, future remote, sink tests).

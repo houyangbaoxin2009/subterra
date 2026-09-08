@@ -1,4 +1,4 @@
-package io.toterra.subterra.log.analysis;
+package io.toterra.subterra.engine.log.analysis;
 
 import java.util.ArrayList;
 import java.util.List;

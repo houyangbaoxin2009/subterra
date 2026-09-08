@@ -1,8 +1,8 @@
 package io.toterra.subterra;
 
-import io.toterra.subterra.log.LogHub;
-import io.toterra.subterra.log.LogRecord;
-import io.toterra.subterra.log.LogSink;
+import io.toterra.subterra.engine.log.LogHub;
+import io.toterra.subterra.engine.log.LogRecord;
+import io.toterra.subterra.engine.log.LogSink;
 import org.slf4j.LoggerFactory;
 
 /**
