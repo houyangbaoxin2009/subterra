@@ -85,6 +85,10 @@ public class Subterra {
         // logs whether the Subterra generator is the default — OFF unless enabled
         // via config ([ use_subterra_generator = true ]) or API. No boot impact.
         io.toterra.subterra.runtime.worldgen.gen.WorldgenConfig.bootstrap();
+
+        // Datapack runtime (p.2.2): wires the td datapack loader into the server
+        // lifecycle (ServerStartedEvent); registration lands in the registrar.
+        io.toterra.subterra.runtime.datapack.DatapackRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
