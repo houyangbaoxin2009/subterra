@@ -50,7 +50,7 @@ displayName="${mod_name}" #mandatory
 description='''
 Foundation mod for the Toterra series: Java 25 compatibility for Minecraft 1.21.1,
 runtime optimizations, common API library, and tie native bridge.
-Closed source. All rights reserved.
+Open source under the Tie Public License v2.0 (TPL 2.0).
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
