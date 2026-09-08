@@ -1,10 +1,10 @@
 // Clean-room re-key of the ServerCore mob-spawning "enforce-mobcap" GPL face
 // (no upstream code): zombie reinforcements may be counted against the mob
-// population via the io.toterra.subterra.optim.entity.spawning core.
+// population via the io.toterra.subterra.engine.optim.entity.spawning core.
 package io.toterra.subterra.optim.entity.spawning.mixin;
 
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement;
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement.Source;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement.Source;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.MobCategory;

@@ -3,8 +3,8 @@
 // sub-package so the pure core's package export stays unique per jar module.
 package io.toterra.subterra.optim.entity.spawning.shell;
 
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement;
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement.Source;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement.Source;
 import io.toterra.subterra.optim.entity.spawning.mixin.ServerChunkCacheAccessor;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;

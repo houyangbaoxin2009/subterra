@@ -13,7 +13,6 @@ dependencies {
     implementation project(':subterra-launch')
     implementation project(':subterra-compat')
     implementation project(':subterra-api')
-    implementation project(':subterra-optim')
     implementation project(':subterra-config')
     implementation project(':subterra-log')
     implementation project(':subterra-profiler')

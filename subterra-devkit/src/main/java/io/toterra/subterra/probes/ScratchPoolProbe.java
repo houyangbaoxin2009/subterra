@@ -1,6 +1,6 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.util.ScratchPool;
+import io.toterra.subterra.engine.optim.util.ScratchPool;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;

@@ -1,6 +1,6 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.entity.breeding.BreedingCap;
+import io.toterra.subterra.engine.optim.entity.breeding.BreedingCap;
 
 /**
  * Deterministic acceptance probe for the breeding-cap core (p.1.4.2,

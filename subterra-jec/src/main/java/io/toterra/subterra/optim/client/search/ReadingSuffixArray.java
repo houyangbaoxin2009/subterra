@@ -1,11 +1,11 @@
 // Ported surface from JustEnoughCharacters (github.com/Towdium/JustEnoughCharacters),
 // MIT (c) Towdium. The reading matching engine is Subterra's own
-// (io.toterra.subterra.optim.logic.pronounce); this class mirrors JEC's
+// (io.toterra.subterra.engine.optim.logic.pronounce); this class mirrors JEC's
 // FakeArray approach: extend SuffixArray and replace its add/generate/search
 // with a reading-aware linear scan.
 package io.toterra.subterra.optim.client.search;
 
-import io.toterra.subterra.optim.logic.pronounce.PronounceMatcher;
+import io.toterra.subterra.engine.optim.logic.pronounce.PronounceMatcher;
 import net.minecraft.client.searchtree.SuffixArray;
 
 import java.util.ArrayList;

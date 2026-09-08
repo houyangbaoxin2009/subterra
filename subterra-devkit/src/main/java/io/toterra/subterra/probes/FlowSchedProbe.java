@@ -1,16 +1,16 @@
 // Deterministic acceptance probe for the p.1.4.23 FlowSched pure-JDK scheduler
-// port (io.toterra.subterra.optim.sched). NOT shipped in the mod jar.
+// port (io.toterra.subterra.engine.optim.sched). NOT shipped in the mod jar.
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.sched.executor.ExecutorManager;
-import io.toterra.subterra.optim.sched.scheduler.Cancellable;
-import io.toterra.subterra.optim.sched.scheduler.ItemHolder;
-import io.toterra.subterra.optim.sched.scheduler.ItemStatus;
-import io.toterra.subterra.optim.sched.scheduler.KeyStatusPair;
-import io.toterra.subterra.optim.sched.scheduler.ObjectFactory;
-import io.toterra.subterra.optim.sched.scheduler.StatusAdvancingScheduler;
-import io.toterra.subterra.optim.sched.structs.DynamicPriorityQueue;
-import io.toterra.subterra.optim.sched.structs.SimpleObjectPool;
+import io.toterra.subterra.engine.optim.sched.executor.ExecutorManager;
+import io.toterra.subterra.engine.optim.sched.scheduler.Cancellable;
+import io.toterra.subterra.engine.optim.sched.scheduler.ItemHolder;
+import io.toterra.subterra.engine.optim.sched.scheduler.ItemStatus;
+import io.toterra.subterra.engine.optim.sched.scheduler.KeyStatusPair;
+import io.toterra.subterra.engine.optim.sched.scheduler.ObjectFactory;
+import io.toterra.subterra.engine.optim.sched.scheduler.StatusAdvancingScheduler;
+import io.toterra.subterra.engine.optim.sched.structs.DynamicPriorityQueue;
+import io.toterra.subterra.engine.optim.sched.structs.SimpleObjectPool;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ import java.util.function.BooleanSupplier;
 
 /**
  * Deterministic acceptance probe for the p.1.4.23 FlowSched pure-JDK scheduler
- * port (io.toterra.subterra.optim.sched). Drives a minimal deterministic
+ * port (io.toterra.subterra.engine.optim.sched). Drives a minimal deterministic
  * StatusAdvancingScheduler on a probe-controlled gated executor and asserts the
  * advance / dependency / removal / cancellation / busy-gating contract, an
  * object-pool reuse invariant, and the ExecutorManager / WorkerThread +
@@ -44,7 +44,7 @@ import java.util.function.BooleanSupplier;
  * drives advancement deterministically by flushing it on the test thread
  * (single-thread, fully deterministic), rather than racing a background thread.
  *
- * <p>p.1.4.23 FlowSched 纯 JDK 调度器移植（io.toterra.subterra.optim.sched）的确定性
+ * <p>p.1.4.23 FlowSched 纯 JDK 调度器移植（io.toterra.subterra.engine.optim.sched）的确定性
  * 验收探针。在探针自控的门控执行器上驱动一个最小确定性 StatusAdvancingScheduler，
  * 断言推进/依赖/移除/取消/忙碌门控契约、对象池复用不变式，以及 ExecutorManager /
  * WorkerThread + DynamicPriorityQueue 冒烟行为（并发安全、序列层面）。退出码 0 = PASS，

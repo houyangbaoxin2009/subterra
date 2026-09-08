@@ -2,8 +2,8 @@
 // adapted to Subterra's NeoForge 1.21.1 internal capability.
 package io.toterra.subterra.optim.server.item_control.shell;
 
-import io.toterra.subterra.optim.server.item_control.ItemControlRule;
-import io.toterra.subterra.optim.server.item_control.ItemControlRuleSet;
+import io.toterra.subterra.engine.optim.server.item_control.ItemControlRule;
+import io.toterra.subterra.engine.optim.server.item_control.ItemControlRuleSet;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;

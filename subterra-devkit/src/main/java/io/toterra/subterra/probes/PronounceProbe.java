@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.logic.pronounce.Lexicon;
-import io.toterra.subterra.optim.logic.pronounce.PronounceMatcher;
+import io.toterra.subterra.engine.optim.logic.pronounce.Lexicon;
+import io.toterra.subterra.engine.optim.logic.pronounce.PronounceMatcher;
 
 import java.util.List;
 

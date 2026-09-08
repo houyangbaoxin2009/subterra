@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.entity.merging.MergePolicy;
-import io.toterra.subterra.optim.entity.merging.Merger;
+import io.toterra.subterra.engine.optim.entity.merging.MergePolicy;
+import io.toterra.subterra.engine.optim.entity.merging.Merger;
 
 import java.util.Random;
 

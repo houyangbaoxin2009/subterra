@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.3] Move remaining optim cores into engine.optim / optim 其余核心迁入 engine.optim (2026-09-08)
+
+* The rest of `subterra-optim` (`sched` FlowSched / `entity` / `logic.pronounce` / `server.{item_control,loading,dynamic}` / `client` / `memory` / `network` / `render` / `util`) moves into `subterra-engine` as `io.toterra.subterra.engine.optim.*`; the `subterra-optim` module is dropped; profiler now depends on engine; MC-layer host shells keep their `optim.*` packages until the runtime move (p.2.0.9) / `subterra-optim` 其余核心（`sched` FlowSched / `entity` / `logic.pronounce` / `server.{item_control,loading,dynamic}` / `client` / `memory` / `network` / `render` / `util`）迁入 `subterra-engine` 的 `io.toterra.subterra.engine.optim.*`；`subterra-optim` 模块移除；profiler 改依赖 engine；MC 层 host 壳保持 `optim.*` 包至 runtime 迁移（p.2.0.9）
+
 ## [p.2.0.2] Move worldgen core into engine.worldgen / worldgen 核心迁入 engine.worldgen (2026-09-08)
 
 * `subterra-optim` worldgen tree (`worldgen.pipeline` / `worldgen.guard` / `worldgen.ticking`) moves into the new pure-JDK `subterra-engine` module as `io.toterra.subterra.engine.worldgen.*` — engine depends only on api; probes, root MC layer and dev-run classpath updated; determinism untouched / `subterra-optim` 的 worldgen 树（`worldgen.pipeline` / `worldgen.guard` / `worldgen.ticking`）迁入新纯 JDK `subterra-engine` 模块 `io.toterra.subterra.engine.worldgen.*`——engine 仅依赖 api；探针、root MC 层与 dev 运行 classpath 同步更新；确定性不变

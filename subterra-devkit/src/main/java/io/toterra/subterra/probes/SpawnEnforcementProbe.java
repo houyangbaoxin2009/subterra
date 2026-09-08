@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement;
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement.Source;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement.Source;
 
 /**
  * Deterministic acceptance probe for the special-spawn-source enforcement core

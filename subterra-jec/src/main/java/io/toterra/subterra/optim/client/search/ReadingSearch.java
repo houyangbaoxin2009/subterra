@@ -4,8 +4,8 @@
 package io.toterra.subterra.optim.client.search;
 
 import com.mojang.logging.LogUtils;
-import io.toterra.subterra.optim.logic.pronounce.Lexicon;
-import io.toterra.subterra.optim.logic.pronounce.PronounceMatcher;
+import io.toterra.subterra.engine.optim.logic.pronounce.Lexicon;
+import io.toterra.subterra.engine.optim.logic.pronounce.PronounceMatcher;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.loading.FMLPaths;
 import org.slf4j.Logger;

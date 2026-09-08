@@ -2,7 +2,7 @@
 // nether-portal piglin spawns may be counted against the enforced pool.
 package io.toterra.subterra.optim.entity.spawning.mixin;
 
-import io.toterra.subterra.optim.entity.spawning.SpawnEnforcement.Source;
+import io.toterra.subterra.engine.optim.entity.spawning.SpawnEnforcement.Source;
 import io.toterra.subterra.optim.entity.spawning.shell.SpawnEnforcementShell;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

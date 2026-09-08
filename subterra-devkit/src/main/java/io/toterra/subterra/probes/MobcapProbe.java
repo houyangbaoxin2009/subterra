@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.entity.spawning.MobcapCalculator;
-import io.toterra.subterra.optim.entity.spawning.MobcapCalculator.Quota;
+import io.toterra.subterra.engine.optim.entity.spawning.MobcapCalculator;
+import io.toterra.subterra.engine.optim.entity.spawning.MobcapCalculator.Quota;
 
 /**
  * Deterministic acceptance probe for the per-player mobcap core (p.1.4.12,

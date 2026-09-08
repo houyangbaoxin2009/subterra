@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.server.loading.SyncLoadGuard;
-import io.toterra.subterra.optim.server.loading.SyncLoadGuard.Setting;
+import io.toterra.subterra.engine.optim.server.loading.SyncLoadGuard;
+import io.toterra.subterra.engine.optim.server.loading.SyncLoadGuard.Setting;
 
 /**
  * Deterministic acceptance probe for the sync-load guard core (p.1.4.17,

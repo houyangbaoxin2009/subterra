@@ -1,11 +1,11 @@
 // Clean-room re-key of the ServerCore "activation-range" behaviour (GPL
 // surface re-written from contract, no upstream code): the per-entity AI
 // step (the customServerAiStep call inside the final Mob.serverAiStep) is
-// gated by the io.toterra.subterra.optim.entity.activation.Activator core.
+// gated by the io.toterra.subterra.engine.optim.entity.activation.Activator core.
 package io.toterra.subterra.optim.entity.activation.mixin;
 
-import io.toterra.subterra.optim.entity.activation.ActivationPolicy;
-import io.toterra.subterra.optim.entity.activation.Activator;
+import io.toterra.subterra.engine.optim.entity.activation.ActivationPolicy;
+import io.toterra.subterra.engine.optim.entity.activation.Activator;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;

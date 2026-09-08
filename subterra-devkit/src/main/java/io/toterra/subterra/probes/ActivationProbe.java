@@ -1,9 +1,9 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.entity.activation.ActivationPolicy;
-import io.toterra.subterra.optim.entity.activation.Activator;
-import io.toterra.subterra.optim.entity.activation.TypeofClassifier;
-import io.toterra.subterra.optim.entity.activation.TypeofClassifier.Kind;
+import io.toterra.subterra.engine.optim.entity.activation.ActivationPolicy;
+import io.toterra.subterra.engine.optim.entity.activation.Activator;
+import io.toterra.subterra.engine.optim.entity.activation.TypeofClassifier;
+import io.toterra.subterra.engine.optim.entity.activation.TypeofClassifier.Kind;
 
 import java.util.List;
 
