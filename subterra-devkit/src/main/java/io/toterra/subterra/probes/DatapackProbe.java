@@ -1,0 +1,213 @@
+package io.toterra.subterra.probes;
+
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
+import io.toterra.subterra.engine.datapack.Datapack;
+import io.toterra.subterra.engine.datapack.DatapackEntry;
+import io.toterra.subterra.engine.datapack.DatapackLoader;
+import io.toterra.subterra.engine.datapack.EntryKind;
+import io.toterra.subterra.engine.datapack.TieLogicBundle;
+import io.toterra.subterra.engine.datapack.TieLogicLoader;
+import io.toterra.subterra.engine.tie.TieFunction;
+
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * p.2.2 datapack determinism probe — pure td direct loading, no JSON.
+ *
+ * <p>Self-contained: extracts the bundled seed pack {@code resources/datapack/
+ * mini_dp} plus the precompiled tie library (FFM needs a real file path) into a
+ * temp pack dir, loads it with {@link DatapackLoader}, asserts the registry
+ * (dir scan + pack.td manifest + 7 kinds), then exercises the tie-logic chain
+ * ({@link TieLogicLoader} → {@link TieLogicBundle} → engine.tie downcall:
+ * explicit {@code fn}, default {@code fn} from the entry path, private symbol
+ * unexported, bool boundary). Also proves malformed td surfaces the offender
+ * and repeated loads are deterministic.
+ */
+public final class DatapackProbe {
+
+    private DatapackProbe() {
+    }
+
+    private static int failures = 0;
+
+    private static void check(String name, boolean ok) {
+        if (ok) {
+            System.out.println("[PASS] " + name);
+        } else {
+            failures++; // only the failure path counts
+            System.out.println("[FAIL] " + name);
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Path tmp = Path.of(System.getProperty("java.io.tmpdir"),
+                "subterra_dp_" + System.nanoTime());
+        try {
+            Path packDir = extractSeedPack(tmp);
+            Datapack dp = DatapackLoader.load(packDir);
+
+            // 1. registry: metadata + entry census (6 dir-scanned + 1 manifest)
+            check("包名 mini_dp", "mini_dp".equals(dp.name()));
+            check("标题含 p.2.2", dp.title().contains("p.2.2"));
+            check("条目总数 9", dp.entries().size() == 9);
+            List<String> ids = new ArrayList<>(dp.entries().keySet());
+            check("id 确定性排序", ids.equals(ids.stream().sorted().toList()));
+            check("七类齐全", presentKinds(dp).equals(Set.of(EntryKind.values())));
+
+            // 2. kind census via byKind
+            check("function ×2", dp.byKind(EntryKind.FUNCTION).size() == 2);
+            check("structure ×2（含 manifest 增量）", dp.byKind(EntryKind.STRUCTURE).size() == 2);
+            check("manifest 增量条目", dp.get(EntryKind.STRUCTURE, "devkit", "obligatory_tower") != null);
+            check("扫目录条目", dp.get(EntryKind.STRUCTURE, "toterra", "shrine") != null);
+
+            // 3. payload spot checks (td in memory, no JSON)
+            DatapackEntry tag = dp.get(EntryKind.TAG, "toterra", "item/special");
+            check("tag 存在", tag != null);
+            check("tag replace=false", tag != null && !tag.payload().get("replace").asBool());
+            check("tag values 命中", tag != null
+                    && listStrings(tag.payload().get("values")).equals(List.of("minecraft:stick", "minecraft:apple")));
+
+            DatapackEntry lang = dp.get(EntryKind.LANG, "toterra", "en_us");
+            TdTable langPayload = lang != null ? (TdTable) lang.payload() : null;
+            check("lang 两条", langPayload != null && langPayload.elements().size() == 2);
+            check("lang k/v 读取", langPayload != null
+                    && pair(langPayload, 0, "k").equals("item.toterra.crystal")
+                    && pair(langPayload, 0, "v").equals("Crystal"));
+
+            DatapackEntry recipe = dp.get(EntryKind.RECIPE, "toterra", "example");
+            check("recipe type", recipe != null && "minecraft:crafting_shaped".equals(recipe.payload().get("type").asString()));
+
+            DatapackEntry world = dp.get(EntryKind.WORLDGEN, "toterra", "biome/meadow_of_tie");
+            check("worldgen depth=0.1", world != null && Math.abs(world.payload().get("depth").asFloat() - 0.1) < 1e-9);
+
+            // 4. tie logic chain: pack.td declaration → TieLibrary → FFM downcall
+            check("tie 库声明 1 条", dp.tieLibraries().size() == 1
+                    && dp.tieLibraries().get(0).lib().equals("dp_logic"));
+
+            try (TieLogicBundle bundle = TieLogicLoader.load(dp, packDir)) {
+                check("tie 库装载", bundle.libraries().containsKey("dp_logic"));
+
+                DatapackEntry greet = dp.get(EntryKind.FUNCTION, "toterra", "greet");
+                DatapackEntry farewell = dp.get(EntryKind.FUNCTION, "toterra", "farewell");
+                TieFunction greetFn = bundle.resolve(greet);
+                TieFunction farewellFn = bundle.resolve(farewell); // fn defaults to path
+                check("greet(41)=42", greetFn.invokeI64(41) == 42L);
+                check("farewell()=108（默认 fn=路径）", farewellFn.invoke0() == 108L);
+                check("私有 hidden 未导出", !bundle.libraries().get("dp_logic").contains("dp_logic$hidden"));
+                check("craftable(7,1)=7（显式 fn i64×2）",
+                        bundle.libraries().get("dp_logic").find("dp_logic$craftable")
+                                .orElseThrow().invokeI64I64(7, 1) == 7L);
+                check("craftable(7,0)=-1",
+                        bundle.libraries().get("dp_logic").find("dp_logic$craftable")
+                                .orElseThrow().invokeI64I64(7, 0) == -1L);
+            }
+
+            // 5. determinism: a second load produces the identical registry
+            check("重复装载注册表一致",
+                    dp.entries().keySet().equals(DatapackLoader.load(packDir).entries().keySet()));
+
+            // 6. malformed td names the offender
+            Path bad = tmp.resolve("bad_pack");
+            Files.createDirectories(bad.resolve("data/broken/function"));
+            Files.writeString(bad.resolve("data/broken/function/x.td"), "type tie<data>\nfunction = [\n");
+            try {
+                DatapackLoader.load(bad);
+                check("畸形 td 抛错含文件", false);
+            } catch (IllegalArgumentException e) {
+                check("畸形 td 抛错含文件", e.getMessage().contains("x.td"));
+            }
+        } finally {
+            deleteRecursively(tmp);
+        }
+
+        finish();
+    }
+
+    // ---------- helpers ----------
+
+    /** The set of entry kinds actually present in the registry. */
+    private static Set<EntryKind> presentKinds(Datapack dp) {
+        Set<EntryKind> present = new java.util.HashSet<>();
+        for (DatapackEntry e : dp.entries().values()) {
+            present.add(e.kind());
+        }
+        return present;
+    }
+
+    private static List<String> listStrings(TdValue v) {
+        if (!(v instanceof TdTable t)) {
+            return List.of();
+        }
+        return t.elements().stream().map(TdValue::asString).toList();
+    }
+
+    private static String pair(TdTable table, int index, String key) {
+        TdValue item = table.elements().get(index);
+        if (!(item instanceof TdTable t)) {
+            return "";
+        }
+        return t.get(key) != null ? t.get(key).asString() : "";
+    }
+
+    private static Path extractSeedPack(Path tmp) throws Exception {
+        Path packDir = tmp.resolve("mini_dp");
+        Path dataRoot = packDir.resolve("data");
+        // td files (explicit list — classpath resources have no directory listing)
+        copy("/datapack/mini_dp/pack.td", packDir.resolve("pack.td"));
+        copy("/datapack/mini_dp/data/toterra/tag/item/special.td", dataRoot.resolve("toterra/tag/item/special.td"));
+        copy("/datapack/mini_dp/data/toterra/lang/en_us.td", dataRoot.resolve("toterra/lang/en_us.td"));
+        copy("/datapack/mini_dp/data/toterra/recipe/example.td", dataRoot.resolve("toterra/recipe/example.td"));
+        copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", dataRoot.resolve("toterra/loot_table/chest/bonus.td"));
+        copy("/datapack/mini_dp/data/toterra/worldgen/biome/meadow_of_tie.td", dataRoot.resolve("toterra/worldgen/biome/meadow_of_tie.td"));
+        copy("/datapack/mini_dp/data/toterra/structure/shrine.td", dataRoot.resolve("toterra/structure/shrine.td"));
+        copy("/datapack/mini_dp/data/toterra/function/greet.td", dataRoot.resolve("toterra/function/greet.td"));
+        copy("/datapack/mini_dp/data/toterra/function/farewell.td", dataRoot.resolve("toterra/function/farewell.td"));
+        // manifest-only entry lives outside data/ (never scanned)
+        copy("/datapack/mini_dp/extra/obligatory_tower.td", packDir.resolve("extra/obligatory_tower.td"));
+        // precompiled tie logic library — resolves pack.td's dll="tie/dp_logic_probe.dll"
+        copy("/tie/dp_logic_probe.dll", packDir.resolve("tie/dp_logic_probe.dll"));
+        return packDir;
+    }
+
+    private static void copy(String resource, Path target) throws Exception {
+        try (InputStream in = DatapackProbe.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                throw new IllegalStateException("missing probe resource: " + resource);
+            }
+            Files.createDirectories(target.getParent());
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void deleteRecursively(Path root) throws Exception {
+        if (!Files.exists(root)) {
+            return;
+        }
+        try (var walk = Files.walk(root)) {
+            walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (Exception e) {
+                    // best-effort temp cleanup
+                }
+            });
+        }
+    }
+
+    private static void finish() {
+        if (failures == 0) {
+            System.out.println("=== DatapackProbe ALL PASS（td 直载 + tie 逻辑链可行）===");
+        } else {
+            System.out.println("=== DatapackProbe " + failures + " 项失败 ===");
+            System.exit(1);
+        }
+    }
+}

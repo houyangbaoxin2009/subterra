@@ -1,0 +1,20 @@
+type tie<class>
+// Subterra p.2.2 datapack tie logic — probe mini library.
+//   ABI: namespace::fn → FFM symbol <namespace>$<fn> (dp_logic::greet → "dp_logic$greet")
+//   Boundary: scalars (i64/f64/bool/trit/char) + string only; private funcs
+//   are not exported (llvmgen skips dllexport).
+namespace dp_logic {
+pub func greet(seed: i64) -> i64 {
+    return seed + 1
+}
+pub func farewell() -> i64 {
+    return 108
+}
+pub func craftable(ingredient: i64, enabled: i64) -> i64 {
+    if enabled != 0 { return ingredient } else { return -1 }
+}
+// private → must NOT be exported
+func hidden(x: i64) -> i64 {
+    return x * 7
+}
+}
