@@ -14,6 +14,7 @@
 
 * Every milestone below is a p-track item; sub-items continue the track per "one library = one sub-item". / 以下里程碑均为 p 轨条目；子项沿 p 轨推进，一库一子项。
 * Acceptance is deterministic probes only (server boots / client enters world / probes PASS), never timing assertions. / 验收一律确定性探针：服务端开服、客户端进世界、探针断言全 PASS；禁时序断言。
+* 2026-09-08 — 新增两项数据层重构：**数据包重构**（td 为数据包内容一等语言，替代手写 JSON）+ **存档重构**（zd+td 混合替代原版 NBT `.dat`，减小体积 / 加快加载）。 / Added two data-layer reworks: datapack rework (td first-class) + save rework (zd+td hybrid replacing vanilla NBT .dat).
 
 | p-track / p 轨 | Milestone / 里程碑 | Status / 状态 |
 | --- | --- | --- |
@@ -28,6 +29,8 @@
 | p.2.7 | UI / HUD core / engine.ui：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 数据驱动 tooltip（clean-room 参考 DataTip GPL-3.0，td 格式）+ 文档书籍 GUI（clean-room 参考 Patchouli CC-BY-NC-SA，td 驱动）+ 列表/详情/许可视图核心 | pending / 待开工 |
 | p.2.8 | In-game mod hub / 游戏内模组 Hub：td schema 表单自动生成、配置编辑 + 热重载、入口接线、服务器端 op 配置命令 | pending / 待开工 |
 | p.2.9 | AI behavior core / engine.ai：clean-room Brain 编排核心（参考 SmartBrainLib 模型）+ runtime ai binding | pending / 待开工 |
+| p.2.10 | Datapack rework / 数据包重构：td 为数据包内容一等语言——函数 / 配方 / 战利品表 / 世界生成 / 结构 / 标签 / 本地化 td 声明 + 装载编译（td → 原版 JSON 兼容落位 / 纯 td 直载）；数据包打包分发（接 config 包）；数据包级规则可被存档覆盖（接 p.2.4 rules）；td + API 双接口 | pending / 待开工 |
+| p.2.11 | Save rework / 存档重构：现代化存档形态——**zd + td 混合替代原版 NBT `.dat`**（level / player / 侧数据），减小体积、加快加载（zd 压缩变体 / 字典 / 零拷贝）；统一 SaveContainer（世界 + 配置 + 藏录 Ledger + 领域档案 + 遗物条目 + 台账）；双层配置（全局 + 存档覆盖，接 p.2.4）；迁移走 subterra-migrate；元数据可导出（接 p.2.3） | pending / 待开工 |
 | p.3.0 | C2ME bundled / C2ME 直接包含：engine.worldgen.async 核心 + runtime 异步壳，随框架发布（MIT 声明） | pending / 待开工 |
 | p.3.1 | devkit complete / devkit 完整化：probes 全量接线 + 官方示例模组（最小「颠覆性模组」脚手架，兼作框架自举验收） | pending / 待开工 |
 | p.3.2 | Entity scale / 实体缩放 engine.scale：Pehkui-Rebuilt 核心移植（MIT，保留 Virtuoel 原始版权与重建声明）：ScaleType/ScaleData/ScaleModifier 模型、按维度/标签缩放、数据包缩放规则 + runtime scale binding | pending / 待开工 |
