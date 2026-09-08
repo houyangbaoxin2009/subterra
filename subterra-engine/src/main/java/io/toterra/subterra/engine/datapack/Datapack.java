@@ -1,0 +1,53 @@
+package io.toterra.subterra.engine.datapack;
+
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * p.2.2 a loaded datapack: an ordered registry of entries (sorted by canonical
+ * id for determinism) plus optional tie-logic library declarations from
+ * {@code pack.td}. Pure JDK; entries are in-memory only — direct loading, no
+ * JSON files are ever produced.
+ */
+public final class Datapack {
+
+    private final String name;
+    private final String title;
+    private final Map<String, DatapackEntry> entries; // by id, sorted
+    private final List<TieLibDecl> tieLibraries;
+
+    Datapack(String name, String title, Map<String, DatapackEntry> entries, List<TieLibDecl> tieLibraries) {
+        this.name = name;
+        this.title = title;
+        this.entries = new TreeMap<>(entries);
+        this.tieLibraries = List.copyOf(tieLibraries);
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public String title() {
+        return title;
+    }
+
+    /** All entries by canonical id, deterministically sorted. */
+    public Map<String, DatapackEntry> entries() {
+        return Map.copyOf(entries);
+    }
+
+    /** Entries of one kind, in id order. */
+    public List<DatapackEntry> byKind(EntryKind kind) {
+        return entries.values().stream().filter(e -> e.kind() == kind).toList();
+    }
+
+    public DatapackEntry get(EntryKind kind, String namespace, String path) {
+        return entries.get(namespace + ":" + kind.dir() + "/" + path);
+    }
+
+    /** tie-logic library declarations (from the optional pack.td manifest). */
+    public List<TieLibDecl> tieLibraries() {
+        return tieLibraries;
+    }
+}
