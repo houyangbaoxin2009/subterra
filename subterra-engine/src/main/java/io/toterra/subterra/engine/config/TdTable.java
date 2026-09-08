@@ -1,4 +1,4 @@
-package io.toterra.subterra.config;
+package io.toterra.subterra.engine.config;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

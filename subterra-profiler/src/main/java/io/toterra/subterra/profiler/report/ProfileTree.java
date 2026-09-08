@@ -27,8 +27,8 @@ import io.toterra.subterra.api.worldgen.profiler.SliceCensus;
 import io.toterra.subterra.api.worldgen.profiler.SlicePlane;
 import io.toterra.subterra.api.worldgen.profiler.SliceReport;
 import io.toterra.subterra.api.worldgen.profiler.SliceUnit;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 /**
  * Materializes a {@link ProfileReport} into a single nested {@link TdTable} tree

@@ -1,9 +1,9 @@
 // Ported from ServerCore (github.com/Wesley1808/ServerCore), MIT (c) Wesley1808.
 package io.toterra.subterra.optim.server.dynamic;
 
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

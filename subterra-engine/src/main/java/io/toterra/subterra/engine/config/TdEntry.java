@@ -1,4 +1,4 @@
-package io.toterra.subterra.config;
+package io.toterra.subterra.engine.config;
 
 /**
  * One table entry: a named key/value pair, or a keyless array element

@@ -1,7 +1,7 @@
 package io.toterra.subterra.log;
 
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 import java.nio.file.Path;
 

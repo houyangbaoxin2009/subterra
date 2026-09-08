@@ -1,8 +1,8 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 /**
  * Deterministic acceptance probe for the td configuration module (p.1.5).

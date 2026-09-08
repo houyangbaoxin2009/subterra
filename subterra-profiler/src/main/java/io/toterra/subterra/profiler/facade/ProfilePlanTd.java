@@ -15,9 +15,9 @@ import io.toterra.subterra.api.worldgen.profiler.ProfileSlice;
 import io.toterra.subterra.api.worldgen.profiler.ProfileStep;
 import io.toterra.subterra.api.worldgen.profiler.ProfileWindow;
 import io.toterra.subterra.api.worldgen.profiler.SliceUnit;
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 /**
  * td serialization and parsing for a {@link ProfilePlan} (p.1.8.30 "World

@@ -7,9 +7,8 @@ version = rootProject.version
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-// Pure-JDK world-profiler core: depends only on the api/engine/config modules.
+// Pure-JDK world-profiler core: depends only on the api/engine modules.
 dependencies {
     implementation project(':subterra-api')
     implementation project(':subterra-engine')
-    implementation project(':subterra-config')
 }

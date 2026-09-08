@@ -1,9 +1,9 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.config.ConfigPack;
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.ConfigPack;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

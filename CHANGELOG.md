@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.4] Move config into engine.config / config 迁入 engine.config (2026-09-08)
+
+* `subterra-config` moves into `subterra-engine` as `io.toterra.subterra.engine.config.*`; the module is dropped; log/profiler now consume config via engine; td config loaders (root + host shells) re-pointed / `subterra-config` 迁入 `subterra-engine` 的 `io.toterra.subterra.engine.config.*`；模块移除；log/profiler 经 engine 消费 config；td 配置加载器（root + host 壳）同步改指
+
 ## [p.2.0.3] Move remaining optim cores into engine.optim / optim 其余核心迁入 engine.optim (2026-09-08)
 
 * The rest of `subterra-optim` (`sched` FlowSched / `entity` / `logic.pronounce` / `server.{item_control,loading,dynamic}` / `client` / `memory` / `network` / `render` / `util`) moves into `subterra-engine` as `io.toterra.subterra.engine.optim.*`; the `subterra-optim` module is dropped; profiler now depends on engine; MC-layer host shells keep their `optim.*` packages until the runtime move (p.2.0.9) / `subterra-optim` 其余核心（`sched` FlowSched / `entity` / `logic.pronounce` / `server.{item_control,loading,dynamic}` / `client` / `memory` / `network` / `render` / `util`）迁入 `subterra-engine` 的 `io.toterra.subterra.engine.optim.*`；`subterra-optim` 模块移除；profiler 改依赖 engine；MC 层 host 壳保持 `optim.*` 包至 runtime 迁移（p.2.0.9）

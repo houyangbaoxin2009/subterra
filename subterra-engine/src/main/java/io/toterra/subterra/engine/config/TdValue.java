@@ -1,4 +1,4 @@
-package io.toterra.subterra.config;
+package io.toterra.subterra.engine.config;
 
 import java.util.List;
 import java.util.Map;

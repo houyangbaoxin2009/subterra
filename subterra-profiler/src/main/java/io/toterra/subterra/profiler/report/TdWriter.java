@@ -1,8 +1,8 @@
 package io.toterra.subterra.profiler.report;
 
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
 
 /**
  * Writes a {@link ProfileReport} as td text (p.1.8.30). The td rendering is a

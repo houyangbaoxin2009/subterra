@@ -1,7 +1,7 @@
 package io.toterra.subterra;
 
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.log.CrashDumper;
 import io.toterra.subterra.log.FileLogSink;
 import io.toterra.subterra.log.LogConfig;

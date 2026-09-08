@@ -14,7 +14,6 @@ plugins {
 include 'subterra-launch'
 include 'subterra-compat'
 include 'subterra-api'
-include 'subterra-config'
 include 'subterra-log'
 include 'subterra-profiler'
 include 'subterra-engine'

@@ -110,8 +110,6 @@ neoForge {
             // the main mod class; make its classes visible in dev runs too.
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-log')))
-            additionalRuntimeClasspathConfiguration.dependencies.add(
-                    project.dependencies.create(project(':subterra-config')))
             // API + engine cores are referenced by MC-layer source hosts
             // (e.g. the JEC pinyin search port uses engine.optim.logic.pronounce).
             additionalRuntimeClasspathConfiguration.dependencies.add(
@@ -225,7 +223,6 @@ dependencies {
     implementation project(':subterra-launch')
     // Logging module + td config drive the boot-time log wiring (SubterraLogging).
     implementation project(':subterra-log')
-    implementation project(':subterra-config')
     // API + engine cores are referenced by MC-layer source hosts
     // (e.g. the JEC pinyin search port uses engine.optim.logic.pronounce).
     implementation project(':subterra-api')

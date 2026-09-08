@@ -1,9 +1,9 @@
 // Ported from mc-smoothboot (github.com/UltimateBoomer/mc-smoothboot), MIT (c) UltimateBoomer.
 package io.toterra.subterra.optim.server.threading;
 
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

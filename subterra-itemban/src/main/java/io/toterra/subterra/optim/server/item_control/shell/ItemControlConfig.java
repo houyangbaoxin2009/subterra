@@ -6,9 +6,9 @@ import io.toterra.subterra.engine.optim.server.item_control.ItemControlRule;
 import io.toterra.subterra.engine.optim.server.item_control.ItemControlRuleSet;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;

@@ -9,9 +9,9 @@ import net.neoforged.fml.loading.FMLPaths;
 
 import io.toterra.subterra.Subterra;
 import io.toterra.subterra.api.worldgen.GeneratorOption;
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 /**
  * Config-file loader + runtime gate for the Subterra-generator option

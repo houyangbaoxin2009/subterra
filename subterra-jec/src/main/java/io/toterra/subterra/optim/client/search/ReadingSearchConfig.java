@@ -3,8 +3,8 @@
 // Subterra's own language-agnostic design.
 package io.toterra.subterra.optim.client.search;
 
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -66,7 +66,7 @@ public final class ReadingSearchConfig {
             if (text.isBlank()) {
                 return defaults();
             }
-            TdTable root = io.toterra.subterra.config.Td.parse(text);
+            TdTable root = io.toterra.subterra.engine.config.Td.parse(text);
             return fromTd(root, gameDir);
         } catch (IllegalArgumentException | IOException e) {
             ReadingSearch.LOGGER.warn("reading search: {} ignored ({}), using defaults", config, e);

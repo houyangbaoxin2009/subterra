@@ -7,8 +7,8 @@ import java.util.Deque;
 import java.util.List;
 
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 
 /**
  * Writes a {@link ProfileReport} as z-file (zd) binary (p.1.8.30). The file is

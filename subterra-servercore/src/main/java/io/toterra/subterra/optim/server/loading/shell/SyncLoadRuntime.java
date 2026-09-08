@@ -5,9 +5,9 @@
 package io.toterra.subterra.optim.server.loading.shell;
 
 import com.mojang.logging.LogUtils;
-import io.toterra.subterra.config.Td;
-import io.toterra.subterra.config.TdTable;
-import io.toterra.subterra.config.TdValue;
+import io.toterra.subterra.engine.config.Td;
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.optim.server.loading.SyncLoadGuard.Setting;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.loading.FMLPaths;
