@@ -118,6 +118,9 @@ neoForge {
                     project.dependencies.create(project(':subterra-api')))
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-optim')))
+            // World profiler: pure-JDK statistics/slice cores consumed by the MC-layer profiler hooks.
+            additionalRuntimeClasspathConfiguration.dependencies.add(
+                    project.dependencies.create(project(':subterra-profiler')))
             // NOTE: MC-layer source hosts (subterra-invadvopt) compile into the
             // root main source set and need no dev-run classpath injection.
 
@@ -210,6 +213,8 @@ dependencies {
     // JEC pinyin search port uses optim.logic.pronounce.Lexicon/Matcher).
     implementation project(':subterra-api')
     implementation project(':subterra-optim')
+    // World profiler: pure-JDK statistics/slice cores consumed by the MC-layer profiler hooks.
+    implementation project(':subterra-profiler')
 
     // JUnit 5 for the ported MC-layer source-host tests (subterra-invadvopt).
     testImplementation platform('org.junit:junit-bom:5.11.4')

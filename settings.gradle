@@ -17,5 +17,6 @@ include 'subterra-tie'
 include 'subterra-config'
 include 'subterra-log'
 include 'subterra-probes'
+include 'subterra-profiler'
 
 rootProject.name = 'subterra'

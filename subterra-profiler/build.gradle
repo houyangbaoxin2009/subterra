@@ -1,0 +1,15 @@
+plugins {
+    id 'java-library'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Pure-JDK world-profiler core: depends only on the api/optim/config modules.
+dependencies {
+    implementation project(':subterra-api')
+    implementation project(':subterra-optim')
+    implementation project(':subterra-config')
+}
