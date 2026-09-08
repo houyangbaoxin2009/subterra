@@ -310,6 +310,24 @@ def worldProfileProbe = tasks.register('runWorldProfileProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.WorldProfileProbe'
 }
 
+// p.1.8.30: world-generator acceptance built on the World Profiler module — boots the
+// dev server with a deterministic seed + preset, force-generates the window, writes
+// statistics + an axial slice report, then reaps the game (kept OUT of probeAcceptance:
+// it generates real chunks and is a dev-loop tool, not a boot gate).
+def worldProfileAcceptance = tasks.register('runWorldProfileAcceptance', JavaExec) {
+    group = 'verification'
+    description = 'p.1.8.30: boot dev server, force-generate window, profiler stats + slice acceptance'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.WorldProfileAcceptanceProbe'
+    workingDir = rootProject.projectDir
+    systemProperty 'subterra.projectDir', rootProject.projectDir.absolutePath
+    systemProperty 'subterra.seed', System.getProperty('subterra.seed', project.findProperty('subterra.seed') ?: '44905237')
+    systemProperty 'subterra.levelType', System.getProperty('subterra.levelType', project.findProperty('subterra.levelType') ?: 'subterra:subterra')
+    systemProperty 'subterra.profileRadius', System.getProperty('subterra.profileRadius', project.findProperty('subterra.profileRadius') ?: '1')
+    systemProperty 'subterra.profileBuild', System.getProperty('subterra.profileBuild', project.findProperty('subterra.profileBuild') ?: 'false')
+    systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', project.findProperty('subterra.profileSlice') ?: 'z:-4:4:block:0:0')
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'

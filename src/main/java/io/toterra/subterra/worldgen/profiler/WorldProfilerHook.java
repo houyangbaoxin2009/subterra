@@ -143,9 +143,21 @@ public final class WorldProfilerHook {
             api.setRunContext(seed, dimension, appVersion);
             api.setSamplerSource(() -> new McWorldSampler(levelOrThrow()));
             api.setSinkRoot(WorldProfilerHook::gamedirProfile);
+            LOGGER.info("[subterra_profiler] boot props: profile={} build={} slice={} (acceptance driver)", pprop(), pbuild(), pslice());
             String prop = System.getProperty("subterra.profile");
             if (prop != null && !prop.isBlank()) {
                 handleProfileProperty(prop);
+            }
+            // subterra.profileSlice="axis:start:length:unit[:planes[:positions]]" — headless
+            // axial-slice acceptance, independent of the profile property.
+            String sliceProp = pslice();
+            if (sliceProp != null && !sliceProp.isBlank()) {
+                try {
+                    runSliceProperty(sliceProp);
+                } catch (Throwable t) {
+                    String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
+                    LOGGER.error("[subterra_profiler] BLOCKED: auto slice failed: {}", reason);
+                }
             }
         } catch (Throwable t) {
             String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
@@ -179,7 +191,20 @@ public final class WorldProfilerHook {
         try {
             ProfilePlan plan = withRadius(WorldProfilerConfig.load(), radius);
             ServerLevel level = levelOrThrow();
+            // subterra.profileBuild=true (headless acceptance): force-generate every
+            // chunk of the window first, so the stats describe real terrain, not void.
+            if (getBool("subterra.profileBuild", false)) {
+                long t0 = System.currentTimeMillis();
+                forceLoadWindow(level, plan);
+                LOGGER.info("[subterra_profiler] auto profile --build: generated {}x{} chunks in {} ms",
+                        Math.floorDiv(ProfileRegion.windowBox(plan.window()).xTo() - 1, 16)
+                                - Math.floorDiv(ProfileRegion.windowBox(plan.window()).xFrom(), 16) + 1,
+                        Math.floorDiv(ProfileRegion.windowBox(plan.window()).zTo() - 1, 16)
+                                - Math.floorDiv(ProfileRegion.windowBox(plan.window()).zFrom(), 16) + 1,
+                        System.currentTimeMillis() - t0);
+            }
             Path sinkDir = sinkDirFor(plan, level);
+            LOGGER.info("[subterra_profiler] auto profile radius={}: sampling window …", radius);
             ProfileReport report = WorldProfileRunner.run(
                     new McWorldSampler(level), plan, seed, dimension, appVersion, sinkDir);
             LOGGER.info("[subterra_profiler] auto profile radius={} done; summary:\n{}files: {}/profile.zd, {}/profile.td",
@@ -188,6 +213,52 @@ public final class WorldProfilerHook {
             String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
             LOGGER.error("[subterra_profiler] BLOCKED: auto profile failed: {}", reason);
         }
+    }
+
+    /** Headless axial-slice acceptance: {@code axis:start:length:unit[:planes[:positions]]}. */
+    private static void runSliceProperty(String spec) throws java.io.IOException {
+        String[] parts = spec.split(":");
+        if (parts.length < 4) {
+            throw new IllegalArgumentException("subterra.profileSlice must be axis:start:length:unit[:planes[:positions]], got "
+                    + spec);
+        }
+        String unitS = parts[3].trim();
+        SliceUnit unit = switch (unitS) {
+            case "block" -> SliceUnit.BLOCK;
+            case "chunk" -> SliceUnit.CHUNK;
+            default -> throw new IllegalArgumentException("slice unit must be block/chunk, got " + unitS);
+        };
+        boolean planes = parts.length > 4 && "1".equals(parts[4].trim());
+        boolean positions = parts.length > 5 && "1".equals(parts[5].trim());
+        int start = Integer.parseInt(parts[1].trim());
+        int length = Integer.parseInt(parts[2].trim());
+        if (length <= 0) {
+            throw new IllegalArgumentException("slice length must be positive");
+        }
+        int end = Math.addExact(start, length);
+        ServerLevel level = levelOrThrow();
+        ProfileSlice slice = new ProfileSlice(parseAxis(parts[0].trim()), start, end, unit, planes, positions);
+        ProfilePlan base = WorldProfilerConfig.load();
+        ProfilePlan plan = new ProfilePlan(base.residency(), sliceUnderWindow(level, base, slice),
+                EnumSet.allOf(ProfileCategory.class), base.step(), slice, base.formats(), base.sink());
+        // Slices need their blocks generated: force the window the slice lies in.
+        LOGGER.info("[subterra_profiler] auto slice {}: generating slice window …", spec);
+        forceLoadWindow(level, plan);
+        LOGGER.info("[subterra_profiler] auto slice {}: sampling …", spec);
+        Path sinkDir = sinkDirFor(plan, level);
+        ProfileReport report = WorldProfileRunner.run(new McWorldSampler(level), plan,
+                seed, dimension, appVersion, sinkDir);
+        LOGGER.info("[subterra_profiler] auto slice {} done; summary:\n{}files: {}/profile.zd, {}/profile.td",
+                spec, WorldProfileRunner.summary(report), sinkDir, sinkDir);
+    }
+
+    private static ProfileAxis parseAxis(String s) {
+        return switch (s) {
+            case "x" -> ProfileAxis.X;
+            case "y" -> ProfileAxis.Y;
+            case "z" -> ProfileAxis.Z;
+            default -> throw new IllegalArgumentException("axis must be x/y/z, got " + s);
+        };
     }
 
     @SubscribeEvent
@@ -443,6 +514,26 @@ public final class WorldProfilerHook {
         return new ProfilePlan(base.residency(),
                 new ProfileWindow(base.window().centerX(), base.window().centerZ(), radius),
                 base.categories(), base.step(), base.slice(), base.formats(), base.sink());
+    }
+
+    private static String pprop() {
+        return System.getProperty("subterra.profile", System.getenv().getOrDefault("SUBTERRA_PROFILE", ""));
+    }
+
+    private static String pbuild() {
+        return System.getProperty("subterra.profileBuild", System.getenv().getOrDefault("SUBTERRA_PROFILE_BUILD", ""));
+    }
+
+    private static String pslice() {
+        return System.getProperty("subterra.profileSlice", System.getenv().getOrDefault("SUBTERRA_PROFILE_SLICE", ""));
+    }
+
+    private static boolean getBool(String key, boolean dflt) {
+        String v = System.getProperty(key);
+        if (v == null || v.isBlank()) {
+            return dflt;
+        }
+        return Boolean.parseBoolean(v.trim());
     }
 
     /** The sink directory for a plan: world-store dir for WORLD sinks, else the run dir. */

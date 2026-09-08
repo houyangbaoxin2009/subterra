@@ -140,6 +140,12 @@ neoForge {
             client()
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // World profiler headless acceptance: forward the drive properties to the
+            // game JVM (absent by default -> zero impact), e.g.
+            // -Dsubterra.profile=8 -Dsubterra.profileBuild=true -Dsubterra.profileSlice=x:-32:32:block
+            systemProperty 'subterra.profile', System.getProperty('subterra.profile', System.getenv('SUBTERRA_PROFILE') ?: '')
+            systemProperty 'subterra.profileBuild', System.getProperty('subterra.profileBuild', System.getenv('SUBTERRA_PROFILE_BUILD') ?: '')
+            systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', System.getenv('SUBTERRA_PROFILE_SLICE') ?: '')
         }
 
         server {
@@ -158,6 +164,12 @@ neoForge {
         gameTestServer {
             type = "gameTestServer"
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // World profiler headless acceptance: forward the drive properties to the
+            // game JVM (absent by default -> zero impact), e.g.
+            // -Dsubterra.profile=8 -Dsubterra.profileBuild=true -Dsubterra.profileSlice=x:-32:32:block
+            systemProperty 'subterra.profile', System.getProperty('subterra.profile', System.getenv('SUBTERRA_PROFILE') ?: '')
+            systemProperty 'subterra.profileBuild', System.getProperty('subterra.profileBuild', System.getenv('SUBTERRA_PROFILE_BUILD') ?: '')
+            systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', System.getenv('SUBTERRA_PROFILE_SLICE') ?: '')
         }
 
         data {
