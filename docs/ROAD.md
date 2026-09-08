@@ -15,14 +15,15 @@
 * Every milestone below is a p-track item; sub-items continue the track per "one library = one sub-item". / 以下里程碑均为 p 轨条目；子项沿 p 轨推进，一库一子项。
 * Acceptance is deterministic probes only (server boots / client enters world / probes PASS), never timing assertions. / 验收一律确定性探针：服务端开服、客户端进世界、探针断言全 PASS；禁时序断言。
 * 2026-09-08 — 新增三项数据层重构：**数据包重构**（td 为数据包内容一等语言，数据包逻辑可直接以 tie 编写，替代手写 JSON）+ **存档重构**（zd+td 混合替代原版 NBT `.dat`，减小体积 / 加快加载）+ **服务端交互重构**（增强通道：tink v2 帧 + zd 载荷 + 增量差分，性能更好带宽更小）。 / Added three data-layer reworks: datapack (td first-class, logic in tie), save (zd+td hybrid), and server-interaction (enhanced channel: tink v2 frames + zd payloads + delta sync).
-* 2026-09-08 — **革命先行重排 + 定案**：p 轨统一收敛到 p.2 线——颠覆原版基座（p.2.1–p.2.14：tie bridge / td 数据包 / zd 存档 / 服务端交互 / P2P / 异步 IO / **确定性并行** / **世界推演 sim** / 世界即产物 / 存档可验证 / 会话可编程 / Schema-first / **确定性 PCG** / **diegetic 交互**），SDK（p.2.15–p.2.20，含自举验收 p.2.20），Dx / 内容殿后（p.2.21–p.2.27）。此轮为革命项最终定案，之后进入执行期。 / Revolutionary-first reorder + final decision: foundations p.2.1–p.2.14, SDK p.2.15–p.2.20, DX/content p.2.21–p.2.27; this closes the revolutionary set — execution follows.
+* 2026-09-09 — p.2.2 数据包重构第一块落地：**纯 td 直载**（不产出 JSON，不依赖原版数据包管道）——engine.datapack 容器 + 注册表（EntryKind 七类 / DatapackEntry / Datapack 按 id 确定性排序 / DatapackLoader 双发现：目录约定 `data/<ns>/<kind>/<path>.td` + 可选 pack.td manifest 带 tie 库声明与增量条目）；tie 逻辑装载链（TieLogicLoader → TieLogicBundle：lib 声明 → TieLibrary FFM，FUNCTION 条目按 payload lib/fn 绑定 `<lib>$<fn>`，未导出即抛）；DatapackProbe 探针级闭环 26 断言全绿 + 顺带修复共享 Td 解析器 header 误杀 `type = "..."`
+  数据键与注册表排序丢失两个 bug。MC 壳注册接线为下一块。 / p.2.2 first block landed: pure td direct loading (no JSON), engine.datapack registry + tie logic chain; probe closed loop green; two shared-parser bugs fixed along the way.
 
 | p-track / p 轨 | Milestone / 里程碑 | Status / 状态 |
 | --- | --- | --- |
 | p.1.0–p.1.8 | Framework baseline / 框架化基线：模块骨架、L1 启动、L2 Java25 兼容修补、L3 API 库、优化集（ScratchPool + 移植核心）、td 配置、日志、世界生成管线（九维模型 / 密度函数 / router / surface / 默认 vanilla 预设 / 探针） | landed / 已落地 |
 | p.2.0 | Module re-layout / 模块重构（收尾中）：api / engine / runtime / migrate / devkit 分层落地，依赖铁律探针化，探针全绿保持 | landed / 已落地（收尾） |
-| p.2.1 | tie bridge / tie 桥（**革命基座**，自原 p.4.0 前移）：tiec → DLL → FFM 加载调用，热点路径 tie 化 + 性能验证 | pending / 待开工 |
-| p.2.2 | Datapack rework / 数据包重构（**革命**，自原 p.2.10 前移）：td 为数据包内容一等语言——函数 / 配方 / 战利品表 / 世界生成 / 结构 / 标签 / 本地化 td 声明 + 装载编译（td → 原版 JSON 兼容落位 / 纯 td 直载）；**数据包逻辑可直接以 tie 编写**（tiec 编译 → tie bridge 装载，接 p.2.1），热点路径 tie 化；数据包打包分发（接 config 包）；数据包级规则可被存档覆盖（接 p.2.17 rules）；td + API（含 tie）双接口 | pending / 待开工 |
+| p.2.1 | tie bridge / tie 桥（**革命基座**，自原 p.4.0 前移）：tiec → DLL → FFM 加载调用，热点路径 tie 化 + 性能验证 | landed / 已落地 |
+| p.2.2 | Datapack rework / 数据包重构（**革命**，自原 p.2.10 前移）：td 为数据包内容一等语言——函数 / 配方 / 战利品表 / 世界生成 / 结构 / 标签 / 本地化 td 声明 + **纯 td 直载**（engine.datapack 注册表 + tie 逻辑链，探针闭环已落地）；数据包逻辑可直接以 tie 编写（tiec 编译 → tie bridge 装载，接 p.2.1），热点路径 tie 化；数据包打包分发（接 config 包）；数据包级规则可被存档覆盖（接 p.2.17 rules）；td + API（含 tie）双接口；MC 壳注册接线进行中（下一块） | in progress / 进行中 |
 | p.2.3 | Save rework / 存档重构（**革命**，自原 p.2.11 前移）：现代化存档形态——**zd + td 混合替代原版 NBT `.dat`**（level / player / 侧数据），减小体积、加快加载（zd 压缩变体 / 字典 / 零拷贝）；统一 SaveContainer（世界 + 配置 + 藏录 Ledger + 领域档案 + 遗物条目 + 台账）；双层配置（全局 + 存档覆盖，接 p.2.17）；迁移走 subterra-migrate；元数据可导出（接 p.2.18 export） | pending / 待开工 |
 | p.2.4 | Server-interaction rework / 服务端交互重构（**革命**，自原 p.4.3 前移）：客户端 ⇄ 服务端**增强通道**——tink v2 帧 + tsha1f 帧级强校验 + zd 载荷序列化（与 p.2.5 P2P 同栈，语言无关 ABI）；三级载荷策略（L1 高频增量差分 / 兴趣域订阅 · L2 中频快照 + 变更流 · L3 低频加密）；带宽削减 = 增量同步 / 状态降频插值 / 按需订阅；默认强加密（x25519 + AEAD，局域网可信可关）；原版协议路径保留（渐进增强，原版客户端仍可连） | pending / 待开工 |
 | p.2.5 | P2P decentralized networking / P2P 去中心化网络（自原 p.4.1 前移）：tink v2 + tsha1f 帧级强校验；zd 作为自定义载荷通道通信介质（先可行性基准） | pending / 待开工 |
