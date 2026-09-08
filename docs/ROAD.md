@@ -15,36 +15,39 @@
 * Every milestone below is a p-track item; sub-items continue the track per "one library = one sub-item". / 以下里程碑均为 p 轨条目；子项沿 p 轨推进，一库一子项。
 * Acceptance is deterministic probes only (server boots / client enters world / probes PASS), never timing assertions. / 验收一律确定性探针：服务端开服、客户端进世界、探针断言全 PASS；禁时序断言。
 * 2026-09-08 — 新增三项数据层重构：**数据包重构**（td 为数据包内容一等语言，数据包逻辑可直接以 tie 编写，替代手写 JSON）+ **存档重构**（zd+td 混合替代原版 NBT `.dat`，减小体积 / 加快加载）+ **服务端交互重构**（增强通道：tink v2 帧 + zd 载荷 + 增量差分，性能更好带宽更小）。 / Added three data-layer reworks: datapack (td first-class, logic in tie), save (zd+td hybrid), and server-interaction (enhanced channel: tink v2 frames + zd payloads + delta sync).
-* 2026-09-08 — **革命先行重排**：p 轨统一收敛到 p.2 线并重新编号——颠覆原版基座（p.2.1–p.2.11：tie bridge / 数据包 / 存档 / 服务端交互 / P2P / 异步 IO / 世界推演 engine.sim / 世界即产物 / 存档可验证 / 会话可编程 / Schema-first）优先于 SDK（p.2.12–p.2.17，含前移的自举验收 p.2.17），Dx / 内容层殿后（p.2.18–p.2.24）。理由：建在将被推翻的 vanilla 范式上的功能必然返工。 / Revolutionary-first reorder: p-track unified into the p.2 line — vanilla-overturning foundations first (p.2.1–p.2.11), then SDK (p.2.12–p.2.17 with bootstrapping acceptance moved up), DX/content last (p.2.18–p.2.24).
+* 2026-09-08 — **革命先行重排 + 定案**：p 轨统一收敛到 p.2 线——颠覆原版基座（p.2.1–p.2.14：tie bridge / td 数据包 / zd 存档 / 服务端交互 / P2P / 异步 IO / **确定性并行** / **世界推演 sim** / 世界即产物 / 存档可验证 / 会话可编程 / Schema-first / **确定性 PCG** / **diegetic 交互**），SDK（p.2.15–p.2.20，含自举验收 p.2.20），Dx / 内容殿后（p.2.21–p.2.27）。此轮为革命项最终定案，之后进入执行期。 / Revolutionary-first reorder + final decision: foundations p.2.1–p.2.14, SDK p.2.15–p.2.20, DX/content p.2.21–p.2.27; this closes the revolutionary set — execution follows.
 
 | p-track / p 轨 | Milestone / 里程碑 | Status / 状态 |
 | --- | --- | --- |
 | p.1.0–p.1.8 | Framework baseline / 框架化基线：模块骨架、L1 启动、L2 Java25 兼容修补、L3 API 库、优化集（ScratchPool + 移植核心）、td 配置、日志、世界生成管线（九维模型 / 密度函数 / router / surface / 默认 vanilla 预设 / 探针） | landed / 已落地 |
 | p.2.0 | Module re-layout / 模块重构（收尾中）：api / engine / runtime / migrate / devkit 分层落地，依赖铁律探针化，探针全绿保持 | landed / 已落地（收尾） |
 | p.2.1 | tie bridge / tie 桥（**革命基座**，自原 p.4.0 前移）：tiec → DLL → FFM 加载调用，热点路径 tie 化 + 性能验证 | pending / 待开工 |
-| p.2.2 | Datapack rework / 数据包重构（**革命**，自原 p.2.10 前移）：td 为数据包内容一等语言——函数 / 配方 / 战利品表 / 世界生成 / 结构 / 标签 / 本地化 td 声明 + 装载编译（td → 原版 JSON 兼容落位 / 纯 td 直载）；**数据包逻辑可直接以 tie 编写**（tiec 编译 → tie bridge 装载，接 p.2.1），热点路径 tie 化；数据包打包分发（接 config 包）；数据包级规则可被存档覆盖（接 p.2.14 rules）；td + API（含 tie）双接口 | pending / 待开工 |
-| p.2.3 | Save rework / 存档重构（**革命**，自原 p.2.11 前移）：现代化存档形态——**zd + td 混合替代原版 NBT `.dat`**（level / player / 侧数据），减小体积、加快加载（zd 压缩变体 / 字典 / 零拷贝）；统一 SaveContainer（世界 + 配置 + 藏录 Ledger + 领域档案 + 遗物条目 + 台账）；双层配置（全局 + 存档覆盖，接 p.2.14）；迁移走 subterra-migrate；元数据可导出（接 p.2.15 export） | pending / 待开工 |
+| p.2.2 | Datapack rework / 数据包重构（**革命**，自原 p.2.10 前移）：td 为数据包内容一等语言——函数 / 配方 / 战利品表 / 世界生成 / 结构 / 标签 / 本地化 td 声明 + 装载编译（td → 原版 JSON 兼容落位 / 纯 td 直载）；**数据包逻辑可直接以 tie 编写**（tiec 编译 → tie bridge 装载，接 p.2.1），热点路径 tie 化；数据包打包分发（接 config 包）；数据包级规则可被存档覆盖（接 p.2.17 rules）；td + API（含 tie）双接口 | pending / 待开工 |
+| p.2.3 | Save rework / 存档重构（**革命**，自原 p.2.11 前移）：现代化存档形态——**zd + td 混合替代原版 NBT `.dat`**（level / player / 侧数据），减小体积、加快加载（zd 压缩变体 / 字典 / 零拷贝）；统一 SaveContainer（世界 + 配置 + 藏录 Ledger + 领域档案 + 遗物条目 + 台账）；双层配置（全局 + 存档覆盖，接 p.2.17）；迁移走 subterra-migrate；元数据可导出（接 p.2.18 export） | pending / 待开工 |
 | p.2.4 | Server-interaction rework / 服务端交互重构（**革命**，自原 p.4.3 前移）：客户端 ⇄ 服务端**增强通道**——tink v2 帧 + tsha1f 帧级强校验 + zd 载荷序列化（与 p.2.5 P2P 同栈，语言无关 ABI）；三级载荷策略（L1 高频增量差分 / 兴趣域订阅 · L2 中频快照 + 变更流 · L3 低频加密）；带宽削减 = 增量同步 / 状态降频插值 / 按需订阅；默认强加密（x25519 + AEAD，局域网可信可关）；原版协议路径保留（渐进增强，原版客户端仍可连） | pending / 待开工 |
 | p.2.5 | P2P decentralized networking / P2P 去中心化网络（自原 p.4.1 前移）：tink v2 + tsha1f 帧级强校验；zd 作为自定义载荷通道通信介质（先可行性基准） | pending / 待开工 |
 | p.2.6 | C2ME bundled / C2ME 直接包含（自原 p.3.0 前移）：engine.worldgen.async 核心 + runtime 异步壳，随框架发布（MIT 声明） | pending / 待开工 |
-| p.2.7 | World sim / 世界推演 engine.sim（**革命·新增**）：时间 / 物理 / 生态 / 经济 / 势力的**增量确定性模拟底座**——预算分级、分区空间索引、无全局扫描；服务 Toterra 生态层（食物链 / 季节 / 迁徙）、势力扩张与贸易网络、自建聚落；与 engine.time（p.2.23）衔接 | pending / 待开工 |
-| p.2.8 | World-as-artifact / 世界即产物（**革命·新增**）：export + save + 数据包 + 藏录一键打包为「世界包」，可搬移、可再水化（接 p.2.3 / p.2.15）；服务 Toterra 镜像层与存档互导 | pending / 待开工 |
-| p.2.9 | Save verifiability / 存档可验证（**革命·新增**）：zd 区块 + ed25519 / tsha1f 签名，损坏自检与防篡改——存档 = 可验证账本（接 p.2.3） | pending / 待开工 |
-| p.2.10 | Session programmable / 会话可编程（**革命·新增**）：外部进程（调试器 / 编辑器 / tie 脚本 / 工具）经 tink 帧驱动游戏运行时——tink hub 形态 B（接 p.2.5）；游戏成为可编程运行时 | pending / 待开工 |
-| p.2.11 | Schema-first scaffolding（**革命·新增**）：td schema → 自动生成注册码 / 探针 / 文档 / 表单——模组编写从「写代码」变「写数据」 | pending / 待开工 |
-| p.2.12 | Engine migration + golden tests / engine 迁移（自原 p.2.2 顺移）：现有 optim / config / log 纯 JDK 核心迁入 engine.*；vanilla 数值对照固化为 golden tests 随改动回归 | pending / 待开工 |
-| p.2.13 | API contract surface / api 契约面（自原 p.2.1 顺移）：worldgen / config(rules) / export / event 契约 + Exporter 注册表 + 规则注册 API | pending / 待开工 |
-| p.2.14 | Rule system / 规则系统 engine.config.rules（自原 p.2.4 顺移，参考 RollingGate 模型）：类型化规则、双层配置（全局 + 存档覆盖）、校验、热重载、`/subterra rule` 命令 | pending / 待开工 |
-| p.2.15 | Export hub / 导出器 engine.export（自原 p.2.3 顺移）：language-keys / config / world / registries / migrate-maps，td/zd 双格式，`/subterra export` 指令 | pending / 待开工 |
-| p.2.16 | Runtime wiring migration / runtime 接线迁移（自原 p.2.5 顺移）：launch / runtime-fix / worldgen / optim-shell / tie / cfglog 迁入，export 指令接线（接 p.2.15） | pending / 待开工 |
-| p.2.17 | devkit complete / devkit 完整化 + 官方示例模组脚手架（自原 p.3.1 前移，**可用判据**）：probes 全量接线 + 最小「颠覆性模组」示例（兼作框架自举验收） | pending / 待开工 |
-| p.2.18 | Animation / 动画 engine.anim（自原 p.2.6 顺移）：GeckoLib 核心移植（MIT 声明 + 捆绑库声明）+ runtime anim binding | pending / 待开工 |
-| p.2.19 | UI / HUD core / engine.ui（自原 p.2.7 顺移）：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 数据驱动 tooltip（clean-room 参考 DataTip GPL-3.0，td 格式）+ 文档书籍 GUI（clean-room 参考 Patchouli CC-BY-NC-SA，td 驱动）+ 列表/详情/许可视图核心 | pending / 待开工 |
-| p.2.20 | In-game mod hub / 游戏内模组 Hub（自原 p.2.8 顺移）：td schema 表单自动生成、配置编辑 + 热重载、入口接线、服务器端 op 配置命令 | pending / 待开工 |
-| p.2.21 | AI behavior core / engine.ai（自原 p.2.9 顺移）：clean-room Brain 编排核心（参考 SmartBrainLib 模型）+ runtime ai binding | pending / 待开工 |
-| p.2.22 | Entity scale / 实体缩放 engine.scale（自原 p.3.2 前移入主线）：Pehkui-Rebuilt 核心移植（MIT，保留 Virtuoel 原始版权与重建声明）：ScaleType/ScaleData/ScaleModifier 模型、按维度/标签缩放、数据包缩放规则 + runtime scale binding | pending / 待开工 |
-| p.2.23 | Time scaling / 时间缩放 engine.time（自原 p.3.3 前移入主线，clean-room 自研）：TimeDomain 流速比例模型（全局/实体/区域/玩家域）、tick 预算确定性调度（BudgetScheduler）、逻辑级节流 + 感知级插值，TimeScaleApi + runtime 接线（接 engine.sim p.2.7） | pending / 待开工 |
-| p.2.24 | Self-developed rendering / 自研渲染管线（自原 p.4.2 顺移，clean-room，参考 Sodium/Embeddium 等登记项） | pending / 待开工 |
+| p.2.7 | Deterministic parallel / 确定性并行执行 engine.parallel（**革命·新增**）：多核并行（sim / AI / 区块）**不破种子确定性**——lock-free + 顺序保持的确定性任务调度底座；engine.sim / C2ME 的地基 | pending / 待开工 |
+| p.2.8 | World sim / 世界推演 engine.sim（**革命·新增**）：时间 / 物理 / 生态 / 经济 / 势力的**增量确定性模拟底座**——预算分级、分区空间索引、无全局扫描（接 engine.parallel p.2.7）；服务 Toterra 生态层（食物链 / 季节 / 迁徙）、势力扩张与贸易网络、自建聚落；与 engine.time（p.2.26）衔接 | pending / 待开工 |
+| p.2.9 | World-as-artifact / 世界即产物（**革命·新增**）：export + save + 数据包 + 藏录一键打包为「世界包」，可搬移、可再水化（接 p.2.3 / p.2.18）；服务 Toterra 镜像层与存档互导 | pending / 待开工 |
+| p.2.10 | Save verifiability / 存档可验证（**革命·新增**）：zd 区块 + ed25519 / tsha1f 签名，损坏自检与防篡改——存档 = 可验证账本（接 p.2.3） | pending / 待开工 |
+| p.2.11 | Session programmable / 会话可编程（**革命·新增**）：外部进程（调试器 / 编辑器 / tie 脚本 / 工具）经 tink 帧驱动游戏运行时——tink hub 形态 B（接 p.2.5）；游戏成为可编程运行时 | pending / 待开工 |
+| p.2.12 | Schema-first scaffolding（**革命·新增**）：td schema → 自动生成注册码 / 探针 / 文档 / 表单——模组编写从「写代码」变「写数据」 | pending / 待开工 |
+| p.2.13 | Deterministic PCG / 确定性内容生成 engine.pcg（**革命·新增**）：名称 / 文本 / 配方 / 遗物 / 群系变种 / 本地化的**生成器编排底座**——纯函数、同种子一致（接 schema-first p.2.12 / worldgen）；「无尽探索」的框架化底座 | pending / 待开工 |
+| p.2.14 | Diegetic interaction / engine.interact（**革命·新增**）：「无系统气味」的可落实交互层——世界内交互规范与零 HUD 化渲染规则（与 engine.ui p.2.22 调和，panels 在 p.2.22 仅作管理视图） | pending / 待开工 |
+| p.2.15 | Engine migration + golden tests / engine 迁移（自原 p.2.2 顺移）：现有 optim / config / log 纯 JDK 核心迁入 engine.*；vanilla 数值对照固化为 golden tests 随改动回归 | pending / 待开工 |
+| p.2.16 | API contract surface / api 契约面（自原 p.2.1 顺移）：worldgen / config(rules) / export / event 契约 + Exporter 注册表 + 规则注册 API | pending / 待开工 |
+| p.2.17 | Rule system / 规则系统 engine.config.rules（自原 p.2.4 顺移，参考 RollingGate 模型）：类型化规则、双层配置（全局 + 存档覆盖）、校验、热重载、`/subterra rule` 命令 | pending / 待开工 |
+| p.2.18 | Export hub / 导出器 engine.export（自原 p.2.3 顺移）：language-keys / config / world / registries / migrate-maps，td/zd 双格式，`/subterra export` 指令 | pending / 待开工 |
+| p.2.19 | Runtime wiring migration / runtime 接线迁移（自原 p.2.5 顺移）：launch / runtime-fix / worldgen / optim-shell / tie / cfglog 迁入，export 指令接线（接 p.2.18） | pending / 待开工 |
+| p.2.20 | devkit complete / devkit 完整化 + 官方示例模组脚手架（自原 p.3.1 前移，**可用判据**）：probes 全量接线 + 最小「颠覆性模组」示例（兼作框架自举验收） | pending / 待开工 |
+| p.2.21 | Animation / 动画 engine.anim（自原 p.2.6 顺移）：GeckoLib 核心移植（MIT 声明 + 捆绑库声明）+ runtime anim binding | pending / 待开工 |
+| p.2.22 | UI / HUD core / engine.ui（自原 p.2.7 顺移）：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 数据驱动 tooltip（clean-room 参考 DataTip GPL-3.0，td 格式）+ 文档书籍 GUI（clean-room 参考 Patchouli CC-BY-NC-SA，td 驱动）+ 列表/详情/许可视图核心（面板仅作管理视图，玩家侧交互走 p.2.14 interact） | pending / 待开工 |
+| p.2.23 | In-game mod hub / 游戏内模组 Hub（自原 p.2.8 顺移）：td schema 表单自动生成、配置编辑 + 热重载、入口接线、服务器端 op 配置命令 | pending / 待开工 |
+| p.2.24 | AI behavior core / engine.ai（自原 p.2.9 顺移）：clean-room Brain 编排核心（参考 SmartBrainLib 模型）+ runtime ai binding | pending / 待开工 |
+| p.2.25 | Entity scale / 实体缩放 engine.scale（自原 p.3.2 前移入主线）：Pehkui-Rebuilt 核心移植（MIT，保留 Virtuoel 原始版权与重建声明）：ScaleType/ScaleData/ScaleModifier 模型、按维度/标签缩放、数据包缩放规则 + runtime scale binding | pending / 待开工 |
+| p.2.26 | Time scaling / 时间缩放 engine.time（自原 p.3.3 前移入主线，clean-room 自研）：TimeDomain 流速比例模型（全局/实体/区域/玩家域）、tick 预算确定性调度（BudgetScheduler）、逻辑级节流 + 感知级插值，TimeScaleApi + runtime 接线（接 engine.sim p.2.8） | pending / 待开工 |
+| p.2.27 | Self-developed rendering / 自研渲染管线（自原 p.4.2 顺移，clean-room，参考 Sodium/Embeddium 等登记项） | pending / 待开工 |
 
 ## Sequence Notes / 顺序说明
 
