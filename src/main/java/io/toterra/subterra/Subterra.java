@@ -47,34 +47,34 @@ public class Subterra {
         // before the config-load stage (a commonSetup registration would be too
         // late: TagsUpdated fires before the config is ever loaded and every
         // read would throw "Cannot get config value before config is loaded").
-        io.toterra.subterra.optim.server.advancement.InventoryAdvancementAccelerator.bootstrap(modContainer);
+        io.toterra.subterra.runtime.optim.server.advancement.InventoryAdvancementAccelerator.bootstrap(modContainer);
 
         // Smooth Boot worker tuning (ported, MIT): preloads the td config
         // (config/subterra/smoothboot.td); the Util mixins swap the background
         // and IO worker executors lazily on first use with defaults fallback.
-        io.toterra.subterra.optim.server.threading.WorkerPoolTuning.bootstrap(modContainer);
+        io.toterra.subterra.runtime.optim.server.threading.WorkerPoolTuning.bootstrap(modContainer);
 
         // ServerCore villager lobotomization (ported, MIT): preloads the td
         // config (config/subterra/servercore.td); the AbstractVillagerMixin
         // skips a stuck villager's brain tick so path-finding CPU is saved.
-        io.toterra.subterra.optim.entity.ai.VillagerLobotomize.bootstrap(modContainer);
+        io.toterra.subterra.runtime.optim.entity.ai.VillagerLobotomize.bootstrap(modContainer);
 
         // ServerCore dynamic view/simulation distance (ported, MIT): preloads
         // the td config (config/subterra/servercore.td) and wires the server
         // lifecycle listeners; the DynamicManager auto-tunes view/sim distance
         // (and mobcap/chunk-tick knobs) from the measured server tick time so a
         // loaded world keeps the server thread responsive.
-        io.toterra.subterra.optim.server.dynamic.DynamicDistance.bootstrap(modContainer);
+        io.toterra.subterra.runtime.optim.server.dynamic.DynamicDistance.bootstrap(modContainer);
 
         // ServerCore sync-load guard (clean-room): loads the master switch from
         // servercore.td; incremental call-site rewrites land behind it (off by
         // default preserves vanilla synchronous loading).
-        io.toterra.subterra.optim.server.loading.shell.SyncLoadRuntime.bootstrap(modContainer);
+        io.toterra.subterra.runtime.optim.server.loading.shell.SyncLoadRuntime.bootstrap(modContainer);
 
         // Item/block blacklist control (ported, Apache-2.0): preloads the td
         // config (config/subterra/item_control.td) and wires the handlers,
         // /itemban commands and recipe stripper.
-        io.toterra.subterra.optim.server.item_control.shell.ItemControl.bootstrap(modContainer);
+        io.toterra.subterra.runtime.optim.server.item_control.shell.ItemControl.bootstrap(modContainer);
 
         // Worldgen (p.1.8.21, td-gated): registers the subterra:density
         // density-function type and captures the world seed so "Subterra" can be
@@ -111,7 +111,7 @@ public class Subterra {
         // C2ME coexistence (adopted, MIT, optional peer): detects the official
         // C2ME jar (ModList is queryable only after mod loading) and logs
         // coexistence guidance on the shared control surfaces; no code bundled.
-        io.toterra.subterra.optim.worldgen.async.C2meCoexistence.bootstrap(modContainer);
+        io.toterra.subterra.runtime.worldgen.async.C2meCoexistence.bootstrap(modContainer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call

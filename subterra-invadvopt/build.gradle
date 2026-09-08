@@ -1,5 +1,0 @@
-// MC-layer source host (NOT a buildable subproject): this port targets
-// Minecraft/NeoForge classes, which only the root project can compile against
-// (moddev generates the patched-Minecraft classpath there). The root build
-// adds these sources to its own source sets; see root build.gradle.
-// Keep package root io.toterra.subterra.optim.server.invadvopt.

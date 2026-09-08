@@ -24,7 +24,7 @@ public class SubterraClient {
         // SearchTreeMixin redirects SearchTree.plainText to a reading-aware
         // SuffixArray so creative-inventory / name searches match readings.
         // Client-only (SearchTree is a client class).
-        io.toterra.subterra.optim.client.search.ReadingSearch.bootstrap(container);
+        io.toterra.subterra.runtime.optim.client.search.ReadingSearch.bootstrap(container);
     }
 
     @SubscribeEvent

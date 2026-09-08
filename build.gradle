@@ -33,26 +33,17 @@ tasks.named('jar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// MC-layer source hosts: ports that target Minecraft/NeoForge classes cannot
+// MC-layer source host: ports that target Minecraft/NeoForge classes cannot
 // compile in a plain submodule (only the root moddev project has the patched
 // Minecraft classpath), so their sources are compiled here as part of the main
-// mod. Currently: subterra-invadvopt (inventory advancement accelerator),
-// subterra-smoothboot (smooth-boot worker tuning) and subterra-servercore
-// (ServerCore villager lobotomization).
+// mod. p.2.0.9: all MC-layer host shells (invadvopt / smoothboot / servercore /
+// jec / itemban / c2me) moved into subterra-runtime as io.toterra.subterra.runtime.{optim,worldgen}
+// and are mounted here once.
 sourceSets {
     main {
-        java.srcDir('subterra-invadvopt/src/main/java')
-        java.srcDir('subterra-smoothboot/src/main/java')
-        java.srcDir('subterra-servercore/src/main/java')
-        java.srcDir('subterra-jec/src/main/java')
-        java.srcDir('subterra-c2me/src/main/java')
-        java.srcDir('subterra-itemban/src/main/java')
-        java.srcDir('subterra-worldgen/src/main/java')
-        // p.2.0: MC-layer runtime source-host (launch/fix/worldgen wiring land here).
+        // p.2.0: MC-layer runtime source-host (launch/fix/worldgen wiring and
+        // the optim-shell hosts land here).
         java.srcDir('subterra-runtime/src/main/java')
-    }
-    test {
-        java.srcDir('subterra-invadvopt/src/test/java')
     }
 }
 

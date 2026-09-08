@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.9] Move optim-shell hosts into runtime.optim + mixin JSON updates / optim-shell hosts 迁入 runtime.optim + mixin JSON 更新 (2026-09-08)
+
+* All MC-layer host shells (invadvopt / smoothboot / servercore / jec / itemban / c2me) move from the root-mounted source dirs into `subterra-runtime` as `io.toterra.subterra.runtime.optim.*` (c2me async -> `runtime.worldgen.async`); the 8 mixin JSON `package` fields re-pointed; host source dirs and the stale `subterra-worldgen` srcDir removed / 全部 MC 层 host 壳（invadvopt / smoothboot / servercore / jec / itemban / c2me）自 root 挂载源目录迁入 `subterra-runtime` 的 `io.toterra.subterra.runtime.optim.*`（c2me async -> `runtime.worldgen.async`）；8 个 mixin JSON 的 `package` 字段改指；host 源目录与过时 `subterra-worldgen` srcDir 移除
+
 ## [p.2.0.8] Move root MC worldgen into runtime.worldgen / root MC worldgen 迁入 runtime.worldgen (2026-09-08)
 
 * The root main-sourceSet worldgen wiring (`worldgen.gen` SubterraDensity / `worldgen.profiler` hooks / `worldgen.compare`) moves into the runtime source-host as `io.toterra.subterra.runtime.worldgen.*`; the mod entry classes stay at `io.toterra.subterra`; `runWorldCompare` main class re-pointed / root main sourceSet 的 worldgen 接线（`worldgen.gen` SubterraDensity / `worldgen.profiler` 钩子 / `worldgen.compare`）迁入 runtime source-host 的 `io.toterra.subterra.runtime.worldgen.*`；mod 入口类留在 `io.toterra.subterra`；`runWorldCompare` 主类改指

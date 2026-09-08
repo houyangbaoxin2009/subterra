@@ -1,7 +1,7 @@
 {
   "required": false,
   "minVersion": "0.8.7",
-  "package": "io.toterra.subterra.optim.entity.activation.mixin",
+  "package": "io.toterra.subterra.runtime.optim.entity.activation.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [],

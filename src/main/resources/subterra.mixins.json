@@ -1,8 +1,8 @@
 {
   "required": false,
   "minVersion": "0.8.7",
-  "package": "io.toterra.subterra.optim.server.advancement.mixin",
-  "plugin": "io.toterra.subterra.optim.server.advancement.mixin.InventoryAdvancementMixinPlugin",
+  "package": "io.toterra.subterra.runtime.optim.server.advancement.mixin",
+  "plugin": "io.toterra.subterra.runtime.optim.server.advancement.mixin.InventoryAdvancementMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "InventoryChangeTriggerMixin",
