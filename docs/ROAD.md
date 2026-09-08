@@ -25,7 +25,7 @@
 | p.2.4 | Rule system / 规则系统 engine.config.rules（参考 RollingGate 模型）：类型化规则、双层配置（全局 + 存档覆盖）、校验、热重载、`/subterra rule` 命令 | pending / 待开工 |
 | p.2.5 | Runtime wiring migration / runtime 接线迁移：launch / runtime-fix / worldgen / optim-shell / tie / cfglog 迁入，export 指令接线 | pending / 待开工 |
 | p.2.6 | Animation / 动画 engine.anim：GeckoLib 核心移植（MIT 声明 + 捆绑库声明）+ runtime anim binding | pending / 待开工 |
-| p.2.7 | UI / HUD core / engine.ui：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 数据驱动 tooltip（clean-room 参考 DataTip GPL-3.0，td 格式）+ 列表/详情/许可视图核心 | pending / 待开工 |
+| p.2.7 | UI / HUD core / engine.ui：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 数据驱动 tooltip（clean-room 参考 DataTip GPL-3.0，td 格式）+ 文档书籍 GUI（clean-room 参考 Patchouli CC-BY-NC-SA，td 驱动）+ 列表/详情/许可视图核心 | pending / 待开工 |
 | p.2.8 | In-game mod hub / 游戏内模组 Hub：td schema 表单自动生成、配置编辑 + 热重载、入口接线、服务器端 op 配置命令 | pending / 待开工 |
 | p.2.9 | AI behavior core / engine.ai：clean-room Brain 编排核心（参考 SmartBrainLib 模型）+ runtime ai binding | pending / 待开工 |
 | p.3.0 | C2ME bundled / C2ME 直接包含：engine.worldgen.async 核心 + runtime 异步壳，随框架发布（MIT 声明） | pending / 待开工 |
@@ -63,6 +63,7 @@
 | Physics Mod | 方块/生物物理 | — | All Rights Reserved，不适用 | dropped / 剔除 |
 | TimeScaleLib | 时间缩放（子弹时间） | — | PolyForm Shield 非标准变体（Noncompete，存疑）→ 不适用；能力 clean-room 自研 | dropped / 剔除（自研替代） |
 | DataTip | 数据驱动 tooltip（物品→tooltip 行） | engine.ui | GPL-3.0 clean-room 参考（td 化，零 json） | planned / 已立项 |
+| Patchouli | 数据驱动书籍/文档 GUI（手册/图鉴/教程） | engine.ui.docbook | CC-BY-NC-SA 3.0 clean-room 参考（td 化，零 json） | planned / 已立项 |
 | Feature Recycler / VoxelBridge / OptiCores | 待定义 | — | All Rights Reserved 或语义不匹配 | dropped / 剔除 |
 | StellarRTP | 随机传送 | engine.optim.server.teleport | GPLv3 clean-room 参考 | planned / 已立项 |
 | Itemban | 物品使用控制 | engine.optim.server.item_control | Apache-2.0 | pending / 待开工 |
@@ -71,6 +72,7 @@
 
 ## Progress Log / 进度记录
 
+* 2026-09-08 — Patchouli assessed / Patchouli 评估：CC-BY-NC-SA 3.0 → 仅思想参考；文档书籍 GUI clean-room 自研（engine.ui.docbook，td 驱动零 json）。 / 2026-09-08 — Patchouli 评估：CC-BY-NC-SA 3.0 → 仅思想参考；文档书籍 GUI clean-room 自研（engine.ui.docbook，td 驱动零 json）。
 * 2026-09-08 — DataTip assessed / DataTip 评估：GPL-3.0 → 仅思想参考；数据驱动 tooltip 数据层 clean-room 自研（engine.ui，td 化，零 json，与 AppleSkin 协同）。 / 2026-09-08 — DataTip 评估：GPL-3.0 → 仅思想参考；数据驱动 tooltip 数据层 clean-room 自研（engine.ui，td 化，零 json，与 AppleSkin 协同）。
 * 2026-09-08 — TimeScaleLib assessed / TimeScaleLib 评估：PolyForm Shield 非标准变体（Noncompete）→ 不可移植，框架时间缩放能力 clean-room 自研（engine.time，p.3.3）。 / 2026-09-08 — TimeScaleLib 评估：PolyForm Shield 非标准变体（Noncompete）→ 不可移植，时间缩放能力 clean-room 自研（engine.time，p.3.3）。
 * 2026-09-08 — Pehkui-Rebuilt registered / Pehkui-Rebuilt 入册：实体缩放能力纳入框架（engine.scale，MIT 移植，保留 Virtuoel 原始版权）。 / 2026-09-08 — Pehkui-Rebuilt 入册：实体缩放能力纳入框架（engine.scale，MIT 移植，保留 Virtuoel 原始版权）。
