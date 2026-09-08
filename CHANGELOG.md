@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.10] Dependency iron-law probe (IronLawProbe) / 依赖铁律探针 IronLawProbe (2026-09-08)
+
+* NEW `IronLawProbe` (pure JDK, zero deps): scans compiled class constant pools and enforces api <- engine <- runtime / migrate / devkit layering (api/engine/migrate never reference MC; engine/migrate never reference runtime; no duplicate FQCN across roots), wired into `probeAcceptance` / 新增 `IronLawProbe`（纯 JDK 零依赖）：扫描编译产物常量池，强制 api <- engine <- runtime / migrate / devkit 分层（api/engine/migrate 不得引用 MC；engine/migrate 不得引用 runtime；跨 root 无重复 FQCN），接入 `probeAcceptance`
+
 ## [p.2.0.9] Move optim-shell hosts into runtime.optim + mixin JSON updates / optim-shell hosts 迁入 runtime.optim + mixin JSON 更新 (2026-09-08)
 
 * All MC-layer host shells (invadvopt / smoothboot / servercore / jec / itemban / c2me) move from the root-mounted source dirs into `subterra-runtime` as `io.toterra.subterra.runtime.optim.*` (c2me async -> `runtime.worldgen.async`); the 8 mixin JSON `package` fields re-pointed; host source dirs and the stale `subterra-worldgen` srcDir removed / 全部 MC 层 host 壳（invadvopt / smoothboot / servercore / jec / itemban / c2me）自 root 挂载源目录迁入 `subterra-runtime` 的 `io.toterra.subterra.runtime.optim.*`（c2me async -> `runtime.worldgen.async`）；8 个 mixin JSON 的 `package` 字段改指；host 源目录与过时 `subterra-worldgen` srcDir 移除

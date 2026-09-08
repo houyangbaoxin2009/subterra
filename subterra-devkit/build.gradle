@@ -335,8 +335,31 @@ def worldProfileAcceptance = tasks.register('runWorldProfileAcceptance', JavaExe
     systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', project.findProperty('subterra.profileSlice') ?: 'z:-4:4:block:0:0')
 }
 
+// p.2.0.10: dependency iron-law probe — scans compiled class constant pools and
+// enforces api <- engine <- runtime / migrate layering (api/engine/migrate never
+// reference MC; engine/migrate never reference runtime; no duplicate FQCN across
+// roots). Pure JDK, runs off the compiled outputs of the scanned roots.
+def ironLawProbe = tasks.register('runIronLawProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.0.10: enforce api<-engine<-runtime / migrate iron law on compiled class outputs (constant-pool scan)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.IronLawProbe'
+    args = [
+        'api',     rootProject.project(':subterra-api').sourceSets.main.output.classesDirs.asPath,
+        'engine',  rootProject.project(':subterra-engine').sourceSets.main.output.classesDirs.asPath,
+        'runtime', rootProject.sourceSets.main.output.classesDirs.asPath,
+        'migrate', rootProject.project(':subterra-migrate').sourceSets.main.output.classesDirs.asPath,
+    ]
+}
+ironLawProbe.configure {
+    dependsOn rootProject.tasks.named('classes'),
+              rootProject.project(':subterra-api').tasks.named('classes'),
+              rootProject.project(':subterra-engine').tasks.named('classes'),
+              rootProject.project(':subterra-migrate').tasks.named('classes')
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe
 }
