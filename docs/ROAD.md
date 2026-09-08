@@ -1,0 +1,71 @@
+# Subterra Roadmap / Subterra 路线图
+
+**Status / 状态:** Active / 生效中
+**Date / 日期:** 2026-09-08（自系列 ROAD 拆分 / split from series ROAD）
+**Version discipline / 编号纪律:** Development uses the pre-release p-track only — `p.<release>.<module>.<sub-item>` (max three levels, no "stage/session" grouping). The release track `r.x.y.z` is cut from a specific p version at stabilization time and introduces no new features. Planning never uses milestone-style labels such as R1/R2. / 开发计划一律只用 p 轨 `p.<发布档>.<模块>.<子项>`（最多三级，禁用「阶段X」分组与 R1/R2 式标签）；`r.x.y.z` 为正式发行轨，在基于某个 p 版本时切出，只做优化与稳定、不引新功能。
+
+## Frame / 框架基线
+
+* Subterra 为全栈开发框架模组（NeoForge 21.1.x / MC 1.21.1），设计见聚合仓库 `docs/2026-09-08-subterra-framework-design.md`。 / Subterra is a full-stack development framework mod (NeoForge 21.1.x / MC 1.21.1); design in aggregate-repo `docs/2026-09-08-subterra-framework-design.md`.
+* p.1 线（骨架 / L1 启动 / L2 兼容 / L3 API / 优化集 / td 配置 / 日志 / 世界生成管线）全部落地，构成框架化基线；vanilla 保真工作（p.1.8.20–32）保留为默认预设并固化为 golden tests。 / The p.1 line is fully landed as the framework baseline; vanilla-fidelity work stays as the default preset and is frozen into golden tests.
+* p.2 线起为框架化：模块重构为 api / engine / runtime / migrate / devkit，服务大型、颠覆原版、不考虑兼容性的模组（首位消费方 Toterra）。 / From p.2 the line is the framework: modules re-laid as api / engine / runtime / migrate / devkit, serving large, vanilla-overturning, compatibility-agnostic mods (first consumer Toterra).
+
+## Milestone Map / 里程碑映射
+
+* Every milestone below is a p-track item; sub-items continue the track per "one library = one sub-item". / 以下里程碑均为 p 轨条目；子项沿 p 轨推进，一库一子项。
+* Acceptance is deterministic probes only (server boots / client enters world / probes PASS), never timing assertions. / 验收一律确定性探针：服务端开服、客户端进世界、探针断言全 PASS；禁时序断言。
+
+| p-track / p 轨 | Milestone / 里程碑 | Status / 状态 |
+| --- | --- | --- |
+| p.1.0–p.1.8 | Framework baseline / 框架化基线：模块骨架、L1 启动、L2 Java25 兼容修补、L3 API 库、优化集（ScratchPool + 移植核心）、td 配置、日志、世界生成管线（九维模型 / 密度函数 / router / surface / 默认 vanilla 预设 / 探针） | landed / 已落地 |
+| p.2.0 | Module re-layout / 模块重构：api / engine / runtime / migrate / devkit 分层落地，依赖铁律探针化，探针全绿保持 | pending / 待开工 |
+| p.2.1 | API contract surface / api 契约面：worldgen / config(rules) / export / event 契约 + Exporter 注册表 + 规则注册 API | pending / 待开工 |
+| p.2.2 | Engine migration + golden tests / engine 迁移：现有 optim / config / log 纯 JDK 核心迁入 engine.*；vanilla 数值对照固化为 golden tests 随改动回归 | pending / 待开工 |
+| p.2.3 | Export hub / 导出器 engine.export：language-keys（借鉴 Export-Language-Keys-for-Compasses）/ config / world / registries / migrate-maps，td/zd 双格式，`/subterra export` 指令 | pending / 待开工 |
+| p.2.4 | Rule system / 规则系统 engine.config.rules（参考 RollingGate 模型）：类型化规则、双层配置（全局 + 存档覆盖）、校验、热重载、`/subterra rule` 命令 | pending / 待开工 |
+| p.2.5 | Runtime wiring migration / runtime 接线迁移：launch / runtime-fix / worldgen / optim-shell / tie / cfglog 迁入，export 指令接线 | pending / 待开工 |
+| p.2.6 | Animation / 动画 engine.anim：GeckoLib 核心移植（MIT 声明 + 捆绑库声明）+ runtime anim binding | pending / 待开工 |
+| p.2.7 | UI / HUD core / engine.ui：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 列表/详情/许可视图核心 | pending / 待开工 |
+| p.2.8 | In-game mod hub / 游戏内模组 Hub：td schema 表单自动生成、配置编辑 + 热重载、入口接线、服务器端 op 配置命令 | pending / 待开工 |
+| p.2.9 | AI behavior core / engine.ai：clean-room Brain 编排核心（参考 SmartBrainLib 模型）+ runtime ai binding | pending / 待开工 |
+| p.3.0 | C2ME bundled / C2ME 直接包含：engine.worldgen.async 核心 + runtime 异步壳，随框架发布（MIT 声明） | pending / 待开工 |
+| p.3.1 | devkit complete / devkit 完整化：probes 全量接线 + 官方示例模组（最小「颠覆性模组」脚手架，兼作框架自举验收） | pending / 待开工 |
+| p.4.0 | tie bridge / tie 桥：tiec → DLL → FFM 加载调用，热点路径 tie 化 + 性能验证 | pending / 待开工 |
+| p.4.1 | P2P decentralized networking / P2P 去中心化网络：tink v2 + tsha1f 帧级强校验；zd 作为自定义载荷通道通信介质（先可行性基准） | pending / 待开工 |
+| p.4.2 | Self-developed rendering / 自研渲染管线（clean-room，参考 Sodium/Embeddium 等登记项） | pending / 待开工 |
+
+## Sequence Notes / 顺序说明
+
+* 小任务逐个提交：每完成一个小任务即报告并提交一次，得确认后再做下一个。 / Small tasks are submitted one at a time; each is reported and committed before the next starts.
+* 所有子任务完成后统一 review + 清理 + 推送。 / After all sub-tasks complete: one review, cleanup, and push.
+* 正式发行 r.x.y.z 从对应 p 版本切出，只做优化与稳定性验证，不引新功能。 / A release `r.x.y.z` is cut from its p version and only stabilizes.
+* 许可纪律：permissive（MIT / Apache-2.0 / BSD / Unlicense / ISC）可移植并保留声明；copyleft（GPL / LGPL / AGPL / MPL）仅 clean-room 参考；存疑按不允许处理；完整登记册见框架设计 §7。 / License discipline: permissive may be ported with notices; copyleft is clean-room reference only; uncertain defaults to not allowed; full register in framework design §7.
+
+## Port Allocation Map / 移植落点分配表
+
+* 功能分类（非来源分类）：所有移植按功能域落进 engine.*（纯 JDK 核心）与 runtime.*（MC 层接线）；纯逻辑核心独立纯 JDK 包并可探针。 / Functional organization: every port lands in a functional domain under engine.* (pure-JDK core) or runtime.* (MC wiring); pure-logic cores stay standalone pure-JDK with probes.
+
+| Pending target / 待移植目标 | Function / 功能 | Landing / 落点 | License path / 许可路径 | Status / 状态 |
+| --- | --- | --- | --- | --- |
+| GeckoLib | 3D 关键帧动画引擎（实体/方块/物品/盔甲） | engine.anim + runtime.anim | MIT 移植，保留声明与捆绑库声明 | planned / 已立项 |
+| AppleSkin | HUD 数据层（饱食/饱和度覆盖、食物 tooltip） | engine.ui | Unlicense 全量移植 | planned / 已立项 |
+| ModMenu | 模组列表交互模型与元数据 API 模式 | engine.ui + runtime.ui | MIT 借鉴（NeoForge 接线自研） | planned / 已立项 |
+| SmartBrainLib | Brain 编排模型 | engine.ai | MPL-2.0 clean-room 参考 | planned / 已立项 |
+| C2ME | 异步区块生成/加载/I/O + FlowSched | engine.worldgen.async + runtime | MIT 直接包含（NeoForge ver/1.21.1） | planned / 已立项（p.1.4.13 可选采纳 → 升级为直接包含） |
+| Export-Language-Keys-for-Compasses | 语言键全量导出 | engine.export | MIT 借鉴 | planned / 已立项 |
+| RollingGate | 规则系统模型（类型化规则 / 双层配置 / 命令面板） | engine.config.rules | LGPL-3.0 clean-room 模型参考；资产 CC-BY-NC-ND 不用 | planned / 已立项 |
+| ServerCore 系列 | 实体激活范围 / mobcap / 村民脑死亡 / 同步加载 / 区块 tick 缓存 / 动态距离 / 繁殖合并 | engine.optim + runtime.optim-shell | MIT 部分直接 + GPL 部分 clean-room | landed / 已落地（p.1.4 全线） |
+| JEC 读音搜索 | 语言无关读音搜索（zh/ja/ko/gr） | engine.optim.logic.pronounce + runtime.optim-shell | MIT | landed / 已落地（p.1.4.8-.10） |
+| InvAdvOpt / SmoothBoot | 库存推进加速 / 线程调优 | runtime.optim-shell | MIT | landed / 已落地（p.1.4.4/.5） |
+| Traveler Title / Weather / Super Resolution / 皮肤补丁 | 标题提示 / 天气 / 超分 / 皮肤（自研化） | engine.* + runtime.* | LGPL/GPL clean-room | planned / 已立项 |
+| Physics Mod | 方块/生物物理 | — | All Rights Reserved，不适用 | dropped / 剔除 |
+| Feature Recycler / VoxelBridge / OptiCores | 待定义 | — | All Rights Reserved 或语义不匹配 | dropped / 剔除 |
+| StellarRTP | 随机传送 | engine.optim.server.teleport | GPLv3 clean-room 参考 | planned / 已立项 |
+| Itemban | 物品使用控制 | engine.optim.server.item_control | Apache-2.0 | pending / 待开工 |
+| mcwifipnp | LAN 打洞 | runtime.network.holepunch | 移植为原生模块 | pending / 待开工 |
+
+## Progress Log / 进度记录
+
+* 2026-09-08 — Roadmap split per repo / 路线图按仓库拆分：Subterra 框架线迁入本文件，系列 ROAD 仅保留总览。 / 2026-09-08 — 路线图按仓库拆分：Subterra 框架线迁入本文件，系列 ROAD 仅保留总览。
+* 2026-09-08 — **Framework design finalized / 框架设计定稿**: Subterra promoted to a full-stack development framework mod (design `docs/2026-09-08-subterra-framework-design.md`); port register extended (GeckoLib / AppleSkin / ModMenu / SmartBrainLib / C2ME / Export-Language-Keys-for-Compasses / RollingGate; Physics Mod dropped as All Rights Reserved). / 2026-09-08 — **框架设计定稿**：Subterra 升格为全栈开发框架模组；移植登记册扩展（…；Physics Mod 因 All Rights Reserved 剔除）。
+* 2026-09-08 — p.1.8.32 landed (perf: dedup climate-spline/sloped-cheese evals, CachedDensity single-slot ThreadLocal) — pre-framework line last item. / 2026-09-08 — p.1.8.32 落地（性能：气候样条/乳酪去重缓存）——框架化前最后一项。
