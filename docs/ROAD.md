@@ -14,7 +14,7 @@
 
 * Every milestone below is a p-track item; sub-items continue the track per "one library = one sub-item". / 以下里程碑均为 p 轨条目；子项沿 p 轨推进，一库一子项。
 * Acceptance is deterministic probes only (server boots / client enters world / probes PASS), never timing assertions. / 验收一律确定性探针：服务端开服、客户端进世界、探针断言全 PASS；禁时序断言。
-* 2026-09-08 — 新增两项数据层重构：**数据包重构**（td 为数据包内容一等语言，数据包逻辑可直接以 tie 编写，替代手写 JSON）+ **存档重构**（zd+td 混合替代原版 NBT `.dat`，减小体积 / 加快加载）。 / Added two data-layer reworks: datapack rework (td first-class; datapack logic written directly in tie) + save rework (zd+td hybrid replacing vanilla NBT .dat).
+* 2026-09-08 — 新增三项数据层重构：**数据包重构**（td 为数据包内容一等语言，数据包逻辑可直接以 tie 编写，替代手写 JSON）+ **存档重构**（zd+td 混合替代原版 NBT `.dat`，减小体积 / 加快加载）+ **服务端交互重构**（增强通道：tink v2 帧 + zd 载荷 + 增量差分，性能更好带宽更小）。 / Added three data-layer reworks: datapack (td first-class, logic in tie), save (zd+td hybrid), and server-interaction (enhanced channel: tink v2 frames + zd payloads + delta sync).
 
 | p-track / p 轨 | Milestone / 里程碑 | Status / 状态 |
 | --- | --- | --- |
@@ -38,6 +38,7 @@
 | p.4.0 | tie bridge / tie 桥：tiec → DLL → FFM 加载调用，热点路径 tie 化 + 性能验证 | pending / 待开工 |
 | p.4.1 | P2P decentralized networking / P2P 去中心化网络：tink v2 + tsha1f 帧级强校验；zd 作为自定义载荷通道通信介质（先可行性基准） | pending / 待开工 |
 | p.4.2 | Self-developed rendering / 自研渲染管线（clean-room，参考 Sodium/Embeddium 等登记项） | pending / 待开工 |
+| p.4.3 | Server-interaction rework / 服务端交互重构：客户端 ⇄ 服务端**增强通道**（2026-09-08 定）——tink v2 帧 + tsha1f 帧级强校验 + zd 载荷序列化（与 p.4.1 P2P 同栈，语言无关 ABI）；三级载荷策略（L1 高频增量差分 / 兴趣域订阅 · L2 中频快照 + 变更流 · L3 低频加密）；带宽削减 = 增量同步 / 状态降频插值 / 按需订阅；默认强加密（x25519 + AEAD，局域网可信可关）；原版协议路径保留（渐进增强，原版客户端仍可连） | pending / 待开工 |
 
 ## Sequence Notes / 顺序说明
 
