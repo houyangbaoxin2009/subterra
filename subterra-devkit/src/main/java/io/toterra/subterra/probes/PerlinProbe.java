@@ -1,8 +1,8 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.noise.LegacyRandom;
-import io.toterra.subterra.optim.worldgen.pipeline.noise.perlin.ImprovedNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.noise.perlin.PerlinNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.LegacyRandom;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.perlin.ImprovedNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.perlin.PerlinNoise;
 
 /**
  * 确定性验收探针：p.1.8.7 perlin 八度噪声族（PerlinNoise / ImprovedNoise）。

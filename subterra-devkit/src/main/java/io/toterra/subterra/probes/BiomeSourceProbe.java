@@ -5,11 +5,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.toterra.subterra.optim.worldgen.pipeline.biomesrc.BiomeTarget;
-import io.toterra.subterra.optim.worldgen.pipeline.biomesrc.ClimateNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.biomesrc.ClimateParam;
-import io.toterra.subterra.optim.worldgen.pipeline.biomesrc.MultiNoiseBiomeSourceCore;
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.biomesrc.BiomeTarget;
+import io.toterra.subterra.engine.worldgen.pipeline.biomesrc.ClimateNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.biomesrc.ClimateParam;
+import io.toterra.subterra.engine.worldgen.pipeline.biomesrc.MultiNoiseBiomeSourceCore;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 
 /**
  * 确定性验收探针：p.1.8.16 多噪声生物群系源核心（ClimateParam / ClimateBand /

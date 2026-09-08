@@ -2,11 +2,11 @@
 // (MIT/GPL-mixed surface, re-written from behaviour contract, no upstream
 // code): vanilla ServerChunkCache.tickChunks() iterates every loaded chunk
 // holder once per tick to collect the ticking ones; the snapshot from
-// io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache makes that
+// io.toterra.subterra.engine.worldgen.ticking.TickingChunkCache makes that
 // full scan a once-per-second (every 20 ticks) rebuild, reused in between.
 package io.toterra.subterra.optim.worldgen.ticking.mixin;
 
-import io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache;
+import io.toterra.subterra.engine.worldgen.ticking.TickingChunkCache;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerChunkCache;

@@ -1,14 +1,14 @@
 package io.toterra.subterra.probes;
 
 import io.toterra.subterra.api.worldgen.EcoDim;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.DimensionPlan;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.DimAlgo;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.OverworldBounds;
-import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.DimensionSection;
-import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.DimensionWorlds;
-import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.WorldDim;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.DimensionPlan;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.DimAlgo;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.OverworldBounds;
+import io.toterra.subterra.engine.worldgen.pipeline.dimworlds.DimensionSection;
+import io.toterra.subterra.engine.worldgen.pipeline.dimworlds.DimensionWorlds;
+import io.toterra.subterra.engine.worldgen.pipeline.dimworlds.WorldDim;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 
 import java.util.LinkedHashMap;
 import java.util.List;

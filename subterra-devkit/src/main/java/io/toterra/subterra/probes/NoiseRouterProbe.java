@@ -4,11 +4,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.router.BlendedNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.router.InterpolatedNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
-import io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.router.BlendedNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.router.InterpolatedNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.router.PositionalRand;
 
 /**
  * 确定性验收探针：p.1.8.12 噪声路由器组合核心（PositionalRand / BlendedNoise /

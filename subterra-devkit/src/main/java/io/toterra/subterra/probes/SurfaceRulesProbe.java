@@ -1,12 +1,12 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceAction;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceActions;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceCondition;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceConditions;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceContext;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceEvaluator;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceRule;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceAction;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceActions;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceCondition;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceConditions;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceContext;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceEvaluator;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceRule;
 
 import java.util.List;
 

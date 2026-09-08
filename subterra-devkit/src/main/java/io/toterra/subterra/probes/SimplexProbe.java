@@ -1,8 +1,8 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.noise.LegacyRandom;
-import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.SimplexNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.LegacyRandom;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.NormalNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.SimplexNoise;
 
 /**
  * Deterministic acceptance probe for the p.1.8.8 simplex noise duo

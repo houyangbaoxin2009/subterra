@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.guard.StructureFootprint;
-import io.toterra.subterra.optim.worldgen.guard.StructureLayout;
+import io.toterra.subterra.engine.worldgen.guard.StructureFootprint;
+import io.toterra.subterra.engine.worldgen.guard.StructureLayout;
 
 import java.util.List;
 import java.util.Optional;

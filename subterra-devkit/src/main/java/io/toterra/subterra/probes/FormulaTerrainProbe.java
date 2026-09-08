@@ -1,9 +1,9 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.formula.MathLib;
-import io.toterra.subterra.optim.worldgen.pipeline.terrain.FormulaNoiseFunctions;
-import io.toterra.subterra.optim.worldgen.pipeline.terrain.FormulaParams;
-import io.toterra.subterra.optim.worldgen.pipeline.terrain.FormulaTerrain;
+import io.toterra.subterra.engine.worldgen.pipeline.formula.MathLib;
+import io.toterra.subterra.engine.worldgen.pipeline.terrain.FormulaNoiseFunctions;
+import io.toterra.subterra.engine.worldgen.pipeline.terrain.FormulaParams;
+import io.toterra.subterra.engine.worldgen.pipeline.terrain.FormulaTerrain;
 
 /**
  * 确定性验收探针：p.1.8.10 数学公式地形集成。Pure JVM; asserts the td

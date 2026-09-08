@@ -1,9 +1,9 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.density.Densities;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.density.NoiseHash;
-import io.toterra.subterra.optim.worldgen.pipeline.density.ValueNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Densities;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.density.NoiseHash;
+import io.toterra.subterra.engine.worldgen.pipeline.density.ValueNoise;
 
 /**
  * Deterministic acceptance probe for the p.1.8.3 density-function core:

@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.PipelineFace;
-import io.toterra.subterra.optim.worldgen.pipeline.PipelineFaces;
+import io.toterra.subterra.engine.worldgen.pipeline.PipelineFace;
+import io.toterra.subterra.engine.worldgen.pipeline.PipelineFaces;
 
 /**
  * Deterministic acceptance probe for the p.1.8.2 world-gen pipeline recon:

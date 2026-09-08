@@ -1,12 +1,12 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.chunkgrid.DensityGrid;
-import io.toterra.subterra.optim.worldgen.pipeline.chunkgrid.GridSettings;
-import io.toterra.subterra.optim.worldgen.pipeline.chunkgrid.HeightMapper;
-import io.toterra.subterra.optim.worldgen.pipeline.chunkgrid.Trilinear;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Densities;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.OverworldBounds;
+import io.toterra.subterra.engine.worldgen.pipeline.chunkgrid.DensityGrid;
+import io.toterra.subterra.engine.worldgen.pipeline.chunkgrid.GridSettings;
+import io.toterra.subterra.engine.worldgen.pipeline.chunkgrid.HeightMapper;
+import io.toterra.subterra.engine.worldgen.pipeline.chunkgrid.Trilinear;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Densities;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.OverworldBounds;
 
 /**
  * Deterministic acceptance probe for the p.1.8.13 NoiseChunk grid interpolation

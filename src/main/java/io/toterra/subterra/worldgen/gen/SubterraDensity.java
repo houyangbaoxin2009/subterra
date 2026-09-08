@@ -9,7 +9,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.DensityFunction;
 
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 
 /**
  * Subterra's vanllia-compatible {@link DensityFunction} leaf (p.1.8.21),

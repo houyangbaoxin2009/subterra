@@ -1,10 +1,10 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.DimensionWorlds;
-import io.toterra.subterra.optim.worldgen.pipeline.router.BlendedNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.WorldDim;
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.dimworlds.DimensionWorlds;
+import io.toterra.subterra.engine.worldgen.pipeline.router.BlendedNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.dimworlds.WorldDim;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 
 /**
  * Deterministic acceptance probe for p.1.8.20 — the vanilla nether / end

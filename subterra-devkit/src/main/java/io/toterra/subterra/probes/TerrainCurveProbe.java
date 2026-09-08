@@ -1,9 +1,9 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.curve.FbmNoise;
-import io.toterra.subterra.optim.worldgen.pipeline.curve.GroundSurface;
-import io.toterra.subterra.optim.worldgen.pipeline.curve.TerrainProfile;
-import io.toterra.subterra.optim.worldgen.pipeline.density.ValueNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.curve.FbmNoise;
+import io.toterra.subterra.engine.worldgen.pipeline.curve.GroundSurface;
+import io.toterra.subterra.engine.worldgen.pipeline.curve.TerrainProfile;
+import io.toterra.subterra.engine.worldgen.pipeline.density.ValueNoise;
 
 /**
  * 确定性验收探针：p.1.8.4 terrain-curve 核心（FbmNoise / GroundSurface / TerrainProfile）。

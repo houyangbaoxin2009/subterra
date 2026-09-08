@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.2] Move worldgen core into engine.worldgen / worldgen 核心迁入 engine.worldgen (2026-09-08)
+
+* `subterra-optim` worldgen tree (`worldgen.pipeline` / `worldgen.guard` / `worldgen.ticking`) moves into the new pure-JDK `subterra-engine` module as `io.toterra.subterra.engine.worldgen.*` — engine depends only on api; probes, root MC layer and dev-run classpath updated; determinism untouched / `subterra-optim` 的 worldgen 树（`worldgen.pipeline` / `worldgen.guard` / `worldgen.ticking`）迁入新纯 JDK `subterra-engine` 模块 `io.toterra.subterra.engine.worldgen.*`——engine 仅依赖 api；探针、root MC 层与 dev 运行 classpath 同步更新；确定性不变
+
 ## [p.2.0.1] Gradle scaffolding: engine / migrate / runtime / devkit / Gradle 脚手架：engine / migrate / runtime / devkit (2026-09-08)
 
 * NEW `subterra-engine` module (pure JDK, depends on api only) with `engine.*` package placeholders (incl. `engine.export` scaffold) — the p.2.0 pure-JDK engine core / 新增 `subterra-engine` 模块（纯 JDK，仅依赖 api），含 `engine.*` 包占位（含 `engine.export` 脚手架）——p.2.0 纯 JDK 引擎核心

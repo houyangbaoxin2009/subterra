@@ -1,6 +1,6 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.ticking.TickingChunkCache;
+import io.toterra.subterra.engine.worldgen.ticking.TickingChunkCache;
 
 import java.util.ArrayList;
 import java.util.List;

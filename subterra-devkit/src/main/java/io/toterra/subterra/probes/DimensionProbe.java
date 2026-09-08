@@ -1,18 +1,18 @@
 package io.toterra.subterra.probes;
 
 import io.toterra.subterra.api.worldgen.EcoDim;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Densities;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.DimAlgo;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.DimensionPlan;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.DimensionSlot;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.DimensionTerrain;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.FieldRegion;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.ModelBackend;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.ModelFieldGenerator;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.ModelPointDensity;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.OverworldBounds;
-import io.toterra.subterra.optim.worldgen.pipeline.dimension.WaterClass;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Densities;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.DimAlgo;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.DimensionPlan;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.DimensionSlot;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.DimensionTerrain;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.FieldRegion;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.ModelBackend;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.ModelFieldGenerator;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.ModelPointDensity;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.OverworldBounds;
+import io.toterra.subterra.engine.worldgen.pipeline.dimension.WaterClass;
 
 /**
  * Deterministic acceptance probe for the p.1.8.11 nine-dimension generator

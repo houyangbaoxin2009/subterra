@@ -1,12 +1,12 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.composite.DensityComposite;
-import io.toterra.subterra.optim.worldgen.pipeline.composite.JaggednessFn;
-import io.toterra.subterra.optim.worldgen.pipeline.composite.ShiftedNoiseFn;
-import io.toterra.subterra.optim.worldgen.pipeline.composite.SlideFn;
-import io.toterra.subterra.optim.worldgen.pipeline.composite.SplineFn;
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.composite.DensityComposite;
+import io.toterra.subterra.engine.worldgen.pipeline.composite.JaggednessFn;
+import io.toterra.subterra.engine.worldgen.pipeline.composite.ShiftedNoiseFn;
+import io.toterra.subterra.engine.worldgen.pipeline.composite.SlideFn;
+import io.toterra.subterra.engine.worldgen.pipeline.composite.SplineFn;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 
 /**
  * 确定性验收探针：p.1.8.14 组合密度场核心（SplineFn / SlideFn / JaggednessFn /

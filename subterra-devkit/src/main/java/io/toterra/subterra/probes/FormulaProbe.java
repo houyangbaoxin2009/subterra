@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.formula.EvalContext;
-import io.toterra.subterra.optim.worldgen.pipeline.formula.Expr;
+import io.toterra.subterra.engine.worldgen.pipeline.formula.EvalContext;
+import io.toterra.subterra.engine.worldgen.pipeline.formula.Expr;
 
 /**
  * 确定性验收探针：p.1.8.9 math-formula 地形引擎核心。

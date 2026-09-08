@@ -121,6 +121,9 @@ neoForge {
             // World profiler: pure-JDK statistics/slice cores consumed by the MC-layer profiler hooks.
             additionalRuntimeClasspathConfiguration.dependencies.add(
                     project.dependencies.create(project(':subterra-profiler')))
+            // p.2.0.2: root MC layer references engine.worldgen classes in dev runs.
+            additionalRuntimeClasspathConfiguration.dependencies.add(
+                    project.dependencies.create(project(':subterra-engine')))
             // NOTE: MC-layer source hosts (subterra-invadvopt) compile into the
             // root main source set and need no dev-run classpath injection.
 

@@ -22,7 +22,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
-import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 
 /**
  * Same-seed authoritative compare bridge (p.1.8.17): a self-contained static runner

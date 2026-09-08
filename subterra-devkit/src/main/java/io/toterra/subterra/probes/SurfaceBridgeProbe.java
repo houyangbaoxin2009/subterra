@@ -1,15 +1,15 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceContext;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceEvaluator;
-import io.toterra.subterra.optim.worldgen.pipeline.surface.SurfaceRule;
-import io.toterra.subterra.optim.worldgen.pipeline.surfacerules.CaveSurface;
-import io.toterra.subterra.optim.worldgen.pipeline.surfacerules.OverworldPalette;
-import io.toterra.subterra.optim.worldgen.pipeline.surfacerules.OverworldSurfaceRules;
-import io.toterra.subterra.optim.worldgen.pipeline.surfacerules.VRuleCondition;
-import io.toterra.subterra.optim.worldgen.pipeline.surfacerules.VRuleSource;
-import io.toterra.subterra.optim.worldgen.pipeline.surfacerules.VSurfaceContext;
+import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceContext;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceEvaluator;
+import io.toterra.subterra.engine.worldgen.pipeline.surface.SurfaceRule;
+import io.toterra.subterra.engine.worldgen.pipeline.surfacerules.CaveSurface;
+import io.toterra.subterra.engine.worldgen.pipeline.surfacerules.OverworldPalette;
+import io.toterra.subterra.engine.worldgen.pipeline.surfacerules.OverworldSurfaceRules;
+import io.toterra.subterra.engine.worldgen.pipeline.surfacerules.VRuleCondition;
+import io.toterra.subterra.engine.worldgen.pipeline.surfacerules.VRuleSource;
+import io.toterra.subterra.engine.worldgen.pipeline.surfacerules.VSurfaceContext;
 
 import java.util.List;
 

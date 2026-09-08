@@ -1,8 +1,8 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.optim.worldgen.pipeline.noise.LegacyRandom;
-import io.toterra.subterra.optim.worldgen.pipeline.noise.NoiseSalt;
-import io.toterra.subterra.optim.worldgen.pipeline.noise.XoroRandom;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.LegacyRandom;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.NoiseSalt;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
 
 import java.util.Random;
 
