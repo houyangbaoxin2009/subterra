@@ -13,7 +13,8 @@ import java.util.Objects;
  *   folded = -3 * (-1/3 + | -2/3 + |ridge| |)  =  1 - 3*| |ridge| - 2/3 |        (ridges_folded.json)
  * </pre>
  *
- * The p.1.8.26 {@link Spline2D} reduction collapsed that innermost ridge axis at a
+ * The p.1.8.26 {@code Spline2D} reduction (superseded and disposed of in p.1.8.28)
+ * collapsed that innermost ridge axis at a
  * fixed folded = 0; this class instead samples the real {@code ridges()} field at
  * the surface point and applies the ridge axis as the innermost 1-D cubic Hermite,
  * so mountain shading / land-sea shape follow the actual ridge warp. Evaluation is
@@ -22,7 +23,7 @@ import java.util.Objects;
  * vanilla nests a folded spline inside the offset {@code erosion=0.45/0.55} cells and
  * a raw-ridge spline inside the jaggedness top knot). All interior continents /
  * erosion knot derivatives are {@code 0.0} in vanilla, so those axes reduce to the
- * tensor-product value Hermite (identical algebra to {@link Spline2D}); the ridge
+ * tensor-product value Hermite (identical algebra to the former {@code Spline2D}); the ridge
  * axis keeps its real knot derivatives. Outside the knot ranges each axis extends
  * linearly at its end slope exactly like {@code CubicSpline$Multipoint} /
  * {@link SplineFn} (zero slope ⇒ flat clamp). Knot location is a deterministic binary
@@ -33,13 +34,14 @@ import java.util.Objects;
  * {@code overworld/offset.json}、{@code overworld/factor.json}、
  * {@code overworld/jaggedness.json} 均为 {@code continents → erosion → ridge} 的嵌套
  * 树，其最内轴是原始 {@code overworld/ridges} 场或折叠值（{@code ridges_folded.json}，
- * 公式见上）。p.1.8.26 的 {@link Spline2D} 将该最内 ridge 轴在固定 folded=0 处坍缩；
+ * 公式见上）。p.1.8.26 的 {@code Spline2D} 归约（已在 p.1.8.28 处置删除）将该最内
+ * ridge 轴在固定 folded=0 处坍缩；
  * 本类改为在表面点采样真实的 {@code ridges()} 场，并把 ridge 轴作为最内层一维三次
  * Hermite 应用，使山峰明暗与海陆形态跟随真实 ridge 扭曲。求值为 (continents, erosion)
  * 上的二维 Hermite，四个角值各自是 ridge 轴上的一维 Hermite（结点值本身可为嵌套
  * ridge 样条——原生在 offset 的 {@code erosion=0.45/0.55} 单元内嵌套了折叠样条，在
  * jaggedness 的顶部结点内嵌套了原始 ridge 样条）。原生 continents/erosion 轴的所有
- * 内部结点导数为 {@code 0.0}，故这两轴退化为张量积值 Hermite（与 {@link Spline2D}
+ * 内部结点导数为 {@code 0.0}，故这两轴退化为张量积值 Hermite（与旧 {@code Spline2D}
  * 代数一致）；ridge 轴保留真实结点导数。结点范围之外每轴以端点斜率线性外延（与
  * {@code CubicSpline$Multipoint} / {@link SplineFn} 一致；零斜率即平面钳制）。结点
  * 定位用确定性二分（绝非 {@code O(n^2)}）；热路径零分配。数据表为私有静态 final

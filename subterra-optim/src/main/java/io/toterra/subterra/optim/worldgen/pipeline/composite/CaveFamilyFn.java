@@ -142,6 +142,41 @@ public final class CaveFamilyFn {
     private static final double[] ENTRANCE_AMPS = {0.4, 0.5, 1.0};
 
     /**
+     * The vanilla {@code overworld/caves/entrances} density function (entrances.json,
+     * p.1.8.28): {@code min(0.37 + cave_entrance(xz 0.75, y 0.5) + grad(y, -10→30,
+     * 0.3→0), spaghetti_roughness + clamp(max(type1 samplers) + thicknessBias, -1, 1))}.
+     * The {@code cache_once} wrapper is an exact identity for single-point evaluation
+     * and is dropped (same convention as the rest of the composite core). Shared by
+     * the cave family's inner {@code min} and — scaled by 5 — by the cheese
+     * range-choice's {@code when_in_range} arm in {@code overworld.json}.
+     */
+    public static Density entrances(long seed) {
+        NormalNoise entrance = noise(seed, "minecraft:cave_entrance", ENTRANCE_OCTAVE, ENTRANCE_AMPS);
+        NormalNoise spag3dRarity = noise(seed, "minecraft:spaghetti_3d_rarity", SPAG3D_RARITY_OCTAVE, ONE);
+        NormalNoise spag3d1 = noise(seed, "minecraft:spaghetti_3d_1", SPAG3D_1_OCTAVE, ONE);
+        NormalNoise spag3d2 = noise(seed, "minecraft:spaghetti_3d_2", SPAG3D_2_OCTAVE, ONE);
+        NormalNoise spag3dThickness = noise(seed, "minecraft:spaghetti_3d_thickness", SPAG3D_THICKNESS_OCTAVE, ONE);
+        NormalNoise srMod = noise(seed, "minecraft:spaghetti_roughness_modulator", SR_MOD_OCTAVE, ONE);
+        NormalNoise sr = noise(seed, "minecraft:spaghetti_roughness", SR_OCTAVE, ONE);
+        return (x, y, z) -> {
+            double entA = ENTRANCE_OFFSET
+                    + entrance.getValue(x * ENTRANCE_XZ, y * ENTRANCE_Y, z * ENTRANCE_XZ)
+                    + SlideFn.grad(y, ENTRANCE_GRAD_FROM_Y, ENTRANCE_GRAD_TO_Y,
+                    ENTRANCE_GRAD_FROM, ENTRANCE_GRAD_TO);
+            // inner: spaghetti_roughness + clamp(max(type1 samplers) + thicknessBias, -1,1)
+            double r3 = rarity1(spag3dRarity.getValue(x * SPAG3D_RARITY_XZ, y, z * SPAG3D_RARITY_XZ));
+            double s3a = r3 * Math.abs(spag3d1.getValue(x / r3, y / r3, z / r3));
+            double s3b = r3 * Math.abs(spag3d2.getValue(x / r3, y / r3, z / r3));
+            double th3 = SPAG3D_THICKNESS_OFFSET
+                    + SPAG3D_THICKNESS_COEFF * spag3dThickness.getValue(x, y, z);
+            double spagRough = (SR_OFFSET + SR_MOD_COEFF * srMod.getValue(x, y, z))
+                    * (SR_RIDGE_OFFSET + Math.abs(sr.getValue(x, y, z)));
+            double entInner = clamp(spagRough + Math.max(s3a, s3b) + th3, -1.0, 1.0);
+            return Math.min(entA, entInner);
+        };
+    }
+
+    /**
      * The full overworld cave-carve {@link Density} for a world seed, i.e. the entire
      * {@code when_out_of_range} of the {@code final_density} cheese range-choice
      * ({@code max(min(min(cheeseCave, entrances), spaghettiTotal), pillarsRC)}),
@@ -152,18 +187,14 @@ public final class CaveFamilyFn {
         // cheese leaves
         NormalNoise layer = noise(seed, "minecraft:cave_layer", CAVE_LAYER_OCTAVE, ONE);
         NormalNoise cheese = noise(seed, "minecraft:cave_cheese", CAVE_CHEESE_OCTAVE, CAVE_CHEESE_AMPS);
-        // entrance leaves
-        NormalNoise entrance = noise(seed, "minecraft:cave_entrance", ENTRANCE_OCTAVE, ENTRANCE_AMPS);
-        NormalNoise spag3dRarity = noise(seed, "minecraft:spaghetti_3d_rarity", SPAG3D_RARITY_OCTAVE, ONE);
-        NormalNoise spag3d1 = noise(seed, "minecraft:spaghetti_3d_1", SPAG3D_1_OCTAVE, ONE);
-        NormalNoise spag3d2 = noise(seed, "minecraft:spaghetti_3d_2", SPAG3D_2_OCTAVE, ONE);
-        NormalNoise spag3dThickness = noise(seed, "minecraft:spaghetti_3d_thickness", SPAG3D_THICKNESS_OCTAVE, ONE);
+        // entrances.json (shared with the cheese range-choice's when_in_range arm)
+        Density entrances = entrances(seed);
         // spaghetti leaves
         NormalNoise spagThick = noise(seed, "minecraft:spaghetti_2d_thickness", SPAG_THICK_OCTAVE, ONE);
         NormalNoise spagMod = noise(seed, "minecraft:spaghetti_2d_modulator", SPAG_MOD_OCTAVE, ONE);
         NormalNoise elevation = noise(seed, "minecraft:spaghetti_2d_elevation", ELEVATION_OCTAVE, ONE);
         NormalNoise spag = noise(seed, "minecraft:spaghetti_2d", -7, ONE);
-        // roughness leaves
+        // roughness leaves (spaghetti_roughness_function.json — also used by entrances)
         NormalNoise srMod = noise(seed, "minecraft:spaghetti_roughness_modulator", SR_MOD_OCTAVE, ONE);
         NormalNoise sr = noise(seed, "minecraft:spaghetti_roughness", SR_OCTAVE, ONE);
         // pillar leaves
@@ -181,20 +212,7 @@ public final class CaveFamilyFn {
             double cheeseCave = CAVE_LAYER_AMP * l * l + cm * dm;
 
             // ---- entrances (entrances.json; cache_once = identity) ----
-            double entA = ENTRANCE_OFFSET
-                    + entrance.getValue(x * ENTRANCE_XZ, y * ENTRANCE_Y, z * ENTRANCE_XZ)
-                    + SlideFn.grad(y, ENTRANCE_GRAD_FROM_Y, ENTRANCE_GRAD_TO_Y,
-                    ENTRANCE_GRAD_FROM, ENTRANCE_GRAD_TO);
-            // inner: spaghetti_roughness + clamp(max(type1 samplers) + thicknessBias, -1,1)
-            double r3 = rarity1(spag3dRarity.getValue(x * SPAG3D_RARITY_XZ, y, z * SPAG3D_RARITY_XZ));
-            double s3a = r3 * Math.abs(spag3d1.getValue(x / r3, y / r3, z / r3));
-            double s3b = r3 * Math.abs(spag3d2.getValue(x / r3, y / r3, z / r3));
-            double th3 = SPAG3D_THICKNESS_OFFSET
-                    + SPAG3D_THICKNESS_COEFF * spag3dThickness.getValue(x, y, z);
-            double spagRough = (SR_OFFSET + SR_MOD_COEFF * srMod.getValue(x, y, z))
-                    * (SR_RIDGE_OFFSET + Math.abs(sr.getValue(x, y, z)));
-            double entInner = clamp(spagRough + Math.max(s3a, s3b) + th3, -1.0, 1.0);
-            double entrances = Math.min(entA, entInner);
+            double entrancesVal = entrances.eval(x, y, z);
 
             // ---- spaghetti_2d (spaghetti_2d.json) ----
             double t = THICK_OFFSET + THICK_COEFF * spagThick.getValue(x * SPAG_THICK_XZ, y * SPAG_THICK_Y, z * SPAG_THICK_XZ);
@@ -208,10 +226,12 @@ public final class CaveFamilyFn {
             double spaghetti2d = clamp(Math.max(spagTerm1, spagTerm2), -1.0, 1.0);
 
             // ---- spaghettiTotal = spaghetti_2d + spaghetti_roughness ----
+            double spagRough = (SR_OFFSET + SR_MOD_COEFF * srMod.getValue(x, y, z))
+                    * (SR_RIDGE_OFFSET + Math.abs(sr.getValue(x, y, z)));
             double spaghetti = spaghetti2d + spagRough;
 
             // ---- cave curve: min(min(cheeseCave, entrances), spaghetti) ----
-            double family = Math.min(Math.min(cheeseCave, entrances), spaghetti);
+            double family = Math.min(Math.min(cheeseCave, entrancesVal), spaghetti);
 
             // ---- pillars ----
             double p = PILLAR_AMP * pillar.getValue(x * PILLAR_XZ, y * PILLAR_Y, z * PILLAR_XZ);

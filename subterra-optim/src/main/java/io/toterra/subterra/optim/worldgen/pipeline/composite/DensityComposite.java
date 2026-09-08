@@ -39,7 +39,12 @@ import io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand;
  * instead of the old compact 1-D arm. Since p.1.8.27B the {@code when_out_of_range} of the
  * cheese range-choice is the vanilla cave family ({@link CaveFamilyFn}: cheese/spaghetti/
  * pillars + entrances) and the outer {@code min} is the noodle-cave arm
- * ({@link NoodleFn}), closing the "noodle/normal-caves disabled" artifact gap. All
+ * ({@link NoodleFn}), closing the "noodle/normal-caves disabled" artifact gap; since
+ * p.1.8.28 the {@code when_in_range} companion is the faithful
+ * {@code min(sloped_cheese, 5 * entrances)} over the real entrances.json density function
+ * (the superseded p.1.8.26 {@code Spline2D} 2-D spline reduction was disposed of in the
+ * same batch), and every Perlin leaf — {@code jagged} included — resolves its octave
+ * anchor and amplitudes from {@link NoiseRouter#NOISE_REGISTRATIONS}. All
  * leaves are pure functions of the router's seed, so the result is deterministic,
  * finite and allocation-free in the hot path.
 
@@ -51,11 +56,14 @@ import io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand;
  * {@code continents → erosion → ridge} 样条（{@link ClimateSpline}，
  * {@link ClimateSpline#OFFSET} / {@link ClimateSpline#FACTOR}），并在表面点采样路由器的
  * 真实 {@code ridges()} 场（p.1.8.27A 将 p.1.8.26 的二维归约升级为真实 ridge 扭曲；
- * 旧归约把 ridge 轴固定在 folded=0）；锯齿倍数为同一嵌套样条
- * （{@link ClimateSpline#JAGGEDNESS}），取代旧的一维紧凑支。自 p.1.8.27B 起，奶酪
- * range-choice 的 {@code when_out_of_range} 采用原生洞穴族（{@link CaveFamilyFn}：
+ * 旧归约把 ridge 轴固定在 folded=0，且该二维归约已在 p.1.8.28 一并处置）；锯齿倍数为
+ * 同一嵌套样条（{@link ClimateSpline#JAGGEDNESS}），取代旧的一维紧凑支。自 p.1.8.27B
+ * 起，奶酪 range-choice 的 {@code when_out_of_range} 采用原生洞穴族（{@link CaveFamilyFn}：
  * cheese/spaghetti/pillars + entrances）、外层 {@code min} 采用面条洞穴支
- * （{@link NoodleFn}），从而闭合"面条/常规洞穴被禁用"的伪影缺口。所有叶子都是
+ * （{@link NoodleFn}），从而闭合"面条/常规洞穴被禁用"的伪影缺口；自 p.1.8.28 起
+ * {@code when_in_range} 伴臂为忠实的 {@code min(sloped_cheese, 5*entrances)}（真实
+ * entrances.json 密度函数），且每个 Perlin 叶（含 {@code jagged}）的 octave 锚与振幅
+ * 均查表自 {@link NoiseRouter#NOISE_REGISTRATIONS}。所有叶子都是
  * 路由器种子的纯函数，故结果确定、有限、热路径零分配。
  */
 public final class DensityComposite {
@@ -98,8 +106,8 @@ public final class DensityComposite {
         // spline(continents,erosion,ridge) + OFFSET_BASE and factor to
         // spline(continents,erosion,ridge); the vanilla nested splines are evaluated
         // by {@link ClimateSpline} with the real {@code ridges()} field sampled at the
-        // surface point (the p.1.8.26 Spline2D reduction fixed the ridge axis at
-        // folded = 0; this upgrades it to the actual ridge warp).
+        // surface point (the p.1.8.26 2-D spline reduction, disposed in p.1.8.28,
+        // fixed the ridge axis at folded = 0; this upgrades it to the actual ridge warp).
         Density offsetDensity = (x, y, z) -> OFFSET_BASE + ClimateSpline.OFFSET.eval(
                 continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
         Density factorDensity = (x, y, z) -> ClimateSpline.FACTOR.eval(
@@ -107,7 +115,10 @@ public final class DensityComposite {
         Density jaggednessFactor = (x, y, z) -> ClimateSpline.JAGGEDNESS.eval(
                 continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
 
-        // --- jagged / base3d / entrance deterministic noise leaves (over the seed) ---
+        // --- jagged / base3d noise leaves (over the seed) ---
+        // jagged uses its faithful 1.21.1 registration (-16, [1×16], p.1.8.28); base_3d_noise
+        // is an old_blended_noise density function with no Perlin registration, so it keeps
+        // its documented reduced stand-in from NoiseRouter.NOISE_REGISTRATIONS.
         Density jaggedNoise = noise2d(seed, "minecraft:jagged", 1500.0);
         Density base3d = noise3d(seed, "minecraft:base_3d_noise", 0.25, 0.125);
 
@@ -127,7 +138,10 @@ public final class DensityComposite {
         Density cheeseQn = (x, y, z) -> 4.0 * JaggednessFn.quarterNegative(
                 cheeseDepth.eval(x, y, z) * factorDensity.eval(x, y, z));
         Density slopedCheese = add(cheeseQn, base3d);
-        Density entrances = noise3d(seed, "minecraft:caves_entrances", 0.08, 0.08);
+        // p.1.8.28: the when_in_range companion is the faithful entrances.json density
+        // function (was a bare "minecraft:caves_entrances" noise stand-in); vanilla's
+        // overworld.json pins this arm to min(sloped_cheese, 5 * entrances).
+        Density entrances = CaveFamilyFn.entrances(seed);
         // p.1.8.27B: the when_out_of_range of the cheese range-choice is the vanilla cave
         // family (cheese/spaghetti/pillars + entrances) instead of the raw sloped cheese;
         // and the outer final_density term is the noodle-cave arm (was a no-op NOODLE_FLOOR).
@@ -144,56 +158,6 @@ public final class DensityComposite {
     /** Verified vanilla offset constant ({@code overworld/offset.json}). */
     public static final double OFFSET_BASE = -0.5037500262260437;
 
-    // ------------------------------------------------------------------
-    //  p.1.8.26: faithful vanilla 2-D climate splines (continents × erosion).
-    //  Transcribed from the 1.21.1 client jar
-    //  (data/minecraft/worldgen/density_function/overworld/{offset,factor}.json).
-    //  Each is a {continents → erosion} nested spline whose innermost ridge axis is
-    //  reduced at ridge = 0 (all interior knot derivatives are 0.0 in vanilla); the
-    //  resulting continents×erosion surface is a tensor-product cubic Hermite.
-    // ------------------------------------------------------------------
-
-    /** Continentalness X-levels of the vanilla offset spline. */
-    public static final double[] OFFSET_X = {
-            -1.1, -1.02, -0.51, -0.44, -0.18, -0.16, -0.15, -0.1, 0.25, 1.0
-    };
-    /** Erosion Y-levels of the vanilla offset spline. */
-    public static final double[] OFFSET_Y = {
-            -0.85, -0.7, -0.4, -0.35, -0.1, 0.2, 0.4, 0.45, 0.55, 0.58, 0.7
-    };
-    /** Offset value matrix {@code [x][y]} (inner ridge axis reduced at ridge=0). */
-    public static final double[][] OFFSET_V = {
-            {0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044},
-            {-0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222},
-            {-0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222, -0.2222},
-            {-0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12},
-            {-0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12, -0.12},
-            {0.300599, 0.26212, 0.0, 0.05, 0.0, 0.0, -0.01056, -0.015, -0.02352, -0.025645, -0.03},
-            {0.300599, 0.26212, 0.0, 0.05, 0.0, 0.0, -0.01056, -0.015, -0.02352, -0.025645, -0.03},
-            {0.300599, 0.26212, 0.0, 0.05, 0.003, 0.01, -0.00408, -0.01, -0.02136, -0.024194, -0.03},
-            {0.716175, 0.44682, 0.308295, 0.35, 0.021, 0.01, 0.01, 0.17, 0.17, 0.01, -0.03},
-            {0.923963, 0.53917, 0.53917, 0.5, 0.03, 0.01, 0.01, 0.17, 0.17, 0.01, 0.01},
-    };
-
-    /** Continentalness X-levels of the vanilla factor spline. */
-    public static final double[] FACTOR_X = {-0.19, -0.15, -0.1, 0.03, 0.06};
-    /** Erosion Y-levels of the vanilla factor spline. */
-    public static final double[] FACTOR_Y = {
-            -0.6, -0.5, -0.35, -0.25, -0.1, 0.03, 0.05, 0.35, 0.4, 0.45, 0.55, 0.58, 0.62
-    };
-    /** Factor value matrix {@code [x][y]}. */
-    public static final double[][] FACTOR_V = {
-            {3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95, 3.95},
-            {6.275, 4.485, 6.275, 6.275, 4.485, 6.275, 6.274719, 6.25, 6.25, 6.25, 6.25, 6.25, 6.25},
-            {5.885, 4.485, 5.885, 5.885, 4.485, 5.885, 5.880339, 5.47, 5.47, 5.47, 5.47, 5.47, 5.47},
-            {5.69, 4.485, 5.69, 5.69, 4.485, 5.69, 5.683149, 5.08, 5.08, 5.08, 5.08, 5.08, 5.08},
-            {5.495, 4.485, 5.495, 5.495, 4.485, 5.495, 5.495, 5.495, 5.495, 1.37, 1.37, 4.69, 4.69},
-    };
-
-    /** The faithful 2-D offset spline used in {@code depth}. */
-    public static final Spline2D OFFSET_SPLINE = new Spline2D(OFFSET_X, OFFSET_Y, OFFSET_V);
-    /** The faithful 2-D factor spline used in {@code depth*factor} / cheese. */
-    public static final Spline2D FACTOR_SPLINE = new Spline2D(FACTOR_X, FACTOR_Y, FACTOR_V);
     /** Verified vanilla initial-density shift before the slide ({@code overworld.json}). */
     public static final double DEPTH_SHIFT = -0.703125;
     /** Verified vanilla slide constants ({@code overworld.json}). */
@@ -268,15 +232,21 @@ public final class DensityComposite {
         return v < lo ? lo : (v > hi ? hi : v);
     }
 
-    /** A deterministic 2-D normal-noise leaf (xz plane) from a derived per-label seed. */
+    /** A deterministic 2-D normal-noise leaf (xz plane) from a derived per-label seed,
+     * with the label's {@link NoiseRouter.NoiseReg} registration. */
     private static Density noise2d(long seed, String label, double xzScale) {
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label), -3, new double[]{1.0});
+        NoiseRouter.NoiseReg reg = NoiseRouter.registration(label);
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label),
+                reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> n.getValue(x * xzScale, 0.0, z * xzScale);
     }
 
-    /** A deterministic 3-D normal-noise leaf from a derived per-label seed. */
+    /** A deterministic 3-D normal-noise leaf from a derived per-label seed,
+     * with the label's {@link NoiseRouter.NoiseReg} registration. */
     private static Density noise3d(long seed, String label, double xzScale, double yScale) {
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label), -2, new double[]{1.0});
+        NoiseRouter.NoiseReg reg = NoiseRouter.registration(label);
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label),
+                reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> n.getValue(x * xzScale, y * yScale, z * xzScale);
     }
 }

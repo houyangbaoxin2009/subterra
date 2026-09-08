@@ -1,5 +1,8 @@
 package io.toterra.subterra.optim.worldgen.pipeline.router;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import io.toterra.subterra.optim.worldgen.pipeline.composite.DensityComposite;
@@ -23,13 +26,14 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * <p>
  * {@link #overworld(long, int, int)} assembles the vanilla overworld recipe. The
  * per-noise seed chain uses {@link PositionalRand#deriveLong} (MD5 {@code
- * fromHashOf} semantics) with the exact vanilla {@code Noises}/amplitude lists
- * obtained from {@code net.minecraft.data.worldgen.NoiseData.bootstrap} (verified
- * via javap). The four climate families carry their real octave anchors and
- * amplitude lists; the aquifer / vein noises are registered with <em>empty</em>
- * amplitude lists in 1.21.1 (which pure-{@code NormalNoise} turns into a constant
- * zero), so here an empty list is interpreted as a deterministic single-octave
- * handle -- so the seam yields a usable, seed-sensitive field. The composite
+ * fromHashOf} semantics) and every Perlin leaf looks up its octave anchor and
+ * amplitude list in {@link #NOISE_REGISTRATIONS} (p.1.8.28) — the faithful 1.21.1
+ * registrations transcribed exactly from the {@code data/minecraft/worldgen/noise/*.json}
+ * files of the shipped client jar (the six climate families, the aquifer / ore-vein
+ * router noises, and the {@code jagged} / {@code cave_entrance} terrain leaves),
+ * plus four documented reduced stand-ins for leaves that have no vanilla Perlin
+ * registration (the end islands are the hardcoded island shape; the base-3d
+ * leaves are {@code old_blended_noise} density functions). The composite
  * fields ({@code depth}, {@code initialDensityWithoutJaggedness},
  * {@code finalDensity}) are built by the p.1.8.14 composite density-fields core
  * ({@link DensityComposite}) from the vanilla spline / slide / jaggedness /
@@ -54,11 +58,12 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * {@link Density} 接缝 {@code (x,y,z)->double}，使块格平级模块与后续阶段可各自
  * 确定性采样。
  * {@link #overworld(long,int,int)} 组装主世界配方。每噪声种子链使用
- * {@link PositionalRand#deriveLong}（MD5 {@code fromHashOf} 语义），振幅列表取自
- * {@code net.minecraft.data.worldgen.NoiseData.bootstrap}（经 javap 验证）。四个
- * 气候族携带真实 octave 锚与振幅列表；aquifer / vein 噪声在 1.21.1 中以
- * <em>空</em>振幅注册（纯 {@code NormalNoise} 会将其退化为常量 0），故此处把空
- * 列表解释为确定性单 octave 占位，使接缝产出可用的种子敏感场。组合字段
+ * {@link PositionalRand#deriveLong}（MD5 {@code fromHashOf} 语义），每个 Perlin
+ * 叶子的 octave 锚与振幅列表查表自 {@link #NOISE_REGISTRATIONS}（p.1.8.28）——
+ * 即从随包客户端 jar 的 {@code data/minecraft/worldgen/noise/*.json} 精确转写的
+ * 1.21.1 注册（六个气候族、aquifer / 矿脉路由器噪声、{@code jagged} /
+ * {@code cave_entrance} 地形叶），另加四个有文档的缩减占位（末地岛屿为硬编码岛形；
+ * base-3d 叶为 {@code old_blended_noise} 密度函数，无 Perlin 注册）。组合字段
  * （{@code depth}、{@code initialDensityWithoutJaggedness}、{@code finalDensity}）
  * 由 p.1.8.14 组合密度场核心（{@link DensityComposite}）按原生 spline / slide /
  * jaggedness / shiftedNoise 组合构建（见 {@code pipeline.composite} 包）；其值有限、
@@ -86,33 +91,94 @@ public final class NoiseRouter {
             "veinGap",
     };
 
-    // ---- vanilla overworld noise constants (from NoiseData.bootstrap) ----
-    /** Continentalness: octave anchor. */
-    public static final int CONTINENTS_FIRST_OCTAVE = -9;
-    /** Continentalness amplitude list. */
-    public static final double[] CONTINENTS_AMPLITUDES = {1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0};
-    /** Erosion: octave anchor. */
-    public static final int EROSION_FIRST_OCTAVE = -9;
-    /** Erosion amplitude list. */
-    public static final double[] EROSION_AMPLITUDES = {1.0, 0.0, 1.0, 1.0};
-    /** Temperature: octave anchor. */
-    public static final int TEMPERATURE_FIRST_OCTAVE = -10;
-    /** Temperature amplitude list. */
-    public static final double[] TEMPERATURE_AMPLITUDES = {0.0, 1.0, 0.0, 0.0, 0.0};
-    /** Temperature registered amplitude (1.5). */
-    public static final double TEMPERATURE_AMPLITUDE = 1.5;
-    /** Vegetation: octave anchor. */
-    public static final int VEGETATION_FIRST_OCTAVE = -8;
-    /** Vegetation amplitude list. */
-    public static final double[] VEGETATION_AMPLITUDES = {1.0, 0.0, 0.0, 0.0, 0.0};
-    /** Ridge: octave anchor. */
-    public static final int RIDGE_FIRST_OCTAVE = -7;
-    /** Ridge amplitude list. */
-    public static final double[] RIDGE_AMPLITUDES = {2.0, 1.0, 0.0, 0.0, 0.0};
-    /** Shift: octave anchor ({@code "minecraft:offset"}). */
-    public static final int SHIFT_FIRST_OCTAVE = -3;
-    /** Shift amplitude list. */
-    public static final double[] SHIFT_AMPLITUDES = {1.0, 1.0, 0.0};
+    // ---- vanilla 1.21.1 noise registrations (p.1.8.28) ----
+
+    /**
+     * A vanilla noise registration: the first-octave anchor plus the per-octave
+     * amplitude list, transcribed from {@code data/minecraft/worldgen/noise/*.json}
+     * of the shipped 1.21.1 client jar. The amplitude array is defensively copied
+     * in and out, so instances are immutable.
+     */
+    public record NoiseReg(int firstOctave, double[] amplitudes) {
+        /** Defensive copy of the amplitudes. */
+        public NoiseReg {
+            Objects.requireNonNull(amplitudes, "amplitudes");
+            amplitudes = amplitudes.clone();
+        }
+
+        @Override
+        public double[] amplitudes() {
+            return amplitudes.clone();
+        }
+    }
+
+    /**
+     * The per-label noise registrations used by the router and composite leaves
+     * (p.1.8.28): the sixteen vanilla 1.21.1 Perlin registrations transcribed
+     * exactly from {@code data/minecraft/worldgen/noise/*.json} in the shipped
+     * client jar — the six climate families ({@code temperature},
+     * {@code vegetation}, {@code continentalness}, {@code erosion},
+     * {@code ridge}, {@code offset}), the four aquifer and four ore-vein router
+     * noises, and the {@code jagged} / {@code cave_entrance} terrain leaves —
+     * followed by four documented reduced stand-ins for leaves that have no
+     * vanilla Perlin registration (the end islands are the hardcoded island
+     * shape; the base-3d leaves are {@code old_blended_noise} density functions).
+     * Keyed by the vanilla noise label, which is also the string hashed into the
+     * per-noise seed chain; built once, unmodifiable.
+     */
+    public static final Map<String, NoiseReg> NOISE_REGISTRATIONS = createRegistrations();
+
+    private static Map<String, NoiseReg> createRegistrations() {
+        Map<String, NoiseReg> m = new LinkedHashMap<>();
+        // climate families (noise_settings/overworld.json + density_function/overworld/*.json)
+        m.put("minecraft:temperature", new NoiseReg(-10,
+                new double[]{1.5, 0.0, 1.0, 0.0, 0.0, 0.0}));
+        m.put("minecraft:vegetation", new NoiseReg(-8,
+                new double[]{1.0, 1.0, 0.0, 0.0, 0.0, 0.0}));
+        m.put("minecraft:continentalness", new NoiseReg(-9,
+                new double[]{1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0}));
+        m.put("minecraft:erosion", new NoiseReg(-9,
+                new double[]{1.0, 1.0, 0.0, 1.0, 1.0}));
+        m.put("minecraft:ridge", new NoiseReg(-7,
+                new double[]{1.0, 2.0, 1.0, 0.0, 0.0, 0.0}));
+        m.put("minecraft:offset", new NoiseReg(-3,
+                new double[]{1.0, 1.0, 1.0, 0.0}));
+        // aquifer fields (noise_settings/overworld.json noise_router)
+        m.put("minecraft:aquifer_barrier", new NoiseReg(-3, new double[]{1.0}));
+        m.put("minecraft:aquifer_fluid_level_floodedness", new NoiseReg(-7, new double[]{1.0}));
+        m.put("minecraft:aquifer_fluid_level_spread", new NoiseReg(-5, new double[]{1.0}));
+        m.put("minecraft:aquifer_lava", new NoiseReg(-1, new double[]{1.0}));
+        // ore-vein fields (noise_settings/overworld.json noise_router)
+        m.put("minecraft:ore_veininess", new NoiseReg(-8, new double[]{1.0}));
+        m.put("minecraft:ore_vein_a", new NoiseReg(-7, new double[]{1.0}));
+        m.put("minecraft:ore_vein_b", new NoiseReg(-7, new double[]{1.0}));
+        m.put("minecraft:ore_gap", new NoiseReg(-5, new double[]{1.0}));
+        // terrain leaves (density_function/overworld/sloped_cheese.json + caves/entrances.json)
+        m.put("minecraft:jagged", new NoiseReg(-16,
+                new double[]{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}));
+        m.put("minecraft:cave_entrance", new NoiseReg(-7, new double[]{0.4, 0.5, 1.0}));
+        // documented reduced stand-ins (no vanilla Perlin registration exists)
+        m.put("minecraft:end_islands", new NoiseReg(-3, new double[]{1.0}));
+        m.put("minecraft:nether/base_3d_noise", new NoiseReg(-2, new double[]{1.0}));
+        m.put("minecraft:end/base_3d_noise", new NoiseReg(-2, new double[]{1.0}));
+        m.put("minecraft:base_3d_noise", new NoiseReg(-2, new double[]{1.0}));
+        return Collections.unmodifiableMap(m);
+    }
+
+    /**
+     * The 1.21.1 registration for {@code label}.
+     *
+     * @throws IllegalArgumentException for an unknown label.
+     */
+    public static NoiseReg registration(String label) {
+        NoiseReg reg = NOISE_REGISTRATIONS.get(Objects.requireNonNull(label, "label"));
+        if (reg == null) {
+            throw new IllegalArgumentException("unknown noise label: " + label);
+        }
+        return reg;
+    }
+
     /** AQUIFER_BARRIER field coordinate xz-scale. */
     public static final double BARRIER_XZ_SCALE = 0.5;
     /** AQUIFER_FLUID_LEVEL_FLOODEDNESS field coordinate xz-scale. */
@@ -306,22 +372,16 @@ public final class NoiseRouter {
         double height = (double) (maxY - minY);
         double midY = (minY + maxY) / 2.0;
 
-        // --- per-noise climate / aquifer fields (exact vanilla labels + data) ---
-        Density contRaw = noise(worldSeed, "minecraft:continents",
-                CONTINENTS_FIRST_OCTAVE, CONTINENTS_AMPLITUDES, 1.0, 1.0, 1.0);
-        Density erosRaw = noise(worldSeed, "minecraft:erosion",
-                EROSION_FIRST_OCTAVE, EROSION_AMPLITUDES, 1.0, 1.0, 1.0);
-        Density ridgeRaw = noise(worldSeed, "minecraft:ridge",
-                RIDGE_FIRST_OCTAVE, RIDGE_AMPLITUDES, 1.0, 1.0, 1.0);
+        // --- per-noise climate / aquifer fields (exact vanilla labels + 1.21.1 registrations) ---
+        Density contRaw = noise(worldSeed, "minecraft:continentalness", 1.0, 1.0, 1.0);
+        Density erosRaw = noise(worldSeed, "minecraft:erosion", 1.0, 1.0, 1.0);
+        Density ridgeRaw = noise(worldSeed, "minecraft:ridge", 1.0, 1.0, 1.0);
 
         // shift_x / shift_z share the SHIFT ("minecraft:offset") parameters.
-        Density shiftRaw = noise(worldSeed, "minecraft:offset",
-                SHIFT_FIRST_OCTAVE, SHIFT_AMPLITUDES, 1.0, 1.0, 1.0);
+        Density shiftRaw = noise(worldSeed, "minecraft:offset", 1.0, 1.0, 1.0);
 
-        Density tempRaw = noise(worldSeed, "minecraft:temperature",
-                TEMPERATURE_FIRST_OCTAVE, TEMPERATURE_AMPLITUDES, TEMPERATURE_AMPLITUDE, 1.0, 1.0);
-        Density vegRaw = noise(worldSeed, "minecraft:vegetation",
-                VEGETATION_FIRST_OCTAVE, VEGETATION_AMPLITUDES, 1.0, 1.0, 1.0);
+        Density tempRaw = noise(worldSeed, "minecraft:temperature", 1.0, 1.0, 1.0);
+        Density vegRaw = noise(worldSeed, "minecraft:vegetation", 1.0, 1.0, 1.0);
 
         // p.1.8.27A: the vanilla climate warp. overworld.json's five climate fields are
         // shifted_noise over shift_x/shift_z (verified via the shipped 1.21.1 client jar
@@ -338,19 +398,18 @@ public final class NoiseRouter {
         Density erosion = ShiftedNoiseFn.shiftedNoise2d(erosRaw, shiftX, shiftZ, climateScale);
         Density ridges = ShiftedNoiseFn.shiftedNoise2d(ridgeRaw, shiftX, shiftZ, climateScale);
 
-        Density barrier = noise(worldSeed, "minecraft:aquifer_barrier", -3, single(), 1.0,
-                BARRIER_XZ_SCALE, 1.0);
-        Density floodedness = noise(worldSeed, "minecraft:aquifer_fluid_level_floodedness", -7, single(), 1.0,
+        Density barrier = noise(worldSeed, "minecraft:aquifer_barrier", 1.0, BARRIER_XZ_SCALE, 1.0);
+        Density floodedness = noise(worldSeed, "minecraft:aquifer_fluid_level_floodedness", 1.0,
                 FLOODEDNESS_XZ_SCALE, 1.0);
-        Density spread = noise(worldSeed, "minecraft:aquifer_fluid_level_spread", -5, single(), 1.0,
+        Density spread = noise(worldSeed, "minecraft:aquifer_fluid_level_spread", 1.0,
                 SPREAD_XZ_SCALE, 1.0);
-        Density lava = noise(worldSeed, "minecraft:aquifer_lava", -1, single(), 1.0, 1.0, 1.0);
+        Density lava = noise(worldSeed, "minecraft:aquifer_lava", 1.0, 1.0, 1.0);
 
-        // --- vein fields (real labels, empty amplitudes -> single octave stand-in) ---
-        Density veininess = noise(worldSeed, "minecraft:ore_veininess", -8, single(), 1.0, 1.0, 1.0);
-        Density veinA = noise(worldSeed, "minecraft:ore_vein_a", -7, single(), 1.0, 1.0, 1.0);
-        Density veinB = noise(worldSeed, "minecraft:ore_vein_b", -7, single(), 1.0, 1.0, 1.0);
-        Density gap = noise(worldSeed, "minecraft:ore_gap", -5, single(), 1.0, 1.0, 1.0);
+        // --- vein fields (real labels + the vanilla single-amplitude registrations) ---
+        Density veininess = noise(worldSeed, "minecraft:ore_veininess", 1.0, 1.0, 1.0);
+        Density veinA = noise(worldSeed, "minecraft:ore_vein_a", 1.0, 1.0, 1.0);
+        Density veinB = noise(worldSeed, "minecraft:ore_vein_b", 1.0, 1.0, 1.0);
+        Density gap = noise(worldSeed, "minecraft:ore_gap", 1.0, 1.0, 1.0);
 
         Density veinToggle = veininess;
         Density veinRidged = (x, y, z) -> Math.abs(veinA.eval(x, y, z)) + Math.abs(veinB.eval(x, y, z));
@@ -378,11 +437,6 @@ public final class NoiseRouter {
         return new NoiseRouter(worldSeed, barrier, floodedness, spread, lava, temperature, vegetation,
                 continents, erosion, comp.depth(), ridges, comp.initialDensityWithoutJaggedness(),
                 comp.finalDensity(), veinToggle, veinRidged, veinGap);
-    }
-
-    /** A single-octave-{1.0} amplitude list stand-in for empty vanilla lists. */
-    private static double[] single() {
-        return new double[]{1.0};
     }
 
     // ===================================================================
@@ -429,12 +483,9 @@ public final class NoiseRouter {
             throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
         }
         Density zero = C0;
-        Density shiftRaw = noise(worldSeed, "minecraft:offset",
-                SHIFT_FIRST_OCTAVE, SHIFT_AMPLITUDES, 1.0, 1.0, 1.0);
-        Density tempRaw = noise(worldSeed, "minecraft:temperature",
-                TEMPERATURE_FIRST_OCTAVE, TEMPERATURE_AMPLITUDES, TEMPERATURE_AMPLITUDE, 1.0, 1.0);
-        Density vegRaw = noise(worldSeed, "minecraft:vegetation",
-                VEGETATION_FIRST_OCTAVE, VEGETATION_AMPLITUDES, 1.0, 1.0, 1.0);
+        Density shiftRaw = noise(worldSeed, "minecraft:offset", 1.0, 1.0, 1.0);
+        Density tempRaw = noise(worldSeed, "minecraft:temperature", 1.0, 1.0, 1.0);
+        Density vegRaw = noise(worldSeed, "minecraft:vegetation", 1.0, 1.0, 1.0);
         // nether.json reuses the same shift_x/shift_z warp as the overworld (p.1.8.27A).
         Density temperature = ShiftedNoiseFn.shiftedNoise2d(tempRaw, shiftX(shiftRaw), shiftZ(shiftRaw), 0.25);
         Density vegetation = ShiftedNoiseFn.shiftedNoise2d(vegRaw, shiftX(shiftRaw), shiftZ(shiftRaw), 0.25);
@@ -536,10 +587,13 @@ public final class NoiseRouter {
     }
 
     /** Builds a {@link Density} that samples a {@link NormalNoise} seeded from the
-     * label and scales coordinates by {@code (xzScale, yScale, xzScale)}. */
-    private static Density noise(long worldSeed, String label, int firstOctave, double[] amps,
-                                 double amplitude, double xzScale, double yScale) {
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label), firstOctave, amps);
+     * label, with octave anchor and amplitude list looked up from the 1.21.1
+     * {@link #NOISE_REGISTRATIONS} table, and scales coordinates by
+     * {@code (xzScale, yScale, xzScale)}. */
+    private static Density noise(long worldSeed, String label, double amplitude, double xzScale, double yScale) {
+        NoiseReg reg = registration(label);
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label),
+                reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> amplitude * n.getValue(x * xzScale, y * yScale, z * xzScale);
     }
 
@@ -561,15 +615,21 @@ public final class NoiseRouter {
         return (x, y, z) -> 4.0 * offset.eval(0.25 * z, 0.25 * x, 0.0);
     }
 
-    /** A deterministic 3-D normal-noise leaf from a derived per-label seed (reduced stand-in). */
+    /** A deterministic 3-D normal-noise leaf from a derived per-label seed, with
+     * the label's registered (stand-in) {@link NoiseReg} from the table. */
     private static Density noise3d(long worldSeed, String label, double xzScale, double yScale) {
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label), -2, single());
+        NoiseReg reg = registration(label);
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label),
+                reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> n.getValue(x * xzScale, y * yScale, z * xzScale);
     }
 
-    /** A deterministic 2-D normal-noise leaf (xz plane) from a derived per-label seed. */
+    /** A deterministic 2-D normal-noise leaf (xz plane) from a derived per-label seed,
+     * with the label's registered {@link NoiseReg} from the table. */
     private static Density noise2d(long worldSeed, String label, double xzScale) {
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label), -3, single());
+        NoiseReg reg = registration(label);
+        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label),
+                reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> n.getValue(x * xzScale, 0.0, z * xzScale);
     }
 

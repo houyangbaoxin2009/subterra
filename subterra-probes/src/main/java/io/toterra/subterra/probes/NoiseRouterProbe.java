@@ -243,28 +243,40 @@ public final class NoiseRouterProbe {
         check("router rejects inverted Y range",
                 rejectsY(seed) && rejectsY2(seed, 320, 320));
 
-        // ============ (e) vanilla overworld constants embedded ============
+        // ============ (e) vanilla 1.21.1 noise registrations embedded (p.1.8.28) ============
         check("router pinned continentalness octave -9",
-                NoiseRouter.CONTINENTS_FIRST_OCTAVE == -9);
-        check("router pinned continentalness amplitudes [1,2,2,2,1,1,1,1]",
-                Arrays.equals(NoiseRouter.CONTINENTS_AMPLITUDES,
-                        new double[]{1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0}));
-        check("router pinned erosion octave -9 amplitudes [1,0,1,1]",
-                NoiseRouter.EROSION_FIRST_OCTAVE == -9
-                        && Arrays.equals(NoiseRouter.EROSION_AMPLITUDES, new double[]{1.0, 0.0, 1.0, 1.0}));
-        check("router pinned temperature octave -10 amplitude 1.5 amps [0,1,0,0,0]",
-                NoiseRouter.TEMPERATURE_FIRST_OCTAVE == -10
-                        && NoiseRouter.TEMPERATURE_AMPLITUDE == 1.5
-                        && Arrays.equals(NoiseRouter.TEMPERATURE_AMPLITUDES, new double[]{0.0, 1.0, 0.0, 0.0, 0.0}));
-        check("router pinned vegetation octave -8 amps [1,0,0,0,0]",
-                NoiseRouter.VEGETATION_FIRST_OCTAVE == -8
-                        && Arrays.equals(NoiseRouter.VEGETATION_AMPLITUDES, new double[]{1.0, 0.0, 0.0, 0.0, 0.0}));
-        check("router pinned ridge octave -7 amps [2,1,0,0,0]",
-                NoiseRouter.RIDGE_FIRST_OCTAVE == -7
-                        && Arrays.equals(NoiseRouter.RIDGE_AMPLITUDES, new double[]{2.0, 1.0, 0.0, 0.0, 0.0}));
-        check("router pinned shift octave -3 amps [1,1,0]",
-                NoiseRouter.SHIFT_FIRST_OCTAVE == -3
-                        && Arrays.equals(NoiseRouter.SHIFT_AMPLITUDES, new double[]{1.0, 1.0, 0.0}));
+                NoiseRouter.registration("minecraft:continentalness").firstOctave() == -9);
+        check("router pinned continentalness amplitudes [1,1,2,2,2,1,1,1,1]",
+                Arrays.equals(NoiseRouter.registration("minecraft:continentalness").amplitudes(),
+                        new double[]{1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0}));
+        check("router pinned erosion octave -9 amplitudes [1,1,0,1,1]",
+                NoiseRouter.registration("minecraft:erosion").firstOctave() == -9
+                        && Arrays.equals(NoiseRouter.registration("minecraft:erosion").amplitudes(),
+                        new double[]{1.0, 1.0, 0.0, 1.0, 1.0}));
+        check("router pinned temperature octave -10 amps [1.5,0,1,0,0,0] (1.5 baked into the registration)",
+                NoiseRouter.registration("minecraft:temperature").firstOctave() == -10
+                        && Arrays.equals(NoiseRouter.registration("minecraft:temperature").amplitudes(),
+                        new double[]{1.5, 0.0, 1.0, 0.0, 0.0, 0.0}));
+        check("router pinned vegetation octave -8 amps [1,1,0,0,0,0]",
+                NoiseRouter.registration("minecraft:vegetation").firstOctave() == -8
+                        && Arrays.equals(NoiseRouter.registration("minecraft:vegetation").amplitudes(),
+                        new double[]{1.0, 1.0, 0.0, 0.0, 0.0, 0.0}));
+        check("router pinned ridge octave -7 amps [1,2,1,0,0,0]",
+                NoiseRouter.registration("minecraft:ridge").firstOctave() == -7
+                        && Arrays.equals(NoiseRouter.registration("minecraft:ridge").amplitudes(),
+                        new double[]{1.0, 2.0, 1.0, 0.0, 0.0, 0.0}));
+        check("router pinned shift (offset) octave -3 amps [1,1,1,0]",
+                NoiseRouter.registration("minecraft:offset").firstOctave() == -3
+                        && Arrays.equals(NoiseRouter.registration("minecraft:offset").amplitudes(),
+                        new double[]{1.0, 1.0, 1.0, 0.0}));
+        check("router pinned jagged -16 [1x16] and cave_entrance -7 [0.4,0.5,1.0]",
+                NoiseRouter.registration("minecraft:jagged").firstOctave() == -16
+                        && Arrays.equals(NoiseRouter.registration("minecraft:jagged").amplitudes(),
+                        new double[]{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0})
+                        && NoiseRouter.registration("minecraft:cave_entrance").firstOctave() == -7
+                        && Arrays.equals(NoiseRouter.registration("minecraft:cave_entrance").amplitudes(),
+                        new double[]{0.4, 0.5, 1.0}));
         check("router pinned aquifer xz-scales 0.5 / 0.67 / 0.7142857142857143",
                 NoiseRouter.BARRIER_XZ_SCALE == 0.5
                         && NoiseRouter.FLOODEDNESS_XZ_SCALE == 0.67
