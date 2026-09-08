@@ -112,8 +112,8 @@ public final class Td {
             if (trimmed.isEmpty() || trimmed.startsWith("//")) {
                 continue;
             }
-            if (trimmed.startsWith("type ")) {
-                continue; // type tie<data> header
+            if (trimmed.startsWith("type tie<")) {
+                continue; // `type tie<...>` header — nothing else starting with "type " is a header
             }
             kept.add(line);
         }

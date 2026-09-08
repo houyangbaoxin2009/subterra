@@ -1,5 +1,7 @@
 package io.toterra.subterra.engine.datapack;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -32,9 +34,9 @@ public final class Datapack {
         return title;
     }
 
-    /** All entries by canonical id, deterministically sorted. */
+    /** All entries by canonical id, deterministically sorted (no Map.copyOf — that drops order). */
     public Map<String, DatapackEntry> entries() {
-        return Map.copyOf(entries);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(entries));
     }
 
     /** Entries of one kind, in id order. */
