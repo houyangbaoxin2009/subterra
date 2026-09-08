@@ -14,12 +14,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CookingBookCategory;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
+import net.minecraft.world.item.crafting.SmokingRecipe;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.io.IOException;
@@ -142,6 +144,7 @@ public final class DatapackRegistrar implements AutoCloseable {
         registerLang();
         registerRecipes();
         registerTie();
+        registerStaged();
         for (Map.Entry<String, List<String>> e : tagValues.entrySet()) {
             DatapackRuntime.LOGGER.info("{} tag {} values={}", MARKER, e.getKey(), e.getValue());
         }
@@ -225,13 +228,25 @@ public final class DatapackRegistrar implements AutoCloseable {
         manager.replaceRecipes(merged);
     }
 
-    /** Builds a vanilla {@link ShapedRecipe} holder from a td recipe entry; null on any malformation. */
+    /** Builds a vanilla recipe holder from a td recipe entry; null on any malformation. */
     private RecipeHolder<?> buildRecipe(DatapackEntry e) {
         TdTable p = e.payload();
         String type = p.get("type") != null ? p.get("type").asString() : "";
-        if (!"minecraft:crafting_shaped".equals(type)) {
-            return null;
+        switch (type) {
+            case "minecraft:crafting_shaped" -> {
+                return buildShaped(e);
+            }
+            case "minecraft:smoking" -> {
+                return buildSmoking(e);
+            }
+            default -> {
+                return null;
+            }
         }
+    }
+
+    private RecipeHolder<?> buildShaped(DatapackEntry e) {
+        TdTable p = e.payload();
         List<String> pattern = stringList(p.get("pattern"));
         if (pattern.isEmpty() || pattern.size() > 3) {
             return null;
@@ -278,9 +293,49 @@ public final class DatapackRegistrar implements AutoCloseable {
         return id == null ? null : new RecipeHolder<>(id, recipe);
     }
 
+    /** td smoking recipe → vanilla {@link SmokingRecipe} (ingredient/result/experience/cooking_time). */
+    private RecipeHolder<?> buildSmoking(DatapackEntry e) {
+        TdTable p = e.payload();
+        TdValue ingredientValue = p.get("ingredient");
+        TdValue resultValue = p.get("result");
+        if (!(ingredientValue instanceof TdTable ingredient) || !(resultValue instanceof TdTable result)) {
+            return null;
+        }
+        String iid = ingredient.get("item") != null ? ingredient.get("item").asString() : "";
+        String rid = result.get("item") != null ? result.get("item").asString() : "";
+        Item input = itemById(iid);
+        Item output = itemById(rid);
+        if (input == null || input == Items.AIR || output == null || output == Items.AIR) {
+            return null;
+        }
+        float experience = result.get("experience") != null
+                ? (float) result.get("experience").asFloat() : 0.0f;
+        int cookingTime = (int) (result.get("cooking_time") != null
+                ? Math.max(1, result.get("cooking_time").asInt()) : 200L);
+        SmokingRecipe recipe = new SmokingRecipe("", CookingBookCategory.FOOD,
+                Ingredient.of(input), new ItemStack(output), experience, cookingTime);
+        ResourceLocation id = ResourceLocation.tryParse(e.namespace() + ":" + e.path());
+        return id == null ? null : new RecipeHolder<>(id, recipe);
+    }
+
     private static Item itemById(String id) {
         ResourceLocation loc = id == null ? null : ResourceLocation.tryParse(id);
         return loc == null ? null : BuiltInRegistries.ITEM.get(loc);
+    }
+
+    /** Staged kinds (loot_table / worldgen / structure): schema-free indexes with
+     *  markers; the vanilla injection wiring (LootDataManager / RegisterEvent)
+     *  lands in a later datapack block — until then these travel as staged. */
+    private void registerStaged() {
+        for (Map.Entry<EntryKind, List<DatapackEntry>> e : byKind.entrySet()) {
+            if (e.getKey() == EntryKind.LOOT_TABLE || e.getKey() == EntryKind.WORLDGEN
+                    || e.getKey() == EntryKind.STRUCTURE) {
+                for (DatapackEntry entry : e.getValue()) {
+                    DatapackRuntime.LOGGER.info("{} staged {} ({}, vanilla injection deferred)",
+                            MARKER, entry.id(), e.getKey().dir());
+                }
+            }
+        }
     }
 
     /** tie FUNCTION entries: resolve the binding and call it (0-arg seed contract). */

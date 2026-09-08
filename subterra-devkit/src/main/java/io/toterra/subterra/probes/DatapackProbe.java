@@ -58,7 +58,7 @@ public final class DatapackProbe {
             // 1. registry: metadata + entry census (6 dir-scanned + 1 manifest)
             check("包名 mini_dp", "mini_dp".equals(dp.name()));
             check("标题含 p.2.2", dp.title().contains("p.2.2"));
-            check("条目总数 9", dp.entries().size() == 9);
+            check("条目总数 10", dp.entries().size() == 10);
             List<String> ids = new ArrayList<>(dp.entries().keySet());
             check("id 确定性排序", ids.equals(ids.stream().sorted().toList()));
             check("七类齐全", presentKinds(dp).equals(Set.of(EntryKind.values())));
@@ -180,6 +180,7 @@ public final class DatapackProbe {
         copy("/datapack/mini_dp/data/toterra/tag/item/special.td", dataRoot.resolve("toterra/tag/item/special.td"));
         copy("/datapack/mini_dp/data/toterra/lang/en_us.td", dataRoot.resolve("toterra/lang/en_us.td"));
         copy("/datapack/mini_dp/data/toterra/recipe/example.td", dataRoot.resolve("toterra/recipe/example.td"));
+        copy("/datapack/mini_dp/data/toterra/recipe/smoke.td", dataRoot.resolve("toterra/recipe/smoke.td"));
         copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", dataRoot.resolve("toterra/loot_table/chest/bonus.td"));
         copy("/datapack/mini_dp/data/toterra/worldgen/biome/meadow_of_tie.td", dataRoot.resolve("toterra/worldgen/biome/meadow_of_tie.td"));
         copy("/datapack/mini_dp/data/toterra/structure/shrine.td", dataRoot.resolve("toterra/structure/shrine.td"));

@@ -66,7 +66,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[9];
+        boolean[] seen = new boolean[10];
         boolean fatal = false;
         boolean signaled = false;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
@@ -79,7 +79,7 @@ public final class DatapackE2EProbe {
                 if (line.contains(DONE_MARKER)) {
                     seen[0] = true;
                 }
-                if (line.contains(DP_MARKER + " loaded 1 packs, 9 entries")) {
+                if (line.contains(DP_MARKER + " loaded 1 packs, 10 entries")) {
                     seen[1] = true;
                 }
                 if (line.contains(DP_MARKER + " tag toterra:tag/item/special values=[minecraft:stick, minecraft:apple]")) {
@@ -94,14 +94,17 @@ public final class DatapackE2EProbe {
                 if (line.contains(DP_MARKER + " register recipe toterra:example")) {
                     seen[5] = true;
                 }
-                if (line.contains(DP_MARKER + " recipes registered=1")) {
+                if (line.contains(DP_MARKER + " register recipe toterra:smoke")) {
                     seen[6] = true;
                 }
-                if (line.contains(DP_MARKER + " tie toterra:function/greet -> 42")) {
+                if (line.contains(DP_MARKER + " recipes registered=2")) {
                     seen[7] = true;
                 }
-                if (line.contains(DP_MARKER + " tie toterra:function/farewell -> 108")) {
+                if (line.contains(DP_MARKER + " tie toterra:function/greet -> 42")) {
                     seen[8] = true;
+                }
+                if (line.contains(DP_MARKER + " tie toterra:function/farewell -> 108")) {
+                    seen[9] = true;
                 }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
@@ -145,8 +148,8 @@ public final class DatapackE2EProbe {
         System.out.println();
         System.out.println("[DatapackE2EProbe] done=" + seen[0] + " loaded=" + seen[1] + " tag=" + seen[2]
                 + " lang=" + seen[3] + " langTotal=" + seen[4] + " recipe=" + seen[5]
-                + " recipeTotal=" + seen[6] + " tieGreet=" + seen[7] + " tieFarewell=" + seen[8]
-                + " fatal=" + fatal);
+                + " smoke=" + seen[6] + " recipeTotal=" + seen[7] + " tieGreet=" + seen[8]
+                + " tieFarewell=" + seen[9] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
@@ -193,6 +196,7 @@ public final class DatapackE2EProbe {
         copy("/datapack/mini_dp/data/toterra/tag/item/special.td", data.resolve("tag/item/special.td"));
         copy("/datapack/mini_dp/data/toterra/lang/en_us.td", data.resolve("lang/en_us.td"));
         copy("/datapack/mini_dp/data/toterra/recipe/example.td", data.resolve("recipe/example.td"));
+        copy("/datapack/mini_dp/data/toterra/recipe/smoke.td", data.resolve("recipe/smoke.td"));
         copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", data.resolve("loot_table/chest/bonus.td"));
         copy("/datapack/mini_dp/data/toterra/worldgen/biome/meadow_of_tie.td", data.resolve("worldgen/biome/meadow_of_tie.td"));
         copy("/datapack/mini_dp/data/toterra/structure/shrine.td", data.resolve("structure/shrine.td"));
