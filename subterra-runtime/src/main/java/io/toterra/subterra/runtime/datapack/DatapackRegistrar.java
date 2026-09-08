@@ -1,10 +1,26 @@
 package io.toterra.subterra.runtime.datapack;
 
+import io.toterra.subterra.engine.config.TdTable;
+import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.datapack.Datapack;
 import io.toterra.subterra.engine.datapack.DatapackEntry;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
 import io.toterra.subterra.engine.datapack.EntryKind;
+import io.toterra.subterra.engine.datapack.TieLogicBundle;
+import io.toterra.subterra.engine.datapack.TieLogicLoader;
+import io.toterra.subterra.engine.tie.TieFunction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapedRecipePattern;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -12,17 +28,32 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * MC-shell datapack registrar (p.2.2 block 2): loads every td pack from the
+ * MC-shell datapack registrar (p.2.2 block 2): scans every td pack from the
  * configured datapacks directory through the engine.datapack loader (pure td
- * direct loading — no JSON files, no vanilla pack pipeline), then hands each
- * bundle to the per-kind registration steps (tags / lang / recipes / tie
- * functions). Holds the server-scoped registries and the tie bundle
- * lifecycle; the per-kind wiring lands in the follow-up slices.
+ * direct loading), then registers the content per kind:
+ *
+ * <ul>
+ * <li>tag → entry id → payload {@code values} index (+ log marker);</li>
+ * <li>lang → td k/v pairs → key/value map (+ log markers);</li>
+ * <li>recipe → td {@code recipe = [ type = "minecraft:crafting_shaped", … ]}
+ * compiled into a vanilla {@link ShapedRecipe} holder and merged into the live
+ * {@link RecipeManager} via {@code replaceRecipes} (+ log markers);</li>
+ * <li>function → tie binding resolved through {@link TieLogicLoader} and called
+ * via {@link TieFunction#invoke0()} (0-arg seed contract) (+ log markers).</li>
+ * </ul>
+ *
+ * <p>Deterministic markers feed the E2E gate; a broken pack or a malformed
+ * recipe never takes the server down — it is named in a warn and skipped.
+ * Registry merge order vs the item_control recipe stripper: both hook
+ * ServerStarted LOWEST; whichever runs first, banned outputs can only be
+ * stripped, never re-added by this registrar.
  */
 public final class DatapackRegistrar implements AutoCloseable {
 
@@ -31,10 +62,15 @@ public final class DatapackRegistrar implements AutoCloseable {
     private final MinecraftServer server;
     private final List<Datapack> packs = new ArrayList<>();
     private final Map<EntryKind, List<DatapackEntry>> byKind = new LinkedHashMap<>();
+    private final Map<Path, Datapack> packsByDir = new LinkedHashMap<>();
     /** Registered tag index: entry id ({@code ns:tag/path}) → payload values. */
     private final Map<String, List<String>> tagValues = new LinkedHashMap<>();
     /** Registered localization index: key → value (from lang k/v pairs). */
     private final Map<String, String> langMap = new LinkedHashMap<>();
+    /** Vanilla recipes built from td and merged into the RecipeManager. */
+    private final List<RecipeHolder<?>> recipes = new ArrayList<>();
+    /** Loaded tie libraries for FUNCTION entries; closed with the registrar. */
+    private final List<TieLogicBundle> tieBundles = new ArrayList<>();
 
     private DatapackRegistrar(MinecraftServer server) {
         this.server = server;
@@ -77,6 +113,7 @@ public final class DatapackRegistrar implements AutoCloseable {
             try {
                 Datapack dp = DatapackLoader.load(dir);
                 packs.add(dp);
+                packsByDir.put(dir, dp);
                 loaded++;
                 for (DatapackEntry e : dp.entries().values()) {
                     byKind.get(e.kind()).add(e);
@@ -99,10 +136,12 @@ public final class DatapackRegistrar implements AutoCloseable {
                 byKind.get(EntryKind.FUNCTION).size());
     }
 
-    /** Registers the tag and lang indexes and logs deterministic detail markers. */
+    /** Registers tag / lang / recipe / tie content and logs deterministic detail markers. */
     public void registerContent() {
         registerTags();
         registerLang();
+        registerRecipes();
+        registerTie();
         for (Map.Entry<String, List<String>> e : tagValues.entrySet()) {
             DatapackRuntime.LOGGER.info("{} tag {} values={}", MARKER, e.getKey(), e.getValue());
         }
@@ -116,6 +155,18 @@ public final class DatapackRegistrar implements AutoCloseable {
         if (!langMap.isEmpty()) {
             DatapackRuntime.LOGGER.info("{} lang entries={}", MARKER, langMap.size());
         }
+        for (RecipeHolder<?> holder : recipes) {
+            DatapackRuntime.LOGGER.info("{} register recipe {}", MARKER, holder.id());
+        }
+        if (!recipes.isEmpty()) {
+            DatapackRuntime.LOGGER.info("{} recipes registered={}", MARKER, recipes.size());
+        }
+        for (Map.Entry<String, Long> e : functionCalls.entrySet()) {
+            DatapackRuntime.LOGGER.info("{} tie {} -> {}", MARKER, e.getKey(), e.getValue());
+        }
+        if (!tieBundles.isEmpty()) {
+            DatapackRuntime.LOGGER.info("{} tie libraries={}", MARKER, tieBundles.size());
+        }
     }
 
     /** tag index: entry id → payload {@code values}. */
@@ -128,18 +179,21 @@ public final class DatapackRegistrar implements AutoCloseable {
         return langMap;
     }
 
+    /** Vanilla recipes merged into the RecipeManager (holder form). */
+    public List<RecipeHolder<?>> recipes() {
+        return recipes;
+    }
+
     private void registerTags() {
         for (DatapackEntry e : byKind.get(EntryKind.TAG)) {
-            List<String> values = stringList(e.payload().get("values"));
-            tagValues.put(e.id(), values);
+            tagValues.put(e.id(), stringList(e.payload().get("values")));
         }
     }
 
     private void registerLang() {
         for (DatapackEntry e : byKind.get(EntryKind.LANG)) {
-            io.toterra.subterra.engine.config.TdTable payload = e.payload();
-            for (io.toterra.subterra.engine.config.TdValue item : payload.elements()) {
-                if (!(item instanceof io.toterra.subterra.engine.config.TdTable t)) {
+            for (TdValue item : e.payload().elements()) {
+                if (!(item instanceof TdTable t)) {
                     continue;
                 }
                 String k = t.get("k") != null ? t.get("k").asString() : "";
@@ -151,18 +205,138 @@ public final class DatapackRegistrar implements AutoCloseable {
         }
     }
 
-    private static List<String> stringList(io.toterra.subterra.engine.config.TdValue v) {
-        if (!(v instanceof io.toterra.subterra.engine.config.TdTable t)) {
+    private void registerRecipes() {
+        for (DatapackEntry e : byKind.get(EntryKind.RECIPE)) {
+            RecipeHolder<?> holder = buildRecipe(e);
+            if (holder != null) {
+                recipes.add(holder);
+            } else {
+                DatapackRuntime.LOGGER.warn("{} skip recipe {} (unsupported or malformed)", MARKER, e.id());
+            }
+        }
+        if (recipes.isEmpty()) {
+            return;
+        }
+        RecipeManager manager = server.getRecipeManager();
+        Collection<RecipeHolder<?>> existing = manager.getRecipes();
+        List<RecipeHolder<?>> merged = new ArrayList<>(existing.size() + recipes.size());
+        merged.addAll(existing);
+        merged.addAll(recipes);
+        manager.replaceRecipes(merged);
+    }
+
+    /** Builds a vanilla {@link ShapedRecipe} holder from a td recipe entry; null on any malformation. */
+    private RecipeHolder<?> buildRecipe(DatapackEntry e) {
+        TdTable p = e.payload();
+        String type = p.get("type") != null ? p.get("type").asString() : "";
+        if (!"minecraft:crafting_shaped".equals(type)) {
+            return null;
+        }
+        List<String> pattern = stringList(p.get("pattern"));
+        if (pattern.isEmpty() || pattern.size() > 3) {
+            return null;
+        }
+        Map<Character, Ingredient> key = new HashMap<>();
+        TdValue keyValue = p.get("key");
+        if (keyValue instanceof TdTable keys) {
+            for (TdValue item : keys.elements()) {
+                if (!(item instanceof TdTable kv)) {
+                    continue;
+                }
+                String ks = kv.get("k") != null ? kv.get("k").asString() : "";
+                TdValue v = kv.get("v");
+                if (ks.length() != 1 || !(v instanceof TdTable vt)) {
+                    continue;
+                }
+                String id = vt.get("item") != null ? vt.get("item").asString() : "";
+                Item ingredient = itemById(id);
+                if (ingredient == null || ingredient == Items.AIR) {
+                    continue;
+                }
+                key.put(ks.charAt(0), Ingredient.of(ingredient));
+            }
+        }
+        TdValue resultValue = p.get("result");
+        if (!(resultValue instanceof TdTable result)) {
+            return null;
+        }
+        String rid = result.get("item") != null ? result.get("item").asString() : "";
+        Item resultItem = itemById(rid);
+        if (resultItem == null || resultItem == Items.AIR) {
+            return null;
+        }
+        int count = (int) (result.get("count") != null ? Math.max(1, result.get("count").asInt()) : 1L);
+        ShapedRecipePattern patternData;
+        try {
+            patternData = ShapedRecipePattern.of(key, pattern);
+        } catch (Throwable t) {
+            return null;
+        }
+        ShapedRecipe recipe = new ShapedRecipe("", CraftingBookCategory.MISC, patternData,
+                new ItemStack(resultItem, count), true);
+        ResourceLocation id = ResourceLocation.tryParse(e.namespace() + ":" + e.path());
+        return id == null ? null : new RecipeHolder<>(id, recipe);
+    }
+
+    private static Item itemById(String id) {
+        ResourceLocation loc = id == null ? null : ResourceLocation.tryParse(id);
+        return loc == null ? null : BuiltInRegistries.ITEM.get(loc);
+    }
+
+    /** tie FUNCTION entries: resolve the binding and call it (0-arg seed contract). */
+    private void registerTie() {
+        for (Map.Entry<Path, Datapack> e : packsByDir.entrySet()) {
+            TieLogicBundle bundle;
+            try {
+                bundle = TieLogicLoader.load(e.getValue(), e.getKey());
+            } catch (IllegalArgumentException ex) {
+                DatapackRuntime.LOGGER.warn("{} skip tie libs of {}: {}", MARKER, e.getValue().name(), ex.getMessage());
+                continue;
+            }
+            tieBundles.add(bundle);
+            for (DatapackEntry fe : e.getValue().entries().values()) {
+                if (fe.kind() == EntryKind.FUNCTION) {
+                    try {
+                        long result = bundle.resolve(fe).invoke0();
+                        functionCalls.put(fe.id(), result);
+                    } catch (Throwable t) {
+                        DatapackRuntime.LOGGER.warn("{} tie call failed {}: {}", MARKER, fe.id(), t.toString());
+                    }
+                }
+            }
+        }
+    }
+
+    private static List<String> stringList(TdValue v) {
+        if (!(v instanceof TdTable t)) {
             return List.of();
         }
-        return t.elements().stream().map(io.toterra.subterra.engine.config.TdValue::asString).toList();
+        return t.elements().stream().map(TdValue::asString).toList();
+    }
+
+    private final Map<String, Long> functionCalls = new LinkedHashMap<>();
+
+    /** function entry id → call result (deterministic detail marker source). */
+    public Map<String, Long> functionCalls() {
+        return functionCalls;
     }
 
     @Override
     public void close() {
+        for (TieLogicBundle bundle : tieBundles) {
+            try {
+                bundle.close();
+            } catch (Throwable ignored) {
+                // best-effort native handle release
+            }
+        }
+        tieBundles.clear();
         packs.clear();
+        packsByDir.clear();
         byKind.clear();
         tagValues.clear();
         langMap.clear();
+        recipes.clear();
+        functionCalls.clear();
     }
 }

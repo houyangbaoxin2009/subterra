@@ -147,6 +147,9 @@ neoForge {
             systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', System.getenv('SUBTERRA_PROFILE_SLICE') ?: '')
             systemProperty 'subterra.perfCount', System.getProperty('subterra.perfCount', System.getenv('SUBTERRA_PERF_COUNT') ?: '')
             systemProperty 'subterra.profileCenter', System.getProperty('subterra.profileCenter', System.getenv('SUBTERRA_PROFILE_CENTER') ?: '')
+            // p.2.2 datapack runtime: td datapacks source dir (absent -> cwd/datapacks).
+            systemProperty 'subterra.datapacks',
+                    System.getProperty('subterra.datapacks', project.findProperty('subterra.datapacks') ?: System.getenv('SUBTERRA_DATAPACKS') ?: '')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

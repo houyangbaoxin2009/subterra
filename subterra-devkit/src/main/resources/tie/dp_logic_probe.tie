@@ -1,11 +1,13 @@
 type tie<class>
 // Subterra p.2.2 datapack tie logic — probe mini library.
-//   ABI: namespace::fn → FFM symbol <namespace>$<fn> (dp_logic::greet → "dp_logic$greet")
+//   ABI: namespace::fn → FFM symbol <namespace>$<fn> (dp_logic::seed_42 → "dp_logic$seed_42")
 //   Boundary: scalars (i64/f64/bool/trit/char) + string only; private funcs
 //   are not exported (llvmgen skips dllexport).
 namespace dp_logic {
-pub func greet(seed: i64) -> i64 {
-    return seed + 1
+// 0-arg functions: the MC-shell datapack registrar calls FUNCTION entries
+// through invoke0() — deterministic, no argument-shape gambling at runtime.
+pub func seed_42() -> i64 {
+    return 42
 }
 pub func farewell() -> i64 {
     return 108

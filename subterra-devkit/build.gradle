@@ -382,8 +382,25 @@ def datapackProbe = tasks.register('runDatapackProbe', JavaExec) {
     jvmArgs += ['--enable-native-access=ALL-UNNAMED']
 }
 
+// p.2.2 block 2: E2E gate — boots the dev server with the seed td datapack
+// staged under run/datapacks and asserts the registration chain (tags / lang /
+// recipes into the live RecipeManager / tie functions called) from the log.
+// Event-based like bootProbe, never timing-based.
+def datapackE2EProbe = tasks.register('runDatapackE2EProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.2: boot dev server, load seed td datapack, assert registration (E2E gate)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.DatapackE2EProbe'
+    workingDir = rootProject.projectDir
+    systemProperty 'subterra.projectDir', rootProject.projectDir.absolutePath
+}
+// Both boot gates fork `gradlew runServer` on the same run/world — they must
+// never boot concurrently (DirectoryLock on session.lock), so E2E runs after
+// bootProbe. mustRunAfter keeps each individually runnable.
+datapackE2EProbe.configure { mustRunAfter bootProbe }
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe
 }

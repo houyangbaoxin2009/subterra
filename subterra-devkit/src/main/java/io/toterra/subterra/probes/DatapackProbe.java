@@ -97,9 +97,9 @@ public final class DatapackProbe {
 
                 DatapackEntry greet = dp.get(EntryKind.FUNCTION, "toterra", "greet");
                 DatapackEntry farewell = dp.get(EntryKind.FUNCTION, "toterra", "farewell");
-                TieFunction greetFn = bundle.resolve(greet);
+                TieFunction greetFn = bundle.resolve(greet);       // fn explicit = seed_42
                 TieFunction farewellFn = bundle.resolve(farewell); // fn defaults to path
-                check("greet(41)=42", greetFn.invokeI64(41) == 42L);
+                check("seed_42()=42（显式 fn）", greetFn.invoke0() == 42L);
                 check("farewell()=108（默认 fn=路径）", farewellFn.invoke0() == 108L);
                 check("私有 hidden 未导出", !bundle.libraries().get("dp_logic").contains("dp_logic$hidden"));
                 check("craftable(7,1)=7（显式 fn i64×2）",
