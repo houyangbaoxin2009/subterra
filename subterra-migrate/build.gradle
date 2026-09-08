@@ -5,7 +5,8 @@ plugins {
 group = rootProject.group
 version = rootProject.version
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// p.2.1: align on Java 25 (whole-project release 25; see root build.gradle).
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 // Migration translator (old API -> new API). Iron law: migrate depends only
 // on api. Never shipped in the main mod jar.

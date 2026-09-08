@@ -6,7 +6,8 @@ plugins {
 group = rootProject.group
 version = rootProject.version
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// p.2.1: align on Java 25 (whole-project release 25; see root build.gradle).
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 // subterra-api is the only standalone-published module: domain mods depend on
 // its jar alone. Publication goes to the file repo configured at the root.

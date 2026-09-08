@@ -5,7 +5,8 @@ plugins {
 group = rootProject.group
 version = rootProject.version
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// p.2.1: toolchain 25 — 读取 engine.tie 的 FFM 类（类文件版本与 JDK 一致）。
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 // Probes exercise the launch layer standalone (pure JVM, no Minecraft runtime).
 // p.2.0: devkit absorbs the probes module; never shipped in the main mod jar.
@@ -360,8 +361,18 @@ ironLawProbe.configure {
               rootProject.project(':subterra-migrate').tasks.named('classes')
 }
 
+// p.2.1: tie bridge 确定性探针 —— tiec 编译的 DLL → Java 25 FFM downcall（真实 ABI 调用链）。
+// 资源自包含（resources/tie/tiefib_probe.{tie,dll}）；FFM 受限方法需显式 native access。
+def tieBridgeProbe = tasks.register('runTieBridgeProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.1: run the tie bridge probe (tiec DLL -> Java FFM, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.TieBridgeProbe'
+    jvmArgs += ['--enable-native-access=ALL-UNNAMED']
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe
 }

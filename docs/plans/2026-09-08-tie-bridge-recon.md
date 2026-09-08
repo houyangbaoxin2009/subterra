@@ -27,4 +27,8 @@ p.2.1 tie bridge：`tiec → DLL → FFM` 加载调用。本文件记录摸底�
 ## 结论与下一步 / Conclusion & Next Step
 
 * **可行性成立**：tiec→DLL→Java25 FFM 链路可行，ABI 与 C 调用方一致（`long` ↔ `long long`），无需任何桥层中间代码。 / Feasible; no intermediate bridge code needed.
-* 待确认下一步（小任务 2/2）：把可行性探针**接线进 subterra**——`subterra-tie` 填实现（`TieBridge`：libraryLookup + 符号解析 + 调用面）＋ `subterra-devkit` 内探针（`TieBridgeProbe`，随 `probeAcceptance` 跑），并定 tie 产物获取策略（开发期现场 tiec 编译 vs 仓库内捆绑测试 mini tie 库）。 / Next: wire into subterra (module + devkit probe) and fix the tie-artifact sourcing strategy.
+* **小任务 2/2 已落地（2026-09-08）**：
+  * `subterra-engine` 新增 `io.toterra.subterra.engine.tie`（`TieLibrary` / `TieFunction` / `TieBridgeException`），纯 JDK FFM；符号解析 + 定形调用（i64 0/1/2 参、f64 1 参）。 / engine.tie API landed.
+  * `subterra-devkit` 新增 `TieBridgeProbe`（随 `probeAcceptance` 跑）+ 捆绑 mini tie 库（`src/main/resources/tie/tiefib_probe.{tie,dll}`，自包含重建）。 / probe landed, self-contained artifact.
+  * **全项目对齐 Java 25 字节码**（root `options.release` 21→25；api/engine/migrate/devkit toolchain 25）：engine.tie 需稳定 FFM（JDK22+），L1 启动层本就要求 Java 25 运行时；`probeAcceptance` 全套（含开服）PASS 无回归。 / whole-project release 25 alignment; suite green.
+* 后续：运行时铁律（iron law）纳入 subterra-tie/engine.tie 契约扫描；含 FFM 直达 MC 层接线的 runtime 侧能力在 p.2.2 数据包重构里启用。 / Follow-ups: iron-law coverage; MC-wiring enablement during datapack rework.

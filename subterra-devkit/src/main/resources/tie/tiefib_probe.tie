@@ -1,0 +1,25 @@
+type tie<class>
+// Subterra p.2.1 tie bridge · 可行性探针用 mini tie 动态库
+//   namespace 符号约定：<ns>$<fn>（tiefib::add → "tiefib$add"）
+//   边界：仅标量（i64/f64/bool/trit/char）与 string 可导出；私有函数不导出
+namespace tiefib {
+pub func add(a: i64, b: i64) -> i64 {
+    return a + b
+}
+pub func mul(a: i64, b: i64) -> i64 {
+    return a * b
+}
+pub func neg(a: i64) -> i64 {
+    return -a
+}
+pub func half(d: f64) -> f64 {
+    return d / 2.0
+}
+// 私有函数不导出（llvmgen 不标 dllexport）
+func secret(x: i64) -> i64 {
+    return x * 999
+}
+pub func use_secret(x: i64) -> i64 {
+    return secret(x) + 1
+}
+}

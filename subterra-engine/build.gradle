@@ -5,7 +5,8 @@ plugins {
 group = rootProject.group
 version = rootProject.version
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// p.2.1: toolchain 25 — engine.tie 用稳定 FFM（java.lang.foreign，JDK22+）与 root 一致。
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 // Pure-JDK engine: aggregated into the main mod jar, never touches the MC
 // classpath. Iron-law dependency direction: engine depends only on api.

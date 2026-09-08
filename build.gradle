@@ -69,12 +69,13 @@ base {
     archivesName = mod_id
 }
 
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21 bytecode.
-// The dev/game JVM runs on Java 25 LTS (Toolchain 25 + --release 21).
+// p.2.1 tie bridge: engine.tie uses stable FFM (java.lang.foreign), so the whole
+// project aligns on Java 25 bytecode (L1 launch layer already requires a Java 25
+// runtime on the dev/game JVM).
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 tasks.withType(JavaCompile).configureEach {
-    options.release = 21
+    options.release = 25
 }
 
 neoForge {
