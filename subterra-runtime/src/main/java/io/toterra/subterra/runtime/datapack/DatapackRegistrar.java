@@ -31,6 +31,10 @@ public final class DatapackRegistrar implements AutoCloseable {
     private final MinecraftServer server;
     private final List<Datapack> packs = new ArrayList<>();
     private final Map<EntryKind, List<DatapackEntry>> byKind = new LinkedHashMap<>();
+    /** Registered tag index: entry id ({@code ns:tag/path}) → payload values. */
+    private final Map<String, List<String>> tagValues = new LinkedHashMap<>();
+    /** Registered localization index: key → value (from lang k/v pairs). */
+    private final Map<String, String> langMap = new LinkedHashMap<>();
 
     private DatapackRegistrar(MinecraftServer server) {
         this.server = server;
@@ -95,9 +99,70 @@ public final class DatapackRegistrar implements AutoCloseable {
                 byKind.get(EntryKind.FUNCTION).size());
     }
 
+    /** Registers the tag and lang indexes and logs deterministic detail markers. */
+    public void registerContent() {
+        registerTags();
+        registerLang();
+        for (Map.Entry<String, List<String>> e : tagValues.entrySet()) {
+            DatapackRuntime.LOGGER.info("{} tag {} values={}", MARKER, e.getKey(), e.getValue());
+        }
+        int shown = 0;
+        for (Map.Entry<String, String> e : langMap.entrySet()) {
+            if (shown < 8) {
+                DatapackRuntime.LOGGER.info("{} lang {} = {}", MARKER, e.getKey(), e.getValue());
+                shown++;
+            }
+        }
+        if (!langMap.isEmpty()) {
+            DatapackRuntime.LOGGER.info("{} lang entries={}", MARKER, langMap.size());
+        }
+    }
+
+    /** tag index: entry id → payload {@code values}. */
+    public Map<String, List<String>> tagValues() {
+        return tagValues;
+    }
+
+    /** localization index: key → value. */
+    public Map<String, String> langMap() {
+        return langMap;
+    }
+
+    private void registerTags() {
+        for (DatapackEntry e : byKind.get(EntryKind.TAG)) {
+            List<String> values = stringList(e.payload().get("values"));
+            tagValues.put(e.id(), values);
+        }
+    }
+
+    private void registerLang() {
+        for (DatapackEntry e : byKind.get(EntryKind.LANG)) {
+            io.toterra.subterra.engine.config.TdTable payload = e.payload();
+            for (io.toterra.subterra.engine.config.TdValue item : payload.elements()) {
+                if (!(item instanceof io.toterra.subterra.engine.config.TdTable t)) {
+                    continue;
+                }
+                String k = t.get("k") != null ? t.get("k").asString() : "";
+                String v = t.get("v") != null ? t.get("v").asString() : "";
+                if (!k.isBlank()) {
+                    langMap.put(k, v);
+                }
+            }
+        }
+    }
+
+    private static List<String> stringList(io.toterra.subterra.engine.config.TdValue v) {
+        if (!(v instanceof io.toterra.subterra.engine.config.TdTable t)) {
+            return List.of();
+        }
+        return t.elements().stream().map(io.toterra.subterra.engine.config.TdValue::asString).toList();
+    }
+
     @Override
     public void close() {
         packs.clear();
         byKind.clear();
+        tagValues.clear();
+        langMap.clear();
     }
 }

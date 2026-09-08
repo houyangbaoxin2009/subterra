@@ -38,10 +38,10 @@ public final class DatapackRuntime {
         registrar = reg;
         try {
             reg.loadPacks(resolveDatapacksDir());
+            reg.registerContent();
         } catch (Throwable t) {
             LOGGER.error("[Subterra datapack] load failed: {}", t.toString());
         }
-        net.minecraft.server.MinecraftServer server = event.getServer();
     }
 
     @SubscribeEvent
