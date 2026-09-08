@@ -171,15 +171,18 @@ public final class NoiseRouterProbe {
         }
         check("in finite over grid", inGridFinite);
 
-        // ============ (c) BlendedNoise : legacy seam ============
-        BlendedNoise bn1 = new BlendedNoise(seed);
-        BlendedNoise bn2 = new BlendedNoise(seed);
+        // ============ (c) BlendedNoise : 1.21.1 base_3d (old_blended_noise) ============
+        // p.1.8.29B — the real octave-blend leaf: three Perlin families over ONE
+        // per-world "terrain" Xoroshiro stream (min -> max -> main), vanilla params.
+        BlendedNoise bn1 = BlendedNoise.overworld(seed);
+        BlendedNoise bn2 = BlendedNoise.overworld(seed);
         double bv = bn1.eval(7.0, 60.0, 11.0);
         check("bn deterministic cross-instance", bv == bn2.eval(7.0, 60.0, 11.0));
         check("bn reproducible in-place", bv == bn1.eval(7.0, 60.0, 11.0));
         check("bn finite at pinned coords",
                 finite(bv) && finite(bn1.eval(-3.0, 0.0, 2.0)) && finite(bn1.eval(0.0, 0.0, 0.0)));
-        check("bn seed sensitive", !near(bv, new BlendedNoise(seed + 31L).eval(7.0, 60.0, 11.0)));
+        check("bn seed sensitive (differs over grid)",
+                leafDiffers(BlendedNoise.overworld(seed), BlendedNoise.overworld(seed + 31L)));
         boolean bnGridFinite = true;
         for (double dx = -6; dx <= 6; dx += 1.3) {
             for (double dz = -6; dz <= 6; dz += 1.3) {
@@ -187,6 +190,29 @@ public final class NoiseRouterProbe {
             }
         }
         check("bn finite over grid", bnGridFinite);
+        // vanilla parameter sets pinned (density_function/{overworld,nether,end}/base_3d_noise.json)
+        check("bn overworld params pinned (0.25/0.125/80/160/8)",
+                BlendedNoise.OVERWORLD_XZ_SCALE == 0.25 && BlendedNoise.OVERWORLD_Y_SCALE == 0.125
+                        && BlendedNoise.OVERWORLD_XZ_FACTOR == 80.0 && BlendedNoise.OVERWORLD_Y_FACTOR == 160.0
+                        && BlendedNoise.OVERWORLD_SMEAR == 8.0);
+        check("bn nether params pinned y=0.375/y_factor=60",
+                BlendedNoise.NETHER_XZ_SCALE == 0.25 && BlendedNoise.NETHER_Y_SCALE == 0.375
+                        && BlendedNoise.NETHER_XZ_FACTOR == 80.0 && BlendedNoise.NETHER_Y_FACTOR == 60.0
+                        && BlendedNoise.NETHER_SMEAR == 8.0);
+        check("bn end params pinned y=0.25/y_factor=160/smear=4",
+                BlendedNoise.END_XZ_SCALE == 0.25 && BlendedNoise.END_Y_SCALE == 0.25
+                        && BlendedNoise.END_XZ_FACTOR == 80.0 && BlendedNoise.END_Y_FACTOR == 160.0
+                        && BlendedNoise.END_SMEAR == 4.0);
+        // per-world terrain stream (fromHashOf("terrain") 128-bit) determinism + spread
+        check("bn terrain stream deterministic",
+                BlendedNoise.terrainStream(seed).seedLo() == BlendedNoise.terrainStream(seed).seedLo()
+                        && BlendedNoise.terrainStream(seed).seedHi() == BlendedNoise.terrainStream(seed).seedHi());
+        check("bn terrain stream differs across world seeds",
+                BlendedNoise.terrainStream(seed).seedLo() != BlendedNoise.terrainStream(seed + 31L).seedLo()
+                        || BlendedNoise.terrainStream(seed).seedHi() != BlendedNoise.terrainStream(seed + 31L).seedHi());
+        check("bn td round-trips",
+                BlendedNoise.fromTd(bn1.td()).eval(7.0, 60.0, 11.0) == bv);
+        check("bn maxValue matches min-limit bound", bn1.maxValue() > 0.0 && finite(bn1.maxValue()));
 
         // ============ (d) NoiseRouter overworld assembly ============
         NoiseRouter r1 = NoiseRouter.overworld(seed);
@@ -277,10 +303,14 @@ public final class NoiseRouterProbe {
                         && NoiseRouter.registration("minecraft:cave_entrance").firstOctave() == -7
                         && Arrays.equals(NoiseRouter.registration("minecraft:cave_entrance").amplitudes(),
                         new double[]{0.4, 0.5, 1.0}));
-        check("router pinned aquifer xz-scales 0.5 / 0.67 / 0.7142857142857143",
-                NoiseRouter.BARRIER_XZ_SCALE == 0.5
-                        && NoiseRouter.FLOODEDNESS_XZ_SCALE == 0.67
-                        && near(NoiseRouter.SPREAD_XZ_SCALE, 0.7142857142857143));
+        // p.1.8.29A: aquifer leaves apply xz_scale horizontally (xz=1.0) and y_scale
+        // vertically (barrier/floodedness/spread = 0.5 / 0.67 / 0.7142857142857143),
+        // transcribed exactly from the vendored overworld.json noise_router entries.
+        check("router pinned aquifer scales xz=1.0 horizontal, y={0.5,0.67,0.7142857142857143} vertical",
+                NoiseRouter.BARRIER_XZ_SCALE == 1.0 && NoiseRouter.BARRIER_Y_SCALE == 0.5
+                        && NoiseRouter.FLOODEDNESS_XZ_SCALE == 1.0 && NoiseRouter.FLOODEDNESS_Y_SCALE == 0.67
+                        && NoiseRouter.SPREAD_XZ_SCALE == 1.0
+                        && near(NoiseRouter.SPREAD_Y_SCALE, 0.7142857142857143));
 
         // ============ (f) td round-trips / self description ============
         String rtd = r1.td();
@@ -296,6 +326,21 @@ public final class NoiseRouterProbe {
             System.out.println("[NoiseRouterProbe] FAIL: " + failures + " assertion(s) of " + checks);
             System.exit(1);
         }
+    }
+
+    /** True when the two leaves differ at some grid point (the blended-noise guard
+     * may pin individual points to 0, so single-coordinate comparisons are fragile). */
+    private static boolean leafDiffers(BlendedNoise a, BlendedNoise b) {
+        for (double y : new double[]{0.0, 20.0, 64.0, 128.0}) {
+            for (double x : new double[]{-120.0, 12.5, 33.25, 512.0}) {
+                for (double z : new double[]{-33.25, 99.0, 300.0}) {
+                    if (!near(a.eval(x, y, z), b.eval(x, y, z))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean rejectsIntBound(PositionalRand r) {

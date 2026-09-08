@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.toterra.subterra.optim.worldgen.pipeline.composite.DensityComposite;
+import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.SimplexNoise;
 import io.toterra.subterra.optim.worldgen.pipeline.composite.ShiftedNoiseFn;
 import io.toterra.subterra.optim.worldgen.pipeline.composite.SlideFn;
 import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
@@ -30,10 +31,11 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * amplitude list in {@link #NOISE_REGISTRATIONS} (p.1.8.28) — the faithful 1.21.1
  * registrations transcribed exactly from the {@code data/minecraft/worldgen/noise/*.json}
  * files of the shipped client jar (the six climate families, the aquifer / ore-vein
- * router noises, and the {@code jagged} / {@code cave_entrance} terrain leaves),
- * plus four documented reduced stand-ins for leaves that have no vanilla Perlin
- * registration (the end islands are the hardcoded island shape; the base-3d
- * leaves are {@code old_blended_noise} density functions). The composite
+ * router noises, and the {@code jagged} / {@code cave_entrance} terrain leaves).
+ * Since p.1.8.29B the leaves without a Perlin registration are the real 1.21.1
+ * density functions: the base-3d leaves ({@code old_blended_noise} DFs) are the
+ * {@link BlendedNoise} octave-blend computer and the end islands are the
+ * {@link EndIslandNoise} island shape. The composite
  * fields ({@code depth}, {@code initialDensityWithoutJaggedness},
  * {@code finalDensity}) are built by the p.1.8.14 composite density-fields core
  * ({@link DensityComposite}) from the vanilla spline / slide / jaggedness /
@@ -46,7 +48,8 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * {@code noise_settings/end.json}: most fields are the pinned constant {@code 0}, with
  * the nether's {@code temperature}/{@code vegetation} + cheese {@code finalDensity} and
  * the end's island {@code erosion}/{@code initialDensity}/{@code finalDensity} composed
- * from seed-sensitive reduced leaves over the same seam.
+ * from the real {@link BlendedNoise} base-3d and {@link EndIslandNoise} leaves over the
+ * same seam.
  * <p>
  * 与原生兼容的噪声路由器装配表（p.1.8.12），镜像 MC 1.21.1 {@code NoiseRouter}
  * record 字段与访问器（名称经 javap 对照反混淆后的 1.21.1 类验证）。路由器恰有
@@ -62,8 +65,9 @@ import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
  * 叶子的 octave 锚与振幅列表查表自 {@link #NOISE_REGISTRATIONS}（p.1.8.28）——
  * 即从随包客户端 jar 的 {@code data/minecraft/worldgen/noise/*.json} 精确转写的
  * 1.21.1 注册（六个气候族、aquifer / 矿脉路由器噪声、{@code jagged} /
- * {@code cave_entrance} 地形叶），另加四个有文档的缩减占位（末地岛屿为硬编码岛形；
- * base-3d 叶为 {@code old_blended_noise} 密度函数，无 Perlin 注册）。组合字段
+ * {@code cave_entrance} 地形叶）。自 p.1.8.29B 起，无 Perlin 注册的叶子改用真实
+ * 1.21.1 密度函数：base-3d 叶（{@code old_blended_noise} DF）为 {@link BlendedNoise}
+ * 八度混合计算机，末地岛屿为 {@link EndIslandNoise} 岛形。组合字段
  * （{@code depth}、{@code initialDensityWithoutJaggedness}、{@code finalDensity}）
  * 由 p.1.8.14 组合密度场核心（{@link DensityComposite}）按原生 spline / slide /
  * jaggedness / shiftedNoise 组合构建（见 {@code pipeline.composite} 包）；其值有限、
@@ -120,10 +124,11 @@ public final class NoiseRouter {
      * {@code vegetation}, {@code continentalness}, {@code erosion},
      * {@code ridge}, {@code offset}), the four aquifer and four ore-vein router
      * noises, and the {@code jagged} / {@code cave_entrance} terrain leaves —
-     * followed by four documented reduced stand-ins for leaves that have no
-     * vanilla Perlin registration (the end islands are the hardcoded island
-     * shape; the base-3d leaves are {@code old_blended_noise} density functions).
-     * Keyed by the vanilla noise label, which is also the string hashed into the
+     * The leaves without a vanilla Perlin registration (the base-3d
+     * {@code old_blended_noise} families and the end-island shape) have their own
+     * real 1.21.1 density functions since p.1.8.29B ({@link BlendedNoise} /
+     * {@link EndIslandNoise}) and carry no registry entries here. Keyed by the
+     * vanilla noise label, which is also the string hashed into the
      * per-noise seed chain; built once, unmodifiable.
      */
     public static final Map<String, NoiseReg> NOISE_REGISTRATIONS = createRegistrations();
@@ -158,11 +163,9 @@ public final class NoiseRouter {
                 new double[]{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}));
         m.put("minecraft:cave_entrance", new NoiseReg(-7, new double[]{0.4, 0.5, 1.0}));
-        // documented reduced stand-ins (no vanilla Perlin registration exists)
-        m.put("minecraft:end_islands", new NoiseReg(-3, new double[]{1.0}));
-        m.put("minecraft:nether/base_3d_noise", new NoiseReg(-2, new double[]{1.0}));
-        m.put("minecraft:end/base_3d_noise", new NoiseReg(-2, new double[]{1.0}));
-        m.put("minecraft:base_3d_noise", new NoiseReg(-2, new double[]{1.0}));
+        // base_3d_noise / end_islands have no Perlin registration: since p.1.8.29B they
+        // are built from their real 1.21.1 density functions (BlendedNoise / EndIslandNoise),
+        // so no stand-in entries exist in this registry.
         return Collections.unmodifiableMap(m);
     }
 
@@ -179,29 +182,27 @@ public final class NoiseRouter {
         return reg;
     }
 
-    /** AQUIFER_BARRIER field coordinate xz-scale. */
-    public static final double BARRIER_XZ_SCALE = 0.5;
-    /** AQUIFER_FLUID_LEVEL_FLOODEDNESS field coordinate xz-scale. */
-    public static final double FLOODEDNESS_XZ_SCALE = 0.67;
-    /** AQUIFER_FLUID_LEVEL_SPREAD field coordinate xz-scale. */
-    public static final double SPREAD_XZ_SCALE = 0.7142857142857143;
+    /** AQUIFER_BARRIER field coordinate xz-scale (barrier_noise JSON: xz_scale=1.0). */
+    public static final double BARRIER_XZ_SCALE = 1.0;
+    /** AQUIFER_BARRIER field coordinate y-scale (barrier_noise JSON: y_scale=0.5). */
+    public static final double BARRIER_Y_SCALE = 0.5;
+    /** AQUIFER_FLUID_LEVEL_FLOODEDNESS field coordinate xz-scale (floodedness JSON: xz_scale=1.0). */
+    public static final double FLOODEDNESS_XZ_SCALE = 1.0;
+    /** AQUIFER_FLUID_LEVEL_FLOODEDNESS field coordinate y-scale (floodedness JSON: y_scale=0.67). */
+    public static final double FLOODEDNESS_Y_SCALE = 0.67;
+    /** AQUIFER_FLUID_LEVEL_SPREAD field coordinate xz-scale (spread JSON: xz_scale=1.0). */
+    public static final double SPREAD_XZ_SCALE = 1.0;
+    /** AQUIFER_FLUID_LEVEL_SPREAD field coordinate y-scale (spread JSON: y_scale=0.7142857142857143). */
+    public static final double SPREAD_Y_SCALE = 0.7142857142857143;
 
-    // ---- nether / end recipe constants (verified against noise_settings/nether.json & end.json) ----
+    // ---- nether / end recipe constant (verified against noise_settings/nether.json & end.json) ----
     /**
      * The shared {@code final_density} scale factor (nether.json and end.json both
      * wrap the cheese in {@code mul(0.64, …)} then {@code squeeze} to [−1, 1]).
      */
     public static final double CHEESE_SCALE = 0.64;
-    /** Nether {@code nether/base_3d_noise} density-function label. */
-    public static final String NETHER_BASE_3D_LABEL = "minecraft:nether/base_3d_noise";
-    /** End {@code end/base_3d_noise} density-function label. */
-    public static final String END_BASE_3D_LABEL = "minecraft:end/base_3d_noise";
-    /** Nether {@code nether/base_3d_noise} coordinate scales (old_blended_noise json). */
-    public static final double NETHER_BASE_3D_XZ_SCALE = 0.25;
-    public static final double NETHER_BASE_3D_Y_SCALE = 0.375;
-    /** End {@code end/base_3d_noise} coordinate scales (old_blended_noise json). */
-    public static final double END_BASE_3D_XZ_SCALE = 0.25;
-    public static final double END_BASE_3D_Y_SCALE = 0.25;
+    // The base_3d parameter sets live on BlendedNoise (OVERWORLD_*/NETHER_*/END_*),
+    // and the end-island leaf on EndIslandNoise (p.1.8.29B real transcriptions).
 
     private final Density barrierNoise;
     private final Density fluidLevelFloodednessNoise;
@@ -398,11 +399,11 @@ public final class NoiseRouter {
         Density erosion = ShiftedNoiseFn.shiftedNoise2d(erosRaw, shiftX, shiftZ, climateScale);
         Density ridges = ShiftedNoiseFn.shiftedNoise2d(ridgeRaw, shiftX, shiftZ, climateScale);
 
-        Density barrier = noise(worldSeed, "minecraft:aquifer_barrier", 1.0, BARRIER_XZ_SCALE, 1.0);
+        Density barrier = noise(worldSeed, "minecraft:aquifer_barrier", 1.0, BARRIER_XZ_SCALE, BARRIER_Y_SCALE);
         Density floodedness = noise(worldSeed, "minecraft:aquifer_fluid_level_floodedness", 1.0,
-                FLOODEDNESS_XZ_SCALE, 1.0);
+                FLOODEDNESS_XZ_SCALE, FLOODEDNESS_Y_SCALE);
         Density spread = noise(worldSeed, "minecraft:aquifer_fluid_level_spread", 1.0,
-                SPREAD_XZ_SCALE, 1.0);
+                SPREAD_XZ_SCALE, SPREAD_Y_SCALE);
         Density lava = noise(worldSeed, "minecraft:aquifer_lava", 1.0, 1.0, 1.0);
 
         // --- vein fields (real labels + the vanilla single-amplitude registrations) ---
@@ -469,9 +470,9 @@ public final class NoiseRouter {
      *   g1 = yClamp(y, −8, 24, 0, 1);  g2 = yClamp(y, 104, 128, 1, 0)
      * </pre>
      *
-     * Deterministic, immortal, allocation-free in the hot path; the base_3d / shift
-     * leaves are seed-sensitive reduced stand-ins in the same style as the overworld
-     * factory (per the p.1.8.20 deferred recipe batch).
+     * Deterministic, immortal, allocation-free in the hot path; the base_3d leaf is
+     * the real 1.21.1 {@link BlendedNoise} (nether parameter set, p.1.8.29B) and the
+     * shift leaves resolve through the vanilla shifted-noise warp.
      *
      * @param worldSeed the master world seed.
      * @param minY      minimum block Y (inclusive).
@@ -489,8 +490,7 @@ public final class NoiseRouter {
         // nether.json reuses the same shift_x/shift_z warp as the overworld (p.1.8.27A).
         Density temperature = ShiftedNoiseFn.shiftedNoise2d(tempRaw, shiftX(shiftRaw), shiftZ(shiftRaw), 0.25);
         Density vegetation = ShiftedNoiseFn.shiftedNoise2d(vegRaw, shiftX(shiftRaw), shiftZ(shiftRaw), 0.25);
-        Density finalDensity = cheese(worldSeed, NETHER_BASE_3D_LABEL, NETHER_BASE_3D_XZ_SCALE,
-                NETHER_BASE_3D_Y_SCALE, -8.0, 24.0, 104.0, 128.0, 2.5);
+        Density finalDensity = cheese(BlendedNoise.nether(worldSeed), -8.0, 24.0, 104.0, 128.0, 2.5);
         return new NoiseRouter(worldSeed, zero, zero, zero, zero, temperature, vegetation,
                 zero, zero, zero, zero, zero, finalDensity, zero, zero, zero);
     }
@@ -511,15 +511,16 @@ public final class NoiseRouter {
      * {@code lava}, {@code temperature}, {@code vegetation}, {@code continents},
      * {@code depth}, {@code ridges}, and the three vein fields) are rendered as
      * the constant-zero {@code Density}. {@code erosion} is
-     * {@code cache_2d(end_islands)} (a reduced 2-D seed-sensitive leaf); and both
-     * {@code initialDensityWithoutJaggedness} and {@code finalDensity} compose that
-     * island signal with two {@code y_clamped_gradient} falls plus the
-     * {@code end/sloped_cheese} ({@code end_islands + end/base_3d_noise}) —
-     * {@code finalDensity} additionally scaled by 0.64 and {@code squeeze}d:
+     * {@code cache_2d(end_islands)} (the real 1.21.1 {@link EndIslandNoise} island
+     * shape, p.1.8.29B); and both {@code initialDensityWithoutJaggedness} and
+     * {@code finalDensity} compose that island signal with two
+     * {@code y_clamped_gradient} falls plus the {@code end/sloped_cheese}
+     * ({@code end_islands + end/base_3d_noise}) — {@code finalDensity}
+     * additionally scaled by 0.64 and {@code squeeze}d:
      *
      * <pre>
-     *   islands = end_islands (2-D, seed-sensitive reduced leaf)
-     *   base    = end/base_3d_noise (xz 0.25, y 0.25)
+     *   islands = end_islands (8-block-grid island shape)
+     *   base    = end/base_3d_noise (BlendedNoise, end parameter set)
      *   sc      = islands + base
      *   g1 = yClamp(y, 4, 32, 0, 1);  g2 = yClamp(y, 56, 312, 1, 0)
      *   initial = −0.234375 + g1 * (0.234375 + g2 * (23.4375 + (−0.703125 + islands)) − 23.4375)
@@ -527,8 +528,8 @@ public final class NoiseRouter {
      * </pre>
      *
      * Deterministic, immortal, allocation-free in the hot path; the island / base
-     * leaves are seed-sensitive reduced stand-ins (the island shape is structurally
-     * per-coordinate in the same reduced style as the overworld factory).
+     * leaves are the real 1.21.1 {@link EndIslandNoise} / {@link BlendedNoise}
+     * transcriptions (p.1.8.29B).
      *
      * @param worldSeed the master world seed.
      * @param minY      minimum block Y (inclusive).
@@ -540,8 +541,8 @@ public final class NoiseRouter {
             throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
         }
         Density zero = C0;
-        Density islands = noise2d(worldSeed, "minecraft:end_islands", 1.0);
-        Density base = noise3d(worldSeed, END_BASE_3D_LABEL, END_BASE_3D_XZ_SCALE, END_BASE_3D_Y_SCALE);
+        Density islands = new EndIslandNoise(worldSeed);
+        Density base = BlendedNoise.end(worldSeed);
         Density initial = endInitial(islands);
         Density finalDensity = endFinal(islands, base);
         return new NoiseRouter(worldSeed, zero, zero, zero, zero, zero, zero, zero,
@@ -570,9 +571,8 @@ public final class NoiseRouter {
     }
 
     /** The nether cheese {@code final_density} (base_3d + twin y-gradients + squeeze). */
-    private static Density cheese(long worldSeed, String baseLabel, double xzScale, double yScale,
+    private static Density cheese(Density base,
                                   double g1FromY, double g1ToY, double g2FromY, double g2ToY, double water) {
-        Density base = noise3d(worldSeed, baseLabel, xzScale, yScale);
         return (x, y, z) -> {
             double b = base.eval(x, y, z);
             double g1 = SlideFn.grad(y, g1FromY, g1ToY, 0.0, 1.0);
@@ -615,23 +615,6 @@ public final class NoiseRouter {
         return (x, y, z) -> 4.0 * offset.eval(0.25 * z, 0.25 * x, 0.0);
     }
 
-    /** A deterministic 3-D normal-noise leaf from a derived per-label seed, with
-     * the label's registered (stand-in) {@link NoiseReg} from the table. */
-    private static Density noise3d(long worldSeed, String label, double xzScale, double yScale) {
-        NoiseReg reg = registration(label);
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label),
-                reg.firstOctave(), reg.amplitudes());
-        return (x, y, z) -> n.getValue(x * xzScale, y * yScale, z * xzScale);
-    }
-
-    /** A deterministic 2-D normal-noise leaf (xz plane) from a derived per-label seed,
-     * with the label's registered {@link NoiseReg} from the table. */
-    private static Density noise2d(long worldSeed, String label, double xzScale) {
-        NoiseReg reg = registration(label);
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label),
-                reg.firstOctave(), reg.amplitudes());
-        return (x, y, z) -> n.getValue(x * xzScale, 0.0, z * xzScale);
-    }
 
     @Override
     public String toString() {

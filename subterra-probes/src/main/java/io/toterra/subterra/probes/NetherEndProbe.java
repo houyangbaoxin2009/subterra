@@ -2,6 +2,7 @@ package io.toterra.subterra.probes;
 
 import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
 import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.DimensionWorlds;
+import io.toterra.subterra.optim.worldgen.pipeline.router.BlendedNoise;
 import io.toterra.subterra.optim.worldgen.pipeline.dimworlds.WorldDim;
 import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
 
@@ -150,10 +151,12 @@ public final class NetherEndProbe {
         check("nether finalDensity finite at pinned coords", isFinite(nFinal));
         check("nether finalDensity deterministic across fresh calls",
                 nFinal.eval(12.5, 64.0, -33.25) == n2.finalDensity().eval(12.5, 64.0, -33.25));
-        // Seed sensitivity sampled mid-height where g1=g2=1, so final = 0.64 * base_3d (not clamped).
+        // p.1.8.29B: the real base_3d BlendedNoise saturates the cheese (|0.64*base| far beyond
+        // 1), exactly like vanilla — so seed-sensitivity of the cheese is only provable through
+        // its base_3d leaf, not through the squeezed final_density.
         NoiseRouter n3 = NoiseRouter.nether(seed + 123L);
-        check("nether finalDensity seed-sensitive (cheese)",
-                !near(nFinal.eval(12.5, 64.0, -33.25), n3.finalDensity().eval(12.5, 64.0, -33.25)));
+        check("nether base_3d leaf seed-sensitive (real BlendedNoise)",
+                leafDiffers(BlendedNoise.nether(seed), BlendedNoise.nether(seed + 123L)));
         boolean netherDiffers = false;
         for (int i = 0; i < 15; i++) {
             if (!near(n1.fieldAt(i).eval(12.5, 64.0, -33.25), n3.fieldAt(i).eval(12.5, 64.0, -33.25))) {
@@ -196,6 +199,12 @@ public final class NetherEndProbe {
         check("end erosion varies (end_islands, not constant 0)",
                 varies(e1.erosion()) && isFinite(e1.erosion()));
         check("end erosion is y-independent (cache_2d island signal)", yIndependent(e1.erosion()));
+        // p.1.8.29B: erosion is the real 1.21.1 end_islands shape (EndIslandNoise) —
+        // bounds and boundary behaviour pinned (island/archipelago heights on the 8-grid).
+        check("end erosion within vanilla island bounds [-0.84375, 0.5625]",
+                islandBounds(e1.erosion()));
+        check("end erosion at the island core == vanilla max 0.5625 (height 80 cap)",
+                e1.erosion().eval(0.0, 0.0, 0.0) == 0.5625);
 
         Density eFinal = e1.finalDensity();
         Density eInit = e1.initialDensityWithoutJaggedness();
@@ -206,19 +215,31 @@ public final class NetherEndProbe {
         check("end initialDensity deterministic across fresh calls",
                 eInit.eval(12.5, 64.0, -33.25) == e2.initialDensityWithoutJaggedness().eval(12.5, 64.0, -33.25));
         NoiseRouter e3 = NoiseRouter.end(seed + 123L);
-        // At y in (4, 32) g2 is pinned 1 so the +-23.4375 terms cancel; raw = 0.64*sc-ish
-        // (never clamp-saturated), giving a provably seed-sensitive, unclamped sample.
-        check("end finalDensity seed-sensitive (island + base_3d)",
-                !near(eFinal.eval(12.5, 20.0, -33.25), e3.finalDensity().eval(12.5, 20.0, -33.25)));
-        check("end initialDensity seed-sensitive (island)",
-                !near(eInit.eval(12.5, 20.0, -33.25), e3.initialDensityWithoutJaggedness().eval(12.5, 20.0, -33.25)));
+        // p.1.8.29B: the end islands are the real EndIslandNoise shape — noise-independent near
+        // the origin (the >4096 neighbourhood ring needs |block|/8 above ~45), so sensitivity is
+        // asserted in the far field where the ring shapes the islands; the base_3d leaf is
+        // asserted directly because real BlendedNoise saturates the cheese (vanilla reality).
+        check("end base_3d leaf seed-sensitive (real BlendedNoise)",
+                leafDiffers(BlendedNoise.end(seed), BlendedNoise.end(seed + 123L)));
+        check("end finalDensity seed-sensitive (far-field islands + base_3d)",
+                !near(eFinal.eval(1500.0, 20.0, -2000.0), e3.finalDensity().eval(1500.0, 20.0, -2000.0)));
+        check("end initialDensity seed-sensitive (far-field islands)",
+                !near(eInit.eval(1500.0, 20.0, -2000.0), e3.initialDensityWithoutJaggedness().eval(1500.0, 20.0, -2000.0)));
         boolean endDiffers = false;
-        for (int i = 0; i < 15; i++) {
-            if (!near(e1.fieldAt(i).eval(12.5, 64.0, -33.25), e3.fieldAt(i).eval(12.5, 64.0, -33.25))) {
-                endDiffers = true;
+        outer:
+        for (double y : new double[]{0.0, 20.0, 64.0, 128.0}) {
+            for (double x : new double[]{-120.0, 12.5, 33.25, 512.0, 1500.0}) {
+                for (double z : new double[]{-33.25, 99.0, 300.0}) {
+                    for (int i = 0; i < 15; i++) {
+                        if (!near(e1.fieldAt(i).eval(x, y, z), e3.fieldAt(i).eval(x, y, z))) {
+                            endDiffers = true;
+                            break outer;
+                        }
+                    }
+                }
             }
         }
-        check("end router differs across world seeds", endDiffers);
+        check("end router differs across world seeds (over grid)", endDiffers);
         // Vanilla y_clamped_gradient floor: below y=4 gE1=0 -> final = clamp(0.64*-0.234375) = -0.15.
         check("end finalDensity saturates at floor (y=0 -> -0.15)",
                 e1.finalDensity().eval(0.0, 0.0, 0.0) == -0.15);
@@ -261,6 +282,32 @@ public final class NetherEndProbe {
             System.out.println("[NetherEndProbe] FAIL: " + failures + " assertion(s) of " + checks);
             System.exit(1);
         }
+    }
+
+    /** True when the two leaves differ at some grid point (guard saturation may pin
+     * individual points to 0, so single-coordinate comparisons are not meaningful). */
+    private static boolean leafDiffers(Density a, Density b) {
+        for (double y : new double[]{0.0, 20.0, 64.0, 128.0}) {
+            for (double x : new double[]{-120.0, 12.5, 33.25, 512.0}) {
+                for (double z : new double[]{-33.25, 99.0, 300.0}) {
+                    if (!near(a.eval(x, y, z), b.eval(x, y, z))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** True when {@code field} stays within the vanilla end_islands band. */
+    private static boolean islandBounds(Density field) {
+        for (int i = 0; i < CX.length; i++) {
+            double v = field.eval(CX[i], CY[i], CZ[i]);
+            if (!(v >= -0.84375 && v <= 0.5625)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** True when every grid sample of {@code field} lies within the squeeze bounds [−1, 1]. */

@@ -4,6 +4,7 @@ import java.util.Objects;
 
 import io.toterra.subterra.optim.worldgen.pipeline.density.Density;
 import io.toterra.subterra.optim.worldgen.pipeline.noise.simplex.NormalNoise;
+import io.toterra.subterra.optim.worldgen.pipeline.router.BlendedNoise;
 import io.toterra.subterra.optim.worldgen.pipeline.router.NoiseRouter;
 import io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand;
 
@@ -117,10 +118,11 @@ public final class DensityComposite {
 
         // --- jagged / base3d noise leaves (over the seed) ---
         // jagged uses its faithful 1.21.1 registration (-16, [1×16], p.1.8.28); base_3d_noise
-        // is an old_blended_noise density function with no Perlin registration, so it keeps
-        // its documented reduced stand-in from NoiseRouter.NOISE_REGISTRATIONS.
+        // is the real 1.21.1 old_blended_noise density function (p.1.8.29B): the octave-blend
+        // BlendedNoise built over the per-world terrain stream with the overworld parameter
+        // set (xz 0.25 / y 0.125 / xz_factor 80 / y_factor 160 / smear 8).
         Density jaggedNoise = noise2d(seed, "minecraft:jagged", 1500.0);
-        Density base3d = noise3d(seed, "minecraft:base_3d_noise", 0.25, 0.125);
+        Density base3d = BlendedNoise.overworld(seed);
 
         // --- depth field: gradient + offset (faithful) ---
         Density depthGrad = (x, y, z) -> SlideFn.grad(y, minY, maxY, 1.5, -1.5);
@@ -239,14 +241,5 @@ public final class DensityComposite {
         NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label),
                 reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> n.getValue(x * xzScale, 0.0, z * xzScale);
-    }
-
-    /** A deterministic 3-D normal-noise leaf from a derived per-label seed,
-     * with the label's {@link NoiseRouter.NoiseReg} registration. */
-    private static Density noise3d(long seed, String label, double xzScale, double yScale) {
-        NoiseRouter.NoiseReg reg = NoiseRouter.registration(label);
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label),
-                reg.firstOctave(), reg.amplitudes());
-        return (x, y, z) -> n.getValue(x * xzScale, y * yScale, z * xzScale);
     }
 }

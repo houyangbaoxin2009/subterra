@@ -36,6 +36,20 @@ public final class XoroRandom {
     /** The construct-time master seed, retained for td self-description. */
     private final long seed;
 
+    /**
+     * The low 64-bit state word (p.1.8.29B), exposed so callers that build the
+     * stream from a derived {@code fromHashOf} state can round-trip it through a
+     * {@link #td()}/{@link #fromTd(String)} snippet or reconstruct the source.
+     */
+    public long seedLo() {
+        return this.seedLo;
+    }
+
+    /** The high 64-bit state word (see {@link #seedLo()}). */
+    public long seedHi() {
+        return this.seedHi;
+    }
+
     /** Xoroshiro128++ state words. */
     private long seedLo;
     private long seedHi;
@@ -52,6 +66,27 @@ public final class XoroRandom {
         Seed128 s = upgradeSeedTo128bit(seed);
         this.seedLo = s.seedLo;
         this.seedHi = s.seedHi;
+    }
+
+    /**
+     * Direct 128-bit-state constructor, mirroring vanilla
+     * {@code XoroshiroRandomSource(long, long)} (p.1.8.29B): the two state words
+     * are used <em>as-is</em> — no seed upgrade, no mixing — exactly how the
+     * {@code fromHashOf}-derived states are handed to {@code XoroshiroRandomSource}
+     * by {@link io.toterra.subterra.optim.worldgen.pipeline.router.PositionalRand}.
+     * An all-zero state is mapped onto the golden/silver pair (vanilla zero-guard).
+     *
+     * @param seedLo low 64-bit state word.
+     * @param seedHi high 64-bit state word.
+     */
+    public XoroRandom(long seedLo, long seedHi) {
+        this.seed = seedLo ^ seedHi;
+        this.seedLo = seedLo;
+        this.seedHi = seedHi;
+        if ((this.seedLo | this.seedHi) == 0L) {
+            this.seedLo = GOLDEN;
+            this.seedHi = SILVER;
+        }
     }
 
     /**

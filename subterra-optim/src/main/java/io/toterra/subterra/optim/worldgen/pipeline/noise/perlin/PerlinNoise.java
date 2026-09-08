@@ -1,6 +1,7 @@
 package io.toterra.subterra.optim.worldgen.pipeline.noise.perlin;
 
 import io.toterra.subterra.optim.worldgen.pipeline.noise.LegacyRandom;
+import io.toterra.subterra.optim.worldgen.pipeline.noise.XoroRandom;
 
 /**
  * The octave-Perlin-noise family carried by an amplitude list over a lattice of
@@ -114,6 +115,63 @@ public final class PerlinNoise {
     }
 
     /**
+     * Vanilla {@code skipOctave} over a shared {@link XoroRandom} stream
+     * (p.1.8.29B): {@code consumeCount(262)} = 262 discarded {@code nextInt()}
+     * draws, exactly the stream-advance {@code PerlinNoise.createLegacyForBlendedNoise}
+     * applies to a zero-amplitude octave when the stream is the blended-noise
+     * {@code XoroshiroRandomSource}.
+     */
+    public static void skipOctave(XoroRandom random) {
+        for (int i = 0; i < 262; i++) {
+            random.nextInt();
+        }
+    }
+
+    /**
+     * Builds an octave-Perlin field consuming a SHARED stream (p.1.8.29B) — the
+     * vanilla non-legacy {@code PerlinNoise(RandomSource, ...)} construction used
+     * by {@code createLegacyForBlendedNoise}: the first lattice is drawn from
+     * {@code stream} at amplitude index {@code -firstOctave}, then octaves
+     * {@code -firstOctave-1 .. 0} are consumed in descending order (a non-zero
+     * amplitude builds a lattice, a zero amplitude advances the stream by one
+     * octave). The stream is left advanced exactly past this family, so several
+     * families can share one source — as {@code BlendedNoise} does (min, then
+     * max, then main over a single Xoroshiro stream).
+     *
+     * @param stream      the shared stream to consume from.
+     * @param firstOctave the octave of amplitude index 0.
+     * @param amplitudes  one amplitude per octave.
+     * @throws IllegalArgumentException if an octave index is positive (vanilla
+     *                                  "Positive octaves are temporarily disabled").
+     */
+    public static PerlinNoise createFromStream(XoroRandom stream, int firstOctave, double[] amplitudes) {
+        if (amplitudes == null || amplitudes.length == 0) {
+            throw new IllegalArgumentException("Need some octaves!");
+        }
+        ImprovedNoise[] levels = new ImprovedNoise[amplitudes.length];
+        ImprovedNoise first = new ImprovedNoise(stream);
+        int firstIdx = -firstOctave;
+        if (firstIdx >= 0 && firstIdx < amplitudes.length && amplitudes[firstIdx] != 0.0) {
+            levels[firstIdx] = first;
+        }
+        for (int i = firstIdx - 1; i >= 0; i--) {
+            if (i < amplitudes.length) {
+                if (amplitudes[i] != 0.0) {
+                    levels[i] = new ImprovedNoise(stream);
+                } else {
+                    skipOctave(stream);
+                }
+            } else {
+                skipOctave(stream);
+            }
+        }
+        if (firstOctave >= 0) {
+            throw new IllegalArgumentException("Positive octaves are temporarily disabled");
+        }
+        return new PerlinNoise(firstOctave, amplitudes, levels);
+    }
+
+    /**
      * Evaluates the octave field at ({@code x}, {@code y}, {@code z}). The input
      * is wrapped, scaled per octave, each lattice sampled, and the amplitudes /
      * value-factors weighted exactly as vanilla.
@@ -151,9 +209,30 @@ public final class PerlinNoise {
         return this.noiseLevels[k];
     }
 
+    /**
+     * Vanilla {@code getOctaveNoise(i)}: the octave lattice at the <em>reversed</em>
+     * amplitude index {@code noiseLevels.length - 1 - i}. BlendedNoise (like vanilla
+     * {@code synth.PerlinNoise.getOctaveNoise}) walks octaves 0..size-1 where octave
+     * 0 is the highest-frequency lattice with the largest coordinate step — the exact
+     * pairing the octave-blend loop relies on.
+     */
+    public ImprovedNoise getOctaveNoise(int i) {
+        return this.noiseLevels[this.noiseLevels.length - 1 - i];
+    }
+
     /** Vanilla {@code maxValue()}: worst-case edge magnitude (used by density callers). */
     public double maxValue() {
         return this.maxValue;
+    }
+
+    /**
+     * Vanilla {@code maxBrokenValue(at)} = {@code edgeValue(at + 2.0)} — the
+     * worst-case edge magnitude at a given amplitude; used by
+     * {@code BlendedNoise} to bound its blended field ({@code maxValue =
+     * minLimitNoise.maxBrokenValue(yMultiplier)}).
+     */
+    public double maxBrokenValue(double at) {
+        return edgeValue(at + 2.0);
     }
 
     /** Vanilla {@code wrap}: fold a coordinate into {@code [-2^25, 2^25]}. */

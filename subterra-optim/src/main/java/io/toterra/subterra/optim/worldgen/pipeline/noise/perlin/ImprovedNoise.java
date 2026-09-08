@@ -1,6 +1,10 @@
 package io.toterra.subterra.optim.worldgen.pipeline.noise.perlin;
 
+import java.util.function.DoubleSupplier;
+import java.util.function.IntUnaryOperator;
+
 import io.toterra.subterra.optim.worldgen.pipeline.noise.LegacyRandom;
+import io.toterra.subterra.optim.worldgen.pipeline.noise.XoroRandom;
 
 /**
  * The 3-D Perlin gradient-lattice cell, bit-identical in structure, constants
@@ -36,7 +40,7 @@ public final class ImprovedNoise {
             {1, 1, 0}, {0, -1, 1}, {-1, 1, 0}, {0, -1, -1},
     };
 
-    private final int[] p = new int[256];
+    private final int[] p;
 
     /** Per-instance lattice offset (vanilla parity). */
     public final double xo;
@@ -53,18 +57,48 @@ public final class ImprovedNoise {
      * @param random source of the per-instance permutation and offset.
      */
     public ImprovedNoise(LegacyRandom random) {
-        this.xo = random.nextDouble() * 256.0;
-        this.yo = random.nextDouble() * 256.0;
-        this.zo = random.nextDouble() * 256.0;
+        this(build(random::nextDouble, random::nextInt));
+    }
+
+    /**
+     * Builds a lattice from a {@link XoroRandom} (p.1.8.29B), consuming the
+     * shared stream with the identical order as the legacy path — three
+     * {@code nextDouble} for the offset, then 256 Fisher-Yates {@code nextInt}
+     * draws — matching vanilla's {@code ImprovedNoise(RandomSource)} exactly for
+     * the {@code XoroshiroRandomSource} stream used by {@code BlendedNoise}.
+     *
+     * @param random source of the per-instance permutation and offset.
+     */
+    public ImprovedNoise(XoroRandom random) {
+        this(build(random::nextDouble, random::nextInt));
+    }
+
+    private record Table(double xo, double yo, double zo, int[] p) {
+    }
+
+    private ImprovedNoise(Table table) {
+        this.xo = table.xo;
+        this.yo = table.yo;
+        this.zo = table.zo;
+        this.p = table.p;
+    }
+
+    /** Vanilla lattice build: three seed-doubles, then a 256-entry Fisher-Yates. */
+    private static Table build(DoubleSupplier nextDouble, IntUnaryOperator nextInt) {
+        double xo = nextDouble.getAsDouble() * 256.0;
+        double yo = nextDouble.getAsDouble() * 256.0;
+        double zo = nextDouble.getAsDouble() * 256.0;
+        int[] p = new int[256];
         for (int i = 0; i < 256; i++) {
-            this.p[i] = i;
+            p[i] = i;
         }
         for (int i = 0; i < 256; i++) {
-            int j = i + random.nextInt(256 - i);
-            int t = this.p[i];
-            this.p[i] = this.p[j];
-            this.p[j] = t;
+            int j = i + nextInt.applyAsInt(256 - i);
+            int t = p[i];
+            p[i] = p[j];
+            p[j] = t;
         }
+        return new Table(xo, yo, zo, p);
     }
 
     /**

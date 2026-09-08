@@ -161,9 +161,15 @@ public final class SubterraDensity implements DensityFunction {
 
     @Override
     public DensityFunction mapAll(DensityFunction.Visitor visitor) {
-        // The world seed is captured out-of-band (SubterraWorldgen), so the wiring
-        // visitor (RandomState$NoiseWiringHelper) does not need to touch this leaf.
-        return this;
+        // p.1.8.29C: hand this leaf to the wiring visitor (the DensityFunction interface
+        // default), exactly like every other vanilla leaf. The per-chunk sampler's visitor
+        // then wraps us in its cell cache (NoiseChunk$CacheAllInCell), so the final-density
+        // tree is sampled once per 4x4x8 cell corner and trilinearly interpolated instead of
+        // being re-evaluated per block (the former "return this" skipped the visitor and left
+        // the whole sloped-cheese + cave-family tree uncached -> one full-tree eval per block,
+        // 100% CPU during chunk generation). The world-level wiring visitor (RandomState
+        // NoiseWiringHelper) returns this leaf unchanged.
+        return visitor.apply(this);
     }
 
     @Override
