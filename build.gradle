@@ -48,6 +48,8 @@ sourceSets {
         java.srcDir('subterra-c2me/src/main/java')
         java.srcDir('subterra-itemban/src/main/java')
         java.srcDir('subterra-worldgen/src/main/java')
+        // p.2.0: MC-layer runtime source-host (launch/fix/worldgen wiring land here).
+        java.srcDir('subterra-runtime/src/main/java')
     }
     test {
         java.srcDir('subterra-invadvopt/src/test/java')
@@ -99,13 +101,9 @@ neoForge {
     // These can be tweaked, removed, or duplicated as needed.
     runs {
         // L1 launch package (p.1.1): inject the Subterra JVM argument package
-        // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
+        // before process start. Keep in sync with JvmLaunchArgs (runtime.launch);
         // the mod validates the presence of these flags at boot.
         configureEach {
-            // The launch module classes must be visible to the game layer in dev
-            // (runtime search differs from the shipped mod jar aggregation).
-            additionalRuntimeClasspathConfiguration.dependencies.add(
-                    project.dependencies.create(project(':subterra-launch')))
             // API + engine cores are referenced by MC-layer source hosts
             // (e.g. the JEC pinyin search port uses engine.optim.logic.pronounce).
             additionalRuntimeClasspathConfiguration.dependencies.add(
@@ -115,10 +113,8 @@ neoForge {
                     project.dependencies.create(project(':subterra-engine')))
             // NOTE: MC-layer source hosts (subterra-invadvopt) compile into the
             // root main source set and need no dev-run classpath injection.
+            // p.2.0.7: launch/fix classes now live in the root main output — nothing to inject.
 
-            // L1 launch package (p.1.1): inject the Subterra JVM argument package
-            // before process start. Keep in sync with JvmLaunchArgs (subterra-launch);
-            // the mod validates the presence of these flags at boot.
             jvmArguments.addAll([
                     '-XX:+UseZGC',
                     '-XX:InitialRAMPercentage=75',
@@ -212,8 +208,6 @@ configurations {
 }
 
 dependencies {
-    // Launch layer (JVM runtime verification) is used by the main mod class.
-    implementation project(':subterra-launch')
     // API + engine cores are referenced by MC-layer source hosts
     // (e.g. the JEC pinyin search port uses engine.optim.logic.pronounce).
     implementation project(':subterra-api')

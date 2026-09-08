@@ -1,7 +1,7 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.compat.Java25Gaps;
-import io.toterra.subterra.compat.Java25Gaps.Gap;
+import io.toterra.subterra.runtime.fix.Java25Gaps;
+import io.toterra.subterra.runtime.fix.Java25Gaps.Gap;
 
 import java.util.List;
 

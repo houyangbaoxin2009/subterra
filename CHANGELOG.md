@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.7] Move launch + compat into runtime.{launch,fix} / launch + compat 迁入 runtime.{launch,fix} (2026-09-08)
+
+* `subterra-launch` (JvmEnv / JvmLaunchArgs) moves into the runtime source-host as `io.toterra.subterra.runtime.launch.*`, `subterra-compat` (Java25Gaps) as `io.toterra.subterra.runtime.fix.*`; both modules are dropped; devkit now depends on the root main output (one-way file dep) / `subterra-launch`（JvmEnv / JvmLaunchArgs）迁入 runtime source-host 的 `io.toterra.subterra.runtime.launch.*`，`subterra-compat`（Java25Gaps）迁为 `io.toterra.subterra.runtime.fix.*`；两模块移除；devkit 改依赖 root main 输出（单向文件依赖）
+
 ## [p.2.0.6] Move profiler into engine.worldgen.profiler / profiler 迁入 engine.worldgen.profiler (2026-09-08)
 
 * `subterra-profiler` moves into `subterra-engine` as `io.toterra.subterra.engine.worldgen.profiler.*` (core/facade/report); the module is dropped; run-injection now only api + engine (+ launch); the MC-layer profiler hooks re-pointed / `subterra-profiler` 迁入 `subterra-engine` 的 `io.toterra.subterra.engine.worldgen.profiler.*`（core/facade/report）；模块移除；run 注入收敛为 api + engine（+ launch）；MC 层 profiler 钩子同步改指

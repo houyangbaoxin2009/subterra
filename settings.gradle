@@ -11,8 +11,6 @@ plugins {
 // Modular monolith: subterra-api publishes standalone; the rest coalesce into the main mod jar.
 // p.2.0 re-layout: engine (pure JDK) + migrate/devkit (never shipped); the runtime layer is a
 // source-host directory mounted into the root main sourceSet (not a Gradle subproject).
-include 'subterra-launch'
-include 'subterra-compat'
 include 'subterra-api'
 include 'subterra-engine'
 include 'subterra-migrate'

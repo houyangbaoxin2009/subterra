@@ -1,6 +1,6 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.runtime.JvmLaunchArgs;
+import io.toterra.subterra.runtime.launch.JvmLaunchArgs;
 
 import java.util.List;
 

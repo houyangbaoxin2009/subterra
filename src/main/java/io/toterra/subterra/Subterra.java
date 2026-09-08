@@ -13,8 +13,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
-import io.toterra.subterra.runtime.JvmEnv;
-import io.toterra.subterra.runtime.JvmLaunchArgs;
+import io.toterra.subterra.runtime.launch.JvmEnv;
+import io.toterra.subterra.runtime.launch.JvmLaunchArgs;
 
 import java.lang.management.ManagementFactory;
 import java.util.List;

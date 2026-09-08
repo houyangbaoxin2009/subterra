@@ -1,4 +1,4 @@
-package io.toterra.subterra.compat;
+package io.toterra.subterra.runtime.fix;
 
 import java.util.List;
 

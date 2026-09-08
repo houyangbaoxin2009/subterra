@@ -1,6 +1,6 @@
 package io.toterra.subterra.probes;
 
-import io.toterra.subterra.runtime.JvmEnv;
+import io.toterra.subterra.runtime.launch.JvmEnv;
 
 /**
  * Deterministic acceptance probe for the L1 launch layer (subterra-launch).
