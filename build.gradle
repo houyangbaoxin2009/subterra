@@ -27,9 +27,10 @@ subprojects {
 }
 
 // The shipped mod jar aggregates all submodule class outputs (one mod jar).
-// subterra-probes is acceptance-only and never shipped (design doc §5.1).
+// subterra-devkit and subterra-migrate are acceptance/dev-only and never shipped
+// (design doc §5.1); only subterra-api + subterra-engine class outputs are coalesced.
 tasks.named('jar') {
-    from { subprojects.findAll { it.name != 'subterra-probes' }.collect { it.sourceSets.main.output } }
+    from { subprojects.findAll { it.name != 'subterra-devkit' && it.name != 'subterra-migrate' }.collect { it.sourceSets.main.output } }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 

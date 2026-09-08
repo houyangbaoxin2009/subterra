@@ -5,4 +5,4 @@
  * Only {@link io.toterra.subterra.engine.optim.util utility helpers} are pure JVM and
  * probe-gated today; category packages accept real optimizations as they land.
  */
-package io.toterra.subterra.optim;
+package io.toterra.subterra.engine.optim;

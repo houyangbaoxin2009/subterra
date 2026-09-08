@@ -29,7 +29,7 @@ import java.util.Set;
 
 /**
  * Item/block blacklist configuration, stored as td
- * ({@code config/subterra/item_control.td}) via subterra-config. Unknown or
+ * ({@code config/subterra/item_control.td}) via engine.config. Unknown or
  * invalid fields fall back to defaults so a broken config file can never take
  * the capability down.
  *

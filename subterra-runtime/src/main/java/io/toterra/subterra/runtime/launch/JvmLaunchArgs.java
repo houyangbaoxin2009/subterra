@@ -12,7 +12,7 @@ import java.util.List;
  * boot and logs a remediation hint when required flags are missing.
  * <p>
  * Pure data / pure functions — no Minecraft runtime dependency, exerciseable
- * directly by {@code subterra-probes}.
+ * directly by the {@code subterra-devkit} probes.
  */
 public final class JvmLaunchArgs {
 

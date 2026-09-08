@@ -12,7 +12,7 @@ import java.nio.file.Path;
 
 /**
  * Villager lobotomization config, loaded from td (see
- * {@code config/subterra/servercore.td}) via subterra-config. Unknown or
+ * {@code config/subterra/servercore.td}) via engine.config. Unknown or
  * invalid fields fall back to defaults so a broken config file can never take
  * the port down.
  *

@@ -48,7 +48,7 @@ import io.toterra.subterra.engine.worldgen.profiler.report.ZdWriter;
  * ApiRegistry register/run/enable/remove lifecycle. Exit 0 = PASS, 1 = FAIL
  * (never shipped in the mod jar).
  *
- * p.1.8.30 "World Profiler" 纯 JDK 引擎（subterra-profiler）的确定性验收探针。
+ * p.1.8.30 "World Profiler" 纯 JDK 引擎（engine.worldgen.profiler）的确定性验收探针。
  * 用确定性假采样器驱动 StatsEngine / SliceCollector / ResidentCollector /
  * ProfilePlanTd / ApiRegistry，并断言引擎契约不变式；同时校验 td 与 zd 序列化
  * （头部字节布局）以及 ApiRegistry 注册/运行/开关/移除生命周期。退出码 0 = PASS，

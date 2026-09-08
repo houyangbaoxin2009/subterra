@@ -33,13 +33,11 @@ public final class SubterraLogging {
 
     /** Module/version registry content, in dependency order. Keep in sync with build.gradle. */
     private static final String[][] MODULES = {
-            {"subterra-launch", "p.1.1.1", ""},
             {"subterra-api", "p.1.3.0", ""},
-            {"subterra-compat", "p.1.2.0", "subterra-launch"},
-            {"subterra-optim", "p.1.4.0", "subterra-api"},
-            {"subterra-config", "p.1.5.0", ""},
-            {"subterra-log", "p.1.6.0", "subterra-config"},
-            {"subterra", "p.1.6.1", "subterra-launch,subterra-api,subterra-compat,subterra-optim,subterra-config,subterra-log"},
+            {"subterra-engine", "p.2.0.1", "subterra-api"},
+            {"subterra", "p.2.0.10", "subterra-api,subterra-engine"},
+            {"subterra-migrate", "p.2.0.1", "subterra-api"},
+            {"subterra-devkit", "p.2.0.1", "subterra-api,subterra-engine,subterra-migrate,subterra"},
     };
 
     private SubterraLogging() {

@@ -2,6 +2,10 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.11] Cleanup + docs + final p.2.0 line / 清理 + 文档 + p.2.0 终版 (2026-09-08)
+
+* p.2.0 module re-layout complete: api / engine / runtime / migrate / devkit landed, IronLawProbe enforces the dependency iron law, module registry + docs updated, acceptance wiring aligned; ROAD.md p.2.0 marked landed / p.2.0 模块重构完成：api / engine / runtime / migrate / devkit 落地，IronLawProbe 强制依赖铁律，模块注册表与文档更新，验收接线对齐；ROAD.md 标记 p.2.0 落地
+
 ## [p.2.0.10] Dependency iron-law probe (IronLawProbe) / 依赖铁律探针 IronLawProbe (2026-09-08)
 
 * NEW `IronLawProbe` (pure JDK, zero deps): scans compiled class constant pools and enforces api <- engine <- runtime / migrate / devkit layering (api/engine/migrate never reference MC; engine/migrate never reference runtime; no duplicate FQCN across roots), wired into `probeAcceptance` / 新增 `IronLawProbe`（纯 JDK 零依赖）：扫描编译产物常量池，强制 api <- engine <- runtime / migrate / devkit 分层（api/engine/migrate 不得引用 MC；engine/migrate 不得引用 runtime；跨 root 无重复 FQCN），接入 `probeAcceptance`

@@ -12,7 +12,7 @@ import java.nio.file.Path;
 
 /**
  * Smooth Boot tuning, loaded from td (see {@code config/subterra/smoothboot.td})
- * via subterra-config. Unknown or invalid fields fall back to defaults so a
+ * via engine.config. Unknown or invalid fields fall back to defaults so a
  * broken config file can never take the worker tuning down.
  *
  * <pre>{@code

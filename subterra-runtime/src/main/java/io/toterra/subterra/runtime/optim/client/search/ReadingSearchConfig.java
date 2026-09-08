@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Reading search config, loaded from td (see {@code config/subterra/jec.td})
- * via subterra-config. Unknown or invalid fields fall back to defaults so a
+ * via engine.config. Unknown or invalid fields fall back to defaults so a
  * broken config file can never take the port down.
  *
  * <pre>{@code

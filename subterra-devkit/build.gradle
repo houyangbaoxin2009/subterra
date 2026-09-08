@@ -330,9 +330,11 @@ def worldProfileAcceptance = tasks.register('runWorldProfileAcceptance', JavaExe
     systemProperty 'subterra.projectDir', rootProject.projectDir.absolutePath
     systemProperty 'subterra.seed', System.getProperty('subterra.seed', project.findProperty('subterra.seed') ?: '44905237')
     systemProperty 'subterra.levelType', System.getProperty('subterra.levelType', project.findProperty('subterra.levelType') ?: 'subterra:subterra')
-    systemProperty 'subterra.profileRadius', System.getProperty('subterra.profileRadius', project.findProperty('subterra.profileRadius') ?: '1')
-    systemProperty 'subterra.profileBuild', System.getProperty('subterra.profileBuild', project.findProperty('subterra.profileBuild') ?: 'false')
-    systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', project.findProperty('subterra.profileSlice') ?: 'z:-4:4:block:0:0')
+    systemProperty 'subterra.profileRadius', System.getProperty('subterra.profileRadius', project.findProperty('subterra.profileRadius') ?: '2')
+    systemProperty 'subterra.profileBuild', System.getProperty('subterra.profileBuild', project.findProperty('subterra.profileBuild') ?: 'true')
+    systemProperty 'subterra.profileSlice', System.getProperty('subterra.profileSlice', project.findProperty('subterra.profileSlice') ?: '')
+    systemProperty 'subterra.profileCenter', System.getProperty('subterra.profileCenter', project.findProperty('subterra.profileCenter') ?: '4000,4000')
+    systemProperty 'subterra.perfCount', System.getProperty('subterra.perfCount', project.findProperty('subterra.perfCount') ?: 'true')
 }
 
 // p.2.0.10: dependency iron-law probe — scans compiled class constant pools and

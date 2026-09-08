@@ -3,7 +3,7 @@ package io.toterra.subterra.probes;
 import io.toterra.subterra.runtime.launch.JvmEnv;
 
 /**
- * Deterministic acceptance probe for the L1 launch layer (subterra-launch).
+ * Deterministic acceptance probe for the L1 launch layer (runtime.launch).
  * Pure JVM — no Minecraft runtime required.
  * <p>
  * Verifies the L1 runtime contract: baseline constant and the JVM report

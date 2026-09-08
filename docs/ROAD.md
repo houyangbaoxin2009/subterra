@@ -72,6 +72,7 @@
 
 ## Progress Log / 进度记录
 
+* 2026-09-08 — p.2.0 landed: module re-layout api / engine / runtime / migrate / devkit + IronLawProbe dependency iron law, probes green / 2026-09-08 — p.2.0 落地：api / engine / runtime / migrate / devkit 模块重构 + IronLawProbe 依赖铁律，探针全绿。
 * 2026-09-08 — Patchouli assessed / Patchouli 评估：CC-BY-NC-SA 3.0 → 仅思想参考；文档书籍 GUI clean-room 自研（engine.ui.docbook，td 驱动零 json）。 / 2026-09-08 — Patchouli 评估：CC-BY-NC-SA 3.0 → 仅思想参考；文档书籍 GUI clean-room 自研（engine.ui.docbook，td 驱动零 json）。
 * 2026-09-08 — DataTip assessed / DataTip 评估：GPL-3.0 → 仅思想参考；数据驱动 tooltip 数据层 clean-room 自研（engine.ui，td 化，零 json，与 AppleSkin 协同）。 / 2026-09-08 — DataTip 评估：GPL-3.0 → 仅思想参考；数据驱动 tooltip 数据层 clean-room 自研（engine.ui，td 化，零 json，与 AppleSkin 协同）。
 * 2026-09-08 — TimeScaleLib assessed / TimeScaleLib 评估：PolyForm Shield 非标准变体（Noncompete）→ 不可移植，框架时间缩放能力 clean-room 自研（engine.time，p.3.3）。 / 2026-09-08 — TimeScaleLib 评估：PolyForm Shield 非标准变体（Noncompete）→ 不可移植，时间缩放能力 clean-room 自研（engine.time，p.3.3）。

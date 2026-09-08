@@ -6,7 +6,7 @@ import io.toterra.subterra.engine.log.LogSink;
 import org.slf4j.LoggerFactory;
 
 /**
- * Bridges {@code subterra-log} records into the Minecraft log
+ * Bridges {@code engine.log} records into the Minecraft log
  * ({@code logs/latest.log}) via SLF4J, so Subterra logging and MC logging share
  * one timeline. Registered at boot; optional Subterra file sinks add a
  * separate rolling file when {@code log.td} enables them.

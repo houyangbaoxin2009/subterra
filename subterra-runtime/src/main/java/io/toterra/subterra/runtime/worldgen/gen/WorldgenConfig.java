@@ -17,7 +17,7 @@ import io.toterra.subterra.engine.config.TdValue;
  * Config-file loader + runtime gate for the Subterra-generator option
  * (p.1.8.22). Reads {@code config/subterra/worldgen.td} at mod construction,
  * reusing the same td parser the repo uses for {@code config/subterra/servercore.td}
- * (subterra-config {@link Td}). Missing / blank / malformed files fall back to
+ * (engine.config {@link Td}). Missing / blank / malformed files fall back to
  * {@link GeneratorOption#defaults()} (feature OFF) and never affect boot.
  *
  * <pre>{@code
