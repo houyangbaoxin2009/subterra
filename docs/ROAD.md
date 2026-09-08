@@ -31,6 +31,7 @@
 | p.3.0 | C2ME bundled / C2ME 直接包含：engine.worldgen.async 核心 + runtime 异步壳，随框架发布（MIT 声明） | pending / 待开工 |
 | p.3.1 | devkit complete / devkit 完整化：probes 全量接线 + 官方示例模组（最小「颠覆性模组」脚手架，兼作框架自举验收） | pending / 待开工 |
 | p.3.2 | Entity scale / 实体缩放 engine.scale：Pehkui-Rebuilt 核心移植（MIT，保留 Virtuoel 原始版权与重建声明）：ScaleType/ScaleData/ScaleModifier 模型、按维度/标签缩放、数据包缩放规则 + runtime scale binding | pending / 待开工 |
+| p.3.3 | Time scaling / 时间缩放 engine.time（clean-room 自研）：TimeDomain 流速比例模型（全局/实体/区域/玩家域）、tick 预算确定性调度（BudgetScheduler）、逻辑级节流 + 感知级插值，TimeScaleApi + runtime 接线 | pending / 待开工 |
 | p.4.0 | tie bridge / tie 桥：tiec → DLL → FFM 加载调用，热点路径 tie 化 + 性能验证 | pending / 待开工 |
 | p.4.1 | P2P decentralized networking / P2P 去中心化网络：tink v2 + tsha1f 帧级强校验；zd 作为自定义载荷通道通信介质（先可行性基准） | pending / 待开工 |
 | p.4.2 | Self-developed rendering / 自研渲染管线（clean-room，参考 Sodium/Embeddium 等登记项） | pending / 待开工 |
@@ -60,6 +61,7 @@
 | InvAdvOpt / SmoothBoot | 库存推进加速 / 线程调优 | runtime.optim-shell | MIT | landed / 已落地（p.1.4.4/.5） |
 | Traveler Title / Weather / Super Resolution / 皮肤补丁 | 标题提示 / 天气 / 超分 / 皮肤（自研化） | engine.* + runtime.* | LGPL/GPL clean-room | planned / 已立项 |
 | Physics Mod | 方块/生物物理 | — | All Rights Reserved，不适用 | dropped / 剔除 |
+| TimeScaleLib | 时间缩放（子弹时间） | — | PolyForm Shield 非标准变体（Noncompete，存疑）→ 不适用；能力 clean-room 自研 | dropped / 剔除（自研替代） |
 | Feature Recycler / VoxelBridge / OptiCores | 待定义 | — | All Rights Reserved 或语义不匹配 | dropped / 剔除 |
 | StellarRTP | 随机传送 | engine.optim.server.teleport | GPLv3 clean-room 参考 | planned / 已立项 |
 | Itemban | 物品使用控制 | engine.optim.server.item_control | Apache-2.0 | pending / 待开工 |
@@ -68,6 +70,7 @@
 
 ## Progress Log / 进度记录
 
+* 2026-09-08 — TimeScaleLib assessed / TimeScaleLib 评估：PolyForm Shield 非标准变体（Noncompete）→ 不可移植，框架时间缩放能力 clean-room 自研（engine.time，p.3.3）。 / 2026-09-08 — TimeScaleLib 评估：PolyForm Shield 非标准变体（Noncompete）→ 不可移植，时间缩放能力 clean-room 自研（engine.time，p.3.3）。
 * 2026-09-08 — Pehkui-Rebuilt registered / Pehkui-Rebuilt 入册：实体缩放能力纳入框架（engine.scale，MIT 移植，保留 Virtuoel 原始版权）。 / 2026-09-08 — Pehkui-Rebuilt 入册：实体缩放能力纳入框架（engine.scale，MIT 移植，保留 Virtuoel 原始版权）。
 * 2026-09-08 — Roadmap split per repo / 路线图按仓库拆分：Subterra 框架线迁入本文件，系列 ROAD 仅保留总览。 / 2026-09-08 — 路线图按仓库拆分：Subterra 框架线迁入本文件，系列 ROAD 仅保留总览。
 * 2026-09-08 — **Framework design finalized / 框架设计定稿**: Subterra promoted to a full-stack development framework mod (design `docs/2026-09-08-subterra-framework-design.md`); port register extended (GeckoLib / AppleSkin / ModMenu / SmartBrainLib / C2ME / Export-Language-Keys-for-Compasses / RollingGate; Physics Mod dropped as All Rights Reserved). / 2026-09-08 — **框架设计定稿**：Subterra 升格为全栈开发框架模组；移植登记册扩展（…；Physics Mod 因 All Rights Reserved 剔除）。
