@@ -1,0 +1,14 @@
+plugins {
+    id 'java-library'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Migration translator (old API -> new API). Iron law: migrate depends only
+// on api. Never shipped in the main mod jar.
+dependencies {
+    implementation project(':subterra-api')
+}

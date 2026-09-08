@@ -225,12 +225,14 @@ dependencies {
     // Logging module + td config drive the boot-time log wiring (SubterraLogging).
     implementation project(':subterra-log')
     implementation project(':subterra-config')
-    // API + optim cores are referenced by MC-layer source hosts (e.g. the
-    // JEC pinyin search port uses optim.logic.pronounce.Lexicon/Matcher).
+    // API + optim cores are referenced by MC-layer source hosts
+    // (e.g. the JEC pinyin search port uses optim.logic.pronounce).
     implementation project(':subterra-api')
     implementation project(':subterra-optim')
     // World profiler: pure-JDK statistics/slice cores consumed by the MC-layer profiler hooks.
     implementation project(':subterra-profiler')
+    // p.2.0 pure-JDK engine core (worldgen/optim/config/log/export migrate into engine.*).
+    implementation project(':subterra-engine')
 
     // JUnit 5 for the ported MC-layer source-host tests (subterra-invadvopt).
     testImplementation platform('org.junit:junit-bom:5.11.4')

@@ -1,0 +1,14 @@
+plugins {
+    id 'java-library'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Pure-JDK engine: aggregated into the main mod jar, never touches the MC
+// classpath. Iron-law dependency direction: engine depends only on api.
+dependencies {
+    implementation project(':subterra-api')
+}

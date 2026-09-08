@@ -8,6 +8,7 @@ version = rootProject.version
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 // Probes exercise the launch layer standalone (pure JVM, no Minecraft runtime).
+// p.2.0: devkit absorbs the probes module; never shipped in the main mod jar.
 dependencies {
     implementation project(':subterra-launch')
     implementation project(':subterra-compat')
@@ -16,6 +17,8 @@ dependencies {
     implementation project(':subterra-config')
     implementation project(':subterra-log')
     implementation project(':subterra-profiler')
+    implementation project(':subterra-engine')
+    implementation project(':subterra-migrate')
 }
 
 // Deterministic acceptance: exit 0 = PASS, exit 1 = FAIL. Never shipped.

@@ -2,6 +2,14 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.1] Gradle scaffolding: engine / migrate / runtime / devkit / Gradle 脚手架：engine / migrate / runtime / devkit (2026-09-08)
+
+* NEW `subterra-engine` module (pure JDK, depends on api only) with `engine.*` package placeholders (incl. `engine.export` scaffold) — the p.2.0 pure-JDK engine core / 新增 `subterra-engine` 模块（纯 JDK，仅依赖 api），含 `engine.*` 包占位（含 `engine.export` 脚手架）——p.2.0 纯 JDK 引擎核心
+* NEW `subterra-migrate` module (depends on api only, never shipped) with `migrate.*` skeleton / 新增 `subterra-migrate` 模块（仅依赖 api，不进发布 jar），含 `migrate.*` 骨架
+* NEW `subterra-runtime` source-host directory mounted into the root main sourceSet (`runtime.*` placeholders incl. `tie` / `cfglog`) — the MC-layer wiring layer / 新增 `subterra-runtime` source-host 目录挂进 root main sourceSet（`runtime.*` 占位含 `tie` / `cfglog`）——MC 层接线层
+* `subterra-probes` renamed to `subterra-devkit` (probe Java package unchanged; never shipped) + `devkit.*` placeholder for future datagen / example mod / `subterra-probes` 更名 `subterra-devkit`（探针 Java 包不变；不进发布 jar）+ `devkit.*` 占位（未来 datagen / 示例模组）
+* settings.gradle wires engine / migrate / devkit and drops the empty `subterra-tie` module; root build.gradle mounts `subterra-runtime`, jar aggregation excludes devkit + migrate, root deps gain `subterra-engine` / settings.gradle 接入 engine / migrate / devkit 并移除空模块 `subterra-tie`；root build.gradle 挂载 `subterra-runtime`，jar 聚合排除 devkit + migrate，root deps 增加 `subterra-engine`
+
 ## [p.1.8.33] World profiler: opt-in perf counters, profile-center override, acceptance tuning / 世界画像：可选性能计数器、剖析中心覆盖、验收调参 (2026-09-08)
 
 * `SubterraDensity` gains opt-in hot-path counters (`-Dsubterra.perfCount=true`): compute calls, fillArray samples, distinct-cell fingerprints, with `perfReset()`/`perfSummary()` — off by default, zero impact; `WorldProfilerHook` resets them at profile start and logs the one-line summary on completion / `SubterraDensity` 增加可选热路径计数器（`subterra.perfCount`，默认关零影响）：compute 调用数、fillArray 采样数、去重格指纹；`perfReset()`/`perfSummary()`；`WorldProfilerHook` 剖析开始重置、结束打印单行摘要
