@@ -30,6 +30,7 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 import io.toterra.subterra.Subterra;
+import io.toterra.subterra.worldgen.gen.SubterraDensity;
 import io.toterra.subterra.api.worldgen.profiler.ProfileAxis;
 import io.toterra.subterra.api.worldgen.profiler.ProfileCategory;
 import io.toterra.subterra.api.worldgen.profiler.ProfilePlan;
@@ -133,6 +134,9 @@ public final class WorldProfilerHook {
                 LOGGER.error("[subterra_profiler] BLOCKED: server has no overworld ServerLevel yet.");
                 return;
             }
+            if (Boolean.parseBoolean(pperf()) || Boolean.parseBoolean(System.getProperty("subterra.perfCount", "false"))) {
+                SubterraDensity.perfReset();
+            }
             currentLevel = overworld;
             seed = server.getWorldData().worldGenOptions().seed();
             dimension = overworld.dimension().location().toString();
@@ -158,6 +162,9 @@ public final class WorldProfilerHook {
                     String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
                     LOGGER.error("[subterra_profiler] BLOCKED: auto slice failed: {}", reason);
                 }
+            }
+            if (Boolean.parseBoolean(pprop().length() > 0 ? System.getProperty("subterra.perfCount", pperf()) : pperf())) {
+                LOGGER.info("{}", SubterraDensity.perfSummary());
             }
         } catch (Throwable t) {
             String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
@@ -189,7 +196,7 @@ public final class WorldProfilerHook {
             return;
         }
         try {
-            ProfilePlan plan = withRadius(WorldProfilerConfig.load(), radius);
+            ProfilePlan plan = withRadius(withCenter(WorldProfilerConfig.load()), radius);
             ServerLevel level = levelOrThrow();
             // subterra.profileBuild=true (headless acceptance): force-generate every
             // chunk of the window first, so the stats describe real terrain, not void.
@@ -213,6 +220,21 @@ public final class WorldProfilerHook {
             String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
             LOGGER.error("[subterra_profiler] BLOCKED: auto profile failed: {}", reason);
         }
+    }
+
+    private static ProfilePlan withCenter(ProfilePlan base) {
+        String c = System.getProperty("subterra.profileCenter", System.getenv().getOrDefault("SUBTERRA_PROFILE_CENTER", ""));
+        if (c.isBlank()) {
+            return base;
+        }
+        String[] xy = c.trim().split(",");
+        if (xy.length != 2) {
+            throw new IllegalArgumentException("subterra.profileCenter must be 'x,z', got " + c);
+        }
+        return new ProfilePlan(base.residency(),
+                new ProfileWindow(Integer.parseInt(xy[0].trim()), Integer.parseInt(xy[1].trim()),
+                        base.window().radiusChunks()),
+                base.categories(), base.step(), base.slice(), base.formats(), base.sink());
     }
 
     /** Headless axial-slice acceptance: {@code axis:start:length:unit[:planes[:positions]]}. */
@@ -522,6 +544,10 @@ public final class WorldProfilerHook {
 
     private static String pbuild() {
         return System.getProperty("subterra.profileBuild", System.getenv().getOrDefault("SUBTERRA_PROFILE_BUILD", ""));
+    }
+
+    private static String pperf() {
+        return System.getProperty("subterra.perfCount", System.getenv().getOrDefault("SUBTERRA_PERF_COUNT", "false"));
     }
 
     private static String pslice() {

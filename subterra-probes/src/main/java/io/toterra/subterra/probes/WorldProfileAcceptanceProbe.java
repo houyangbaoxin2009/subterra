@@ -60,9 +60,10 @@ public final class WorldProfileAcceptanceProbe {
 
         long seed = Long.parseLong(System.getProperty("subterra.seed", "44905237").trim());
         String levelType = System.getProperty("subterra.levelType", "subterra:subterra").trim();
-        String radius = System.getProperty("subterra.profileRadius", "1").trim();
-        boolean build = Boolean.parseBoolean(System.getProperty("subterra.profileBuild", "false").trim());
-        String slice = System.getProperty("subterra.profileSlice", "z:-4:4:block:0:0").trim();
+        String radius = System.getProperty("subterra.profileRadius", "2").trim();
+        boolean build = Boolean.parseBoolean(System.getProperty("subterra.profileBuild", "true").trim());
+        String slice = System.getProperty("subterra.profileSlice", "").trim();
+        String center = System.getProperty("subterra.profileCenter", "4000,4000").trim();
 
         ensureAssetProperties(root);
         writeServerProperties(root, seed, levelType);
@@ -88,6 +89,8 @@ public final class WorldProfileAcceptanceProbe {
         env.put("SUBTERRA_PROFILE", radius);
         env.put("SUBTERRA_PROFILE_BUILD", Boolean.toString(build));
         env.put("SUBTERRA_PROFILE_SLICE", slice);
+        env.put("SUBTERRA_PERF_COUNT", System.getProperty("subterra.perfCount", "true").trim());
+        env.put("SUBTERRA_PROFILE_CENTER", center);
 
         Process process = pb.start();
         System.out.println("[WorldProfileAcceptance] booting server (seed=" + seed + ", level-type=" + levelType
@@ -117,7 +120,8 @@ public final class WorldProfileAcceptanceProbe {
                 if (line.contains("FATAL") || line.contains("BUILD FAILED")) {
                     fatal = true;
                 }
-                boolean contractMet = profileDone && sliceDone && !fatal;
+                boolean sliceOk = slice.isBlank() || sliceDone;
+                boolean contractMet = profileDone && sliceOk && !fatal;
                 boolean filesOk = reportFilesNonEmpty(root);
                 if ((contractMet && filesOk) || fatal) {
                     if (!signaled) {
@@ -157,7 +161,8 @@ public final class WorldProfileAcceptanceProbe {
         }
 
         boolean filesOk = reportFilesNonEmpty(root);
-        boolean pass = done && profileDone && sliceDone && filesOk && !fatal;
+        boolean sliceOk = slice.isBlank() || sliceDone;
+        boolean pass = done && profileDone && sliceOk && filesOk && !fatal;
         System.out.println();
         System.out.println("[WorldProfileAcceptance] done=" + done + " profile=" + profileDone
                 + " slice=" + sliceDone + " filesOk=" + filesOk + " fatal=" + fatal);

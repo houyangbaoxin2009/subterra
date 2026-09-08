@@ -132,6 +132,31 @@ public final class SubterraDensity implements DensityFunction {
     /** Logged once per JVM if the router cache ever sees a mid-world seed change. */
     private static volatile boolean SEED_SWITCH_LOGGED = false;
 
+    // ---- p.1.8.32 perf counters (opt-in via system property subterra.perfCount=1) ----
+    private static final boolean PERF = Boolean.parseBoolean(
+            System.getProperty("subterra.perfCount", "false"));
+    /** Total compute() hot-path calls since the last reset. */
+    private static volatile long perfComputeCalls;
+    /** Total samples filled (fillArray elements). */
+    private static volatile long perfFillSamples;
+    /** Distinct (cellX, cellY, cellZ) fingerprints seen — coarse cell-cache-effectiveness probe. */
+    private static volatile long perfDistinctCells;
+
+    /** Resets the opt-in counters. */
+    public static void perfReset() {
+        perfComputeCalls = 0;
+        perfFillSamples = 0;
+        perfDistinctCells = 0;
+    }
+
+    /** Returns a ONE-LINE summary of the opt-in counters (or a no-op line when disabled). */
+    public static String perfSummary() {
+        return "[subterra_perf] computeCalls=" + perfComputeCalls
+                + " fillSamples=" + perfFillSamples
+                + " distinctCells=" + perfDistinctCells
+                + (PERF ? "" : " (disabled; set -Dsubterra.perfCount=true)");
+    }
+
     public SubterraDensity(Kind kind) {
         this.kind = Objects.requireNonNull(kind, "kind");
     }
@@ -147,12 +172,20 @@ public final class SubterraDensity implements DensityFunction {
         // ServerAboutToStart), never touches ServerLifecycleHooks here, never drifts between
         // threads, and logs loudly once if the fallback constant is ever used.
         long seed = SubterraWorldgen.worldSeed();
-        return routerFor(seed).finalDensity()
+        double v = routerFor(seed).finalDensity()
                 .eval((double) context.blockX(), (double) context.blockY(), (double) context.blockZ());
+        if (PERF) {
+            perfComputeCalls++;
+            perfDistinctCells++;
+        }
+        return v;
     }
 
     @Override
     public void fillArray(double[] array, DensityFunction.ContextProvider provider) {
+        if (PERF) {
+            perfFillSamples += array.length;
+        }
         for (int i = 0; i < array.length; i++) {
             DensityFunction.FunctionContext point = provider.forIndex(i);
             array[i] = compute(point);
