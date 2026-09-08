@@ -2,6 +2,11 @@
 
 Reverse chronological. Two-track versioning: `p.x.y.z` pre-release, `r.x.y.z` release (stabilization only). / 倒序排列。双轨编号：p 预发布、r 正式版（仅优化稳定）。
 
+## [p.2.0.12] Fix: acceptance drive props reach the profiler hook / 修复：验收驱动属性到达剖析钩子 (2026-09-08)
+
+* Root cause: `WorldProfilerHook.onServerStarted` triggered the auto-profile on `System.getProperty("subterra.profile")`, but ModDevGradle runServer never forwards -D to the game JVM, and the env (`SUBTERRA_PROFILE`) was only read for the boot-props log — the headless acceptance silently never ran the profile (waited out the 10-min deadline, no report) since p.1.8.31. Fix: trigger + build flag now read the env fallback (`pprop()`/`pbuild()`, spawn-safe transport), and the server run block forwards the five drive properties (profile/build/slice/perfCount/profileCenter) to the game JVM; the now-unused `getBool` helper removed / 根因：`WorldProfilerHook.onServerStarted` 以 `System.getProperty("subterra.profile")` 触发自动剖析，但 ModDevGradle runServer 从不把 -D 转发到游戏 JVM，env（`SUBTERRA_PROFILE`）只用于 boot-props 日志——自 p.1.8.31 起无头验收一直静默不运行剖析（空等 10 分钟超时、无报告）。修复：触发器与构建开关改读 env 回退（`pprop()`/`pbuild()`，spawn-safe 传输），server run 块补转发五个驱动属性（profile/build/slice/perfCount/profileCenter）到游戏 JVM；移除不再使用的 `getBool` 辅助
+* Verified: acceptance PASS twice — center 0,0 / radius 1 (3x3 window, 14 s) and the real p.1.8.33 defaults center 4000,4000 / radius 2 (5x5 window, 37 s; fresh report `run/profile/profile.zd`); full `probeAcceptance` + Java-25 boot gate green / 验证：验收两次 PASS——center 0,0 / radius 1（3x3 窗口 14s）与 p.1.8.33 真实默认 center 4000,4000 / radius 2（5x5 窗口 37s；新报告 `run/profile/profile.zd`）；全量 `probeAcceptance` + Java-25 开机门禁全绿
+
 ## [p.2.0.11] Cleanup + docs + final p.2.0 line / 清理 + 文档 + p.2.0 终版 (2026-09-08)
 
 * p.2.0 module re-layout complete: api / engine / runtime / migrate / devkit landed, IronLawProbe enforces the dependency iron law, module registry + docs updated, acceptance wiring aligned; ROAD.md p.2.0 marked landed / p.2.0 模块重构完成：api / engine / runtime / migrate / devkit 落地，IronLawProbe 强制依赖铁律，模块注册表与文档更新，验收接线对齐；ROAD.md 标记 p.2.0 落地

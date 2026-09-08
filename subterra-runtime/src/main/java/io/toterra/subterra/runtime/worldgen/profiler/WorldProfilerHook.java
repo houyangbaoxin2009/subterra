@@ -200,7 +200,8 @@ public final class WorldProfilerHook {
             ServerLevel level = levelOrThrow();
             // subterra.profileBuild=true (headless acceptance): force-generate every
             // chunk of the window first, so the stats describe real terrain, not void.
-            if (getBool("subterra.profileBuild", false)) {
+            // (env fallback: same spawn-safe transport as the trigger above)
+            if (Boolean.parseBoolean(pbuild())) {
                 long t0 = System.currentTimeMillis();
                 forceLoadWindow(level, plan);
                 LOGGER.info("[subterra_profiler] auto profile --build: generated {}x{} chunks in {} ms",
