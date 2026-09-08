@@ -109,12 +109,18 @@ public final class DensityComposite {
         // by {@link ClimateSpline} with the real {@code ridges()} field sampled at the
         // surface point (the p.1.8.26 2-D spline reduction, disposed in p.1.8.28,
         // fixed the ridge axis at folded = 0; this upgrades it to the actual ridge warp).
-        Density offsetDensity = (x, y, z) -> OFFSET_BASE + ClimateSpline.OFFSET.eval(
-                continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
-        Density factorDensity = (x, y, z) -> ClimateSpline.FACTOR.eval(
-                continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
-        Density jaggednessFactor = (x, y, z) -> ClimateSpline.JAGGEDNESS.eval(
-                continents.eval(x, 0.0, z), erosion.eval(x, 0.0, z), ridges.eval(x, 0.0, z));
+        // p.1.8.32 perf: each spline eval samples the three 2-D climate leaves ONCE per
+        // (x,z) into locals (the leaves are y-independent; re-evaluating them inside the
+        // spline call was pure duplication and dominated the per-corner tree cost).
+        // p.1.8.32 perf: the three 2-D climate splines are re-sampled at the SAME (x,z)
+        // corner by many arms of the tree (depth/initial/cheese/cave); per-thread single-slot
+        // 2-D caches collapse those repeats (pure dedup, bit-identical values).
+        Density offsetDensity = CachedDensity.cached2d((x, y, z) -> OFFSET_BASE
+                + ClimateSpline.OFFSET.eval(co(continents, x, z), co(erosion, x, z), co(ridges, x, z)));
+        Density factorDensity = CachedDensity.cached2d((x, y, z) -> ClimateSpline.FACTOR.eval(
+                co(continents, x, z), co(erosion, x, z), co(ridges, x, z)));
+        Density jaggednessFactor = CachedDensity.cached2d((x, y, z) -> ClimateSpline.JAGGEDNESS.eval(
+                co(continents, x, z), co(erosion, x, z), co(ridges, x, z)));
 
         // --- jagged / base3d noise leaves (over the seed) ---
         // jagged uses its faithful 1.21.1 registration (-16, [1×16], p.1.8.28); base_3d_noise
@@ -139,7 +145,11 @@ public final class DensityComposite {
         Density cheeseDepth = add(depth, jaggedTerm);
         Density cheeseQn = (x, y, z) -> 4.0 * JaggednessFn.quarterNegative(
                 cheeseDepth.eval(x, y, z) * factorDensity.eval(x, y, z));
-        Density slopedCheese = add(cheeseQn, base3d);
+        // p.1.8.32 perf: sloped_cheese is re-evaluated several times per corner (the
+        // range-choice input, the when_in branch, and the cheese-cave arm). A per-thread
+        // single-slot cache collapses those repeats to one tree evaluation; the value is
+        // unchanged (pure deduplication of equal-input calls).
+        Density slopedCheese = CachedDensity.cached3d(add(cheeseQn, base3d));
         // p.1.8.28: the when_in_range companion is the faithful entrances.json density
         // function (was a bare "minecraft:caves_entrances" noise stand-in); vanilla's
         // overworld.json pins this arm to min(sloped_cheese, 5 * entrances).
@@ -203,6 +213,11 @@ public final class DensityComposite {
     /** {@code a + b}. */
     private static Density add(Density a, Density b) {
         return (x, y, z) -> a.eval(x, y, z) + b.eval(x, y, z);
+    }
+
+    /** The 2-D climate leaf at (x, z) (y is dropped, mirroring vanilla 2-D sampling). */
+    private static double co(Density leaf, double x, double z) {
+        return leaf.eval(x, 0.0, z);
     }
 
     /** {@code a * b}. */
