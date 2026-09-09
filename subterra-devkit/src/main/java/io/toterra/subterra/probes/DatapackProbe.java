@@ -9,6 +9,7 @@ import io.toterra.subterra.engine.datapack.DatapackExportArchive;
 import io.toterra.subterra.engine.datapack.DatapackExporter;
 import io.toterra.subterra.engine.datapack.DatapackLookup;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
+import io.toterra.subterra.engine.datapack.DatapackRules;
 import io.toterra.subterra.engine.datapack.EntryKind;
 import io.toterra.subterra.engine.datapack.TieLogicBundle;
 import io.toterra.subterra.engine.datapack.TieLogicLoader;
@@ -253,6 +254,17 @@ public final class DatapackProbe {
                 }
             }
             check("td 文本可被 tie 解析", tdParseable);
+
+            // 11. datapack rules + save override precedence (p.2.2.9)
+            check("规则 wild=true（来自 pack.td）", dp.rules().get("wild") != null && dp.rules().get("wild").asBool());
+            check("规则 tick=40（来自 pack.td）", dp.rules().get("tick") != null && dp.rules().get("tick").asInt() == 40L);
+            Map<String, TdValue> noOverride = DatapackRules.resolve(List.of(dp), Map.of());
+            check("无覆盖效果 rules wild=true", noOverride.get("wild") != null && noOverride.get("wild").asBool());
+            Map<String, TdValue> withOverride = DatapackRules.resolve(List.of(dp), Map.of("wild", TdValue.of(false)));
+            check("存档覆盖 rules wild=false", withOverride.get("wild") != null && !withOverride.get("wild").asBool());
+            check("未覆盖键保持 tick=40", withOverride.get("tick") != null && withOverride.get("tick").asInt() == 40L);
+            check("resolve 确定性 两次一致", DatapackRules.render(withOverride).equals(DatapackRules.render(DatapackRules.resolve(List.of(dp), Map.of("wild", TdValue.of(false))))));
+            check("rules render 非空", !DatapackRules.render(noOverride).isBlank());
         } finally {
             deleteRecursively(tmp);
         }

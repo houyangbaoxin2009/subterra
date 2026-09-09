@@ -8,6 +8,7 @@ import io.toterra.subterra.engine.datapack.DatapackEntry;
 import io.toterra.subterra.engine.datapack.DatapackExportArchive;
 import io.toterra.subterra.engine.datapack.DatapackExporter;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
+import io.toterra.subterra.engine.datapack.DatapackRules;
 import io.toterra.subterra.engine.datapack.EntryKind;
 import io.toterra.subterra.engine.datapack.LangDatum;
 import io.toterra.subterra.engine.datapack.TagDatum;
@@ -232,6 +233,7 @@ public final class DatapackRegistrar implements AutoCloseable {
             DatapackRuntime.LOGGER.info("{} tie libraries={}", MARKER, tieBundles.size());
         }
         runExportRoundTrip();
+        logRules();
         runExportArchive();
     }
 
@@ -418,6 +420,38 @@ public final class DatapackRegistrar implements AutoCloseable {
         boolean ok = doc1.equals(doc2);
         DatapackRuntime.LOGGER.info("{} export archive roundtrip {} (entries={}, bytes={})",
                 MARKER, ok ? "ok" : "mismatch", dp.entries().size(), doc1.length());
+    }
+
+    /** Logs the effective datapack-level rules (pack.td + save override), one deterministic line each. */
+    private void logRules() {
+        Map<String, TdValue> overrides = loadSaveOverrides();
+        Map<String, TdValue> effective = DatapackRules.resolve(packs, overrides);
+        if (effective.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, TdValue> e : new TreeMap<>(effective).entrySet()) {
+            DatapackRuntime.LOGGER.info("{} rules {} = {}", MARKER, e.getKey(),
+                    e.getValue() instanceof TdTable ? "(table)" : e.getValue().toString());
+        }
+    }
+
+    /** Save/session rules override file ({@code subterra.override}); empty when absent or unreadable. */
+    private Map<String, TdValue> loadSaveOverrides() {
+        String path = System.getProperty("subterra.override");
+        if (path == null || path.isBlank()) {
+            return Map.of();
+        }
+        Path f = Path.of(path);
+        if (!Files.isRegularFile(f)) {
+            DatapackRuntime.LOGGER.warn("{} rules override file not found: {}", MARKER, f);
+            return Map.of();
+        }
+        try {
+            return DatapackRules.fromManifest(Td.parse(Files.readString(f)));
+        } catch (IOException | IllegalArgumentException e) {
+            DatapackRuntime.LOGGER.warn("{} rules override unreadable: {}", MARKER, e.toString());
+            return Map.of();
+        }
     }
 
     /** Builds a vanilla recipe holder from a td recipe entry; null on any malformation. */

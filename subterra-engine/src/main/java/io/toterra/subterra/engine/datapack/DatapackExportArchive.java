@@ -15,7 +15,9 @@ import java.util.TreeMap;
  * Every entry is rendered as its canonical td payload (RECIPE → {@link
  * RecipeDatum}.write, TAG → {@link TagDatum}.write, LANG → {@link LangDatum}.write,
  * all other kinds → the original payload pass-through) and can be rehydrated
- * back into a {@link Datapack}.
+ * back into a {@link Datapack}. The archive carries entry content only;
+ * manifest-level {@code rules} rehydrate empty (rules live in pack.td, not in
+ * the entry stream).
  *
  * <p>Document shape (pure JDK, no JSON):
  * <pre>{@code
@@ -119,7 +121,7 @@ public final class DatapackExportArchive {
             DatapackEntry entry = new DatapackEntry(kindEnum, ns, path, payload);
             map.put(entry.id(), entry);
         }
-        return new Datapack("export-archive", "export-archive", map, List.of());
+        return new Datapack("export-archive", "export-archive", map, List.of(), Map.of());
     }
 
     /** Canonical td payload per kind; pass-through for the schema-free kinds. */

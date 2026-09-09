@@ -55,8 +55,9 @@ public final class DatapackLoader {
         String name = stringField(manifest, "name", root.getFileName().toString());
         String title = stringField(manifest, "title", name);
         List<TieLibDecl> libs = parseTieLibs(root, manifest);
+        Map<String, TdValue> rules = DatapackRules.fromManifest(manifest);
         parseManifestEntries(root, manifest, entries);
-        return new Datapack(name, title, entries, libs);
+        return new Datapack(name, title, entries, libs, rules);
     }
 
     // ---------- directory scan ----------

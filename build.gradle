@@ -150,6 +150,8 @@ neoForge {
             // p.2.2 datapack runtime: td datapacks source dir (absent -> cwd/datapacks).
             systemProperty 'subterra.datapacks',
                     System.getProperty('subterra.datapacks', project.findProperty('subterra.datapacks') ?: System.getenv('SUBTERRA_DATAPACKS') ?: '')
+            // p.2.2.9 save/session rules override file (absent -> no override).
+            systemProperty 'subterra.override', System.getProperty('subterra.override', project.findProperty('subterra.override') ?: '')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

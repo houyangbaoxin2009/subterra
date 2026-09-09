@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
  *   <li>the {@code /subterra export} command writes the loaded pack out as an
  *   export-archive td doc and verifies the export∘rehydrate identity (markers
  *   {@code export cmd ok (packs=1,} and per-pack {@code rehydrate=ok}).</li>
+ *   <li>the effective datapack rules are logged from pack.td ({@code rules tick
+ *   = 40}) and the save override file wins ({@code rules wild = false}, p.2.2.9).</li>
  * </ul>
  * The probe stages the seed by copying devkit resources into
  * {@code run/datapacks/} fresh each run, so the gate stays deterministic and
@@ -72,7 +74,8 @@ public final class DatapackE2EProbe {
         ProcessBuilder pb = new ProcessBuilder(
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
-                "-Psubterra.datapacks=" + stagedRoot);
+                "-Psubterra.datapacks=" + stagedRoot,
+                "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.td").toString());
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -80,7 +83,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[29];
+        boolean[] seen = new boolean[31];
         boolean fatal = false;
         boolean signaled = false;
         boolean exportIssued = false;
@@ -178,6 +181,12 @@ public final class DatapackE2EProbe {
                 if (line.contains(DP_MARKER + " export cmd ") && line.contains("rehydrate=ok")) {
                     seen[28] = true;
                 }
+                if (line.contains(DP_MARKER + " rules tick = 40")) {
+                    seen[29] = true;
+                }
+                if (line.contains(DP_MARKER + " rules wild = false")) {
+                    seen[30] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -239,7 +248,7 @@ public final class DatapackE2EProbe {
                 + " exportTag=" + seen[18] + " exportLang=" + seen[19] + " exportLoot=" + seen[20]
                 + " exportWorldgen=" + seen[21] + " exportStructure=" + seen[22]
                 + " exportTower=" + seen[23] + " exportGreet=" + seen[24] + " exportFarewell=" + seen[25] + " exportArchive=" + seen[26]
-                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " fatal=" + fatal);
+                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " rulesTick=" + seen[29] + " rulesWild=" + seen[30] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
@@ -308,6 +317,9 @@ public final class DatapackE2EProbe {
         copy("/datapack/mini_dp/data/toterra/function/farewell.td", data.resolve("function/farewell.td"));
         copy("/datapack/mini_dp/extra/obligatory_tower.td", target.resolve("extra/obligatory_tower.td"));
         copy("/tie/dp_logic_probe.dll", target.resolve("tie/dp_logic_probe.dll"));
+        // save/session rules override for p.2.2.9: flips pack.td's wild=true -> false
+        Files.writeString(stagedRoot.resolve("overrides.td"),
+                "type tie<data>\nrules = [ [ k = \"wild\", v = false ] ],\n");
         System.out.println("[DatapackE2EProbe] staged seed pack at " + target);
         return stagedRoot.toAbsolutePath().normalize().toString();
     }

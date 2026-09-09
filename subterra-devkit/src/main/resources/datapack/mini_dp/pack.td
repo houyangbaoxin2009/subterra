@@ -14,4 +14,5 @@ pack = [
     // lives outside data/ → registered by the manifest alone, never scanned
     [ kind = "structure", ns = "devkit", path = "obligatory_tower", file = "extra/obligatory_tower.td" ],
   ],
+  rules = [ [ k = "wild", v = true ], [ k = "tick", v = 40 ] ],
 ]

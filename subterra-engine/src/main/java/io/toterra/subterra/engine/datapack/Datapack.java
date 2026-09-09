@@ -1,5 +1,7 @@
 package io.toterra.subterra.engine.datapack;
 
+import io.toterra.subterra.engine.config.TdValue;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,12 +20,15 @@ public final class Datapack {
     private final String title;
     private final Map<String, DatapackEntry> entries; // by id, sorted
     private final List<TieLibDecl> tieLibraries;
+    private final Map<String, TdValue> rules;
 
-    Datapack(String name, String title, Map<String, DatapackEntry> entries, List<TieLibDecl> tieLibraries) {
+    Datapack(String name, String title, Map<String, DatapackEntry> entries, List<TieLibDecl> tieLibraries,
+             Map<String, TdValue> rules) {
         this.name = name;
         this.title = title;
         this.entries = new TreeMap<>(entries);
         this.tieLibraries = List.copyOf(tieLibraries);
+        this.rules = new LinkedHashMap<>(rules);
     }
 
     public String name() {
@@ -51,5 +56,14 @@ public final class Datapack {
     /** tie-logic library declarations (from the optional pack.td manifest). */
     public List<TieLibDecl> tieLibraries() {
         return tieLibraries;
+    }
+
+    /**
+     * Pack-level key→td-value rules declared in pack.td, intended for
+     * datapack-level tuning overridable per save/session. The forward hook to the
+     * p.2.17 rule system.
+     */
+    public Map<String, TdValue> rules() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(rules));
     }
 }
