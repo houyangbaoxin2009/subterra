@@ -172,6 +172,13 @@ neoForge {
             // ServerStartedEvent lifecycle (absent -> priority no-op).
             systemProperty 'subterra.probe.sim',
                     System.getProperty('subterra.probe.sim', project.findProperty('subterra.probe.sim') ?: '')
+            // p.2.9.6 deterministic E2E world hook: gate the engine.world world-pack closure shell
+            // at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.world',
+                    System.getProperty('subterra.probe.world', project.findProperty('subterra.probe.world') ?: '')
+            // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
+            // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
+            systemProperty 'subterra.projectDir', project.projectDir.toString()
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
