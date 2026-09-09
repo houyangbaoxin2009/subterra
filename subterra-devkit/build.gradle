@@ -675,6 +675,14 @@ def asyncIoProbe = tasks.register('runAsyncIoProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.AsyncIoProbe'
 }
 
+// p.2.7.1: generic deterministic key partition (engine.parallel), pure JVM.
+def parallelPartitionProbe = tasks.register('runParallelPartitionProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.7.1: run the generic deterministic key partition probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ParallelPartitionProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
