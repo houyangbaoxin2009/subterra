@@ -31,13 +31,27 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  *   <li>{@code async-chunk-runtime-initialized} — the shell stages one deterministic queued write
  *       with no linkage errors.</li>
  * </ul>
+ * Since p.2.8.6 the <em>same</em> game boot also absorbs the {@code engine.sim} shell
+ * (p.2.8.6): the runServer line also passes {@code -Psubterra.probe.sim=1} and the probe asserts
+ * the {@code SimRuntime} shell prints its {@code [Subterra sim]} markers
+ * ({@code sim-shell-gate=on} and, once every engine.sim micro-check passes,
+ * {@code sim-core-composed-ok}). Event-driven, timing-free — it is a union gate that asserts both
+ * the async and the sim shell in one live-server launch, so the 5-boot total is unchanged. All
+ * async assertions are kept verbatim; the sim slots are purely additional.
+ * <p>
  * Before forking, a headless pure-JVM engine-core check runs inside the probe JVM (NOT the game):
  * a 2×2 fixed-coordinate set is pushed through {@link AsyncChunkPipeline.generate} (parallel, P=4)
  * vs {@code generateSerial} on the same producer and asserted byte-identical — this confirms the
  * shipped engine still runs off the devkit classpath in the E2E harness. Event-based (never
  * timing-based), mirrors the {@code NetworkE2EProbe} / {@code SaveE2EProbe} fork mechanism; the
- * markers are fully independent of the network/save/datapack markers (prefix {@code [Subterra async]}).
- * Exit 0 = PASS, exit 1 = FAIL.
+ * markers are fully independent of the network/save/datapack markers (prefix {@code [Subterra async]}
+ * and {@code [Subterra sim]}). Exit 0 = PASS, exit 1 = FAIL.
+ * <p>
+ * p.2.8.6 起，<em>同一次</em>开服同时并入 {@code engine.sim} 壳（p.2.8.6）：runServer 参数行另加
+ * {@code -Psubterra.probe.sim=1}，探针断言 {@code SimRuntime} 壳打印其 {@code [Subterra sim]}
+ * marker（{@code sim-shell-gate=on}，以及当所有 engine.sim 微校验均通过时的
+ * {@code sim-core-composed-ok}）。事件驱动、禁时序——它是一次性并断言 async 与 sim 两个壳的
+ * 联合门，故 5 次开服总数不变。既有 async 断言逐字保持；sim 槽纯属新增。
  */
 public final class AsyncE2EProbe {
 
@@ -47,6 +61,8 @@ public final class AsyncE2EProbe {
     private static final long BOOT_DEADLINE_MINUTES = 6;
     private static final int PROBE_PORT = 25599;
     private static final String ASYNC_MARKER = "[Subterra async]";
+    /** sim-shell marker prefix emitted by the {@code SimRuntime} shell (p.2.8.6). */
+    private static final String SIM_MARKER = "[Subterra sim]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -72,7 +88,7 @@ public final class AsyncE2EProbe {
         ProcessBuilder pb = new ProcessBuilder(
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
-                "-Psubterra.probe.async=1");
+                "-Psubterra.probe.async=1", "-Psubterra.probe.sim=1");
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -81,10 +97,12 @@ public final class AsyncE2EProbe {
         Process process = pb.start();
 
         // 0 = booted (Done), 1 = baseline-IO-default-off, 2 = async-I/O-gate-enabled,
-        // 3 = async-chunk-runtime-initialized
-        boolean[] seen = new boolean[4];
+        // 3 = async-chunk-runtime-initialized,
+        // 4 = sim-shell-gate-on, 5 = sim-core-composed-ok   (sim slots, p.2.8.6)
+        boolean[] seen = new boolean[6];
         boolean fatal = false;
         int asyncMarkerLines = 0;
+        int simMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -106,6 +124,15 @@ public final class AsyncE2EProbe {
                 }
                 if (line.contains(ASYNC_MARKER) && line.contains("async-chunk-runtime-initialized")) {
                     seen[3] = true;
+                }
+                if (line.contains(SIM_MARKER)) {
+                    simMarkerLines++;
+                }
+                if (line.contains(SIM_MARKER) && line.contains("sim-shell-gate=on")) {
+                    seen[4] = true;
+                }
+                if (line.contains(SIM_MARKER) && line.contains("sim-core-composed-ok")) {
+                    seen[5] = true;
                 }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
@@ -147,13 +174,15 @@ public final class AsyncE2EProbe {
         System.out.println("[AsyncE2EProbe] done=" + seen[0] + " baselineDefaultOff=" + seen[1]
                 + " gateEnabled=" + seen[2] + " runtimeInitialized=" + seen[3]
                 + " engineCore=" + engineCoreOk + " asyncMarkerLines=" + asyncMarkerLines
+                + " simGate=" + seen[4] + " simComposed=" + seen[5] + " simMarkerLines=" + simMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async shell gate fired on a live server, "
-                    + asyncMarkerLines + " [Subterra async] line(s) observed)");
+            System.out.println("[AsyncE2EProbe] PASS (async + sim shells fired on a live server, "
+                    + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
+                    + " [Subterra sim] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async worldgen shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim shell contract not met");
             System.exit(1);
         }
     }
