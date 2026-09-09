@@ -72,6 +72,22 @@ public final class DatapackRules {
     }
 
     /**
+     * p.2.3.5 two-tier config resolution: the global layer first, then the
+     * save-override layer wins on a conflicting key. Both inputs already carry
+     * their own precedence, so this is a plain {@code putAll} merge (global
+     * first, then overrides). Deterministic, insertion-ordered {@code LinkedHashMap}.
+     * 双层配置（p.2.3.5）：先并入全局层，存档覆盖层对冲突 key 全部胜出。两层本身已各自定好序，
+     * 这里就是朴素 {@code putAll}（global 入内 → overrides 覆盖），确定、保序。
+     */
+    public static Map<String, TdValue> resolveTiered(Map<String, TdValue> global,
+                                                     Map<String, TdValue> saveOverrides) {
+        Map<String, TdValue> out = new LinkedHashMap<>();
+        out.putAll(global);
+        out.putAll(saveOverrides);
+        return out;
+    }
+
+    /**
      * Deterministic marker text for the effective rules: keys sorted
      * alphabetically, {@code k=value} joined by {@code "; "}. A scalar renders as
      * {@code value.toString()}; a {@link TdTable} value renders as {@code (table)}
