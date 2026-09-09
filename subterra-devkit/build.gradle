@@ -691,6 +691,14 @@ def parallelBankProbe = tasks.register('runParallelBankProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.ParallelBankProbe'
 }
 
+// p.2.7.3: generic deterministic dispatcher with explicit duplicate-key rejection (engine.parallel), pure JVM.
+def parallelDispatchProbe = tasks.register('runParallelDispatchProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.7.3: run the generic deterministic dispatcher probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ParallelDispatchProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
