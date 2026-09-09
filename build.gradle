@@ -156,6 +156,10 @@ neoForge {
             // export + rehydrate-identity core at startup (absent -> no auto-export).
             systemProperty 'subterra.probe.export',
                     System.getProperty('subterra.probe.export', project.findProperty('subterra.probe.export') ?: '')
+            // p.2.3.2 deterministic E2E save hook: gate the level.dat -> zdt migration
+            // shell at the ServerStartedEvent lifecycle (absent -> priority no-op).
+            systemProperty 'subterra.probe.save',
+                    System.getProperty('subterra.probe.save', project.findProperty('subterra.probe.save') ?: '')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
