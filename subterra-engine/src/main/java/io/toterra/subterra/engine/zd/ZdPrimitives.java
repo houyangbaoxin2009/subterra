@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * zd 原语（p.2.3.1）：从 profiler 报告 {@code ZdWriter} 抽取的底层字节工具，逐字节行为不变。
- * {code encI64}/{@code varint}/{@code be64}/{@code utf8} 与 tie-main {@code zdw.enc_i64}
+ * {@code encI64}/{@code varint}/{@code be64}/{@code utf8} 与 tie-main {@code zdw.enc_i64}
  * 编码构建块一一对应，作为通用 zd 载体的唯一低层编码点。
  * <p>
  * zd primitives (p.2.3.1): the low-level byte helpers lifted verbatim (byte-for-byte

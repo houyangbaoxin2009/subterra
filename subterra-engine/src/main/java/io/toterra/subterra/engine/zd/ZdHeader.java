@@ -87,7 +87,7 @@ public final class ZdHeader {
     }
 
     /**
-     * 从偏移 {code off} 起校验 zd v2 头。Same as {@link #isZd(byte[])} but starting at
+     * 从偏移 {@code off} 起校验 zd v2 头。Same as {@link #isZd(byte[])} but starting at
      * the given offset.
      */
     public static boolean isZd(byte[] head, int off) {

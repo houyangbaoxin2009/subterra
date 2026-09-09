@@ -19,7 +19,7 @@ public enum SaveSlot {
     WORLD("world"),
     /** 配置（双层配置 · 存档侧）Config (double-layer config, save side). */
     CONFIG("config"),
-    /** 藏录丝 Ledger. */
+    /** 藏录 Ledger. */
     LEDGER("ledger"),
     /** 领域档案 Domain archive. */
     DOMAIN("domain"),
