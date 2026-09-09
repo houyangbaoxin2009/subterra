@@ -23,6 +23,8 @@ public class PcgException extends Exception {
     public static final String BOUND = "BOUND";
     /** 模板中出现的占位槽在候选池中缺失、无法替换（{@link PcgTextSample}）/ a placeholder slot in the template has no supplied pool to pick from ({@link PcgTextSample}). */
     public static final String UNKNOWN_SLOT = "UNKNOWN_SLOT";
+    /** 生成器仅支持 TABLE 根 schema，接收到标量/LIST 根（{@link PcgSchemaGen}）/ a generator only supports a TABLE-root schema; it received a scalar/LIST root ({@link PcgSchemaGen}). */
+    public static final String SCHEMA_ROOT = "SCHEMA_ROOT";
 
     private final String reason;
 
