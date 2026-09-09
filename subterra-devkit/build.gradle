@@ -571,8 +571,19 @@ def p2pHandshakeProbe = tasks.register('runP2pHandshakeProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.P2pHandshakeProbe'
 }
 
+// p.2.5.4: P2P frame-level transport channel — memory endpoint framed on tink v2 stream
+// split/join with per-message session sequence, ordered re-assembly, de-duplication, and
+// deterministic loss/tamper/replay rejection, plus the p.2.5.3 handshake linkage (initialSeq
+// + optional SecureChannel AEAD session). Pure JDK, no MC runtime, no socket/no threads.
+def p2pTransportProbe = tasks.register('runP2pTransportProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.5.4: run the P2P frame-level transport channel probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.P2pTransportProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, networkE2EProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, networkE2EProbe
 }
