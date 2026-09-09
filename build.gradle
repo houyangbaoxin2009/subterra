@@ -168,6 +168,10 @@ neoForge {
             // ServerStartedEvent lifecycle (absent -> priority no-op).
             systemProperty 'subterra.probe.async',
                     System.getProperty('subterra.probe.async', project.findProperty('subterra.probe.async') ?: '')
+            // p.2.8.6 deterministic E2E sim hook: gate the engine.sim shell at the
+            // ServerStartedEvent lifecycle (absent -> priority no-op).
+            systemProperty 'subterra.probe.sim',
+                    System.getProperty('subterra.probe.sim', project.findProperty('subterra.probe.sim') ?: '')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

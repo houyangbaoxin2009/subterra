@@ -715,8 +715,55 @@ def parallelSchedProbe = tasks.register('runParallelSchedProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.ParallelSchedProbe'
 }
 
+// ---- p.2.8 engine.sim probes (engine.sim incremental deterministic simulation base, pure JVM) ----
+
+// p.2.8.1: budget-tier scheduling — deterministic per-tick budget caps (per-simulant / region /
+// global) with key-order degradation under overrun, never timing-dependent (pure JVM).
+def simBudgetProbe = tasks.register('runSimBudgetProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.8.1: run the budget-tier scheduling probe (engine.sim.budget, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SimBudgetProbe'
+}
+
+// p.2.8.2: partitioned spatial index — local neighborhood queries over fixed cells with no global
+// scan, cell keys mapped through the p.2.7 KeyPartition pair path (pure JVM).
+def simSpatialProbe = tasks.register('runSimSpatialProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.8.2: run the partitioned spatial index probe (engine.sim.spatial, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SimSpatialProbe'
+}
+
+// p.2.8.3: incremental deterministic simulation core — advance only the changed locals, byte-identical
+// to a full recompute, diff/replay equivalence (pure JVM).
+def simIncrementalProbe = tasks.register('runSimIncrementalProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.8.3: run the incremental deterministic simulation core probe (engine.sim.core, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SimIncrementalProbe'
+}
+
+// p.2.8.4: per-simulant isolation + deterministic merge — simulant key sets through the p.2.7
+// parallel runner, parallel vs serial byte-identical (pure JVM).
+def simParallelProbe = tasks.register('runSimParallelProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.8.4: run the per-simulant isolation + deterministic merge probe (engine.sim.run, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SimParallelProbe'
+}
+
+// p.2.8.5: full-stack combination — budget + spatial + core + parallel composed into a deterministic
+// world-evolution caricature, byte-identical across run orders (pure JVM).
+def simCombineProbe = tasks.register('runSimCombineProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.8.5: run the engine.sim full-stack combination probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SimCombineProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, networkE2EProbe, asyncE2EProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe
 }
