@@ -7,6 +7,7 @@ import io.toterra.subterra.engine.datapack.Datapack;
 import io.toterra.subterra.engine.datapack.DatapackEntry;
 import io.toterra.subterra.engine.datapack.DatapackExportArchive;
 import io.toterra.subterra.engine.datapack.DatapackExporter;
+import io.toterra.subterra.engine.datapack.DatapackLookup;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
 import io.toterra.subterra.engine.datapack.EntryKind;
 import io.toterra.subterra.engine.datapack.TieLogicBundle;
@@ -225,6 +226,33 @@ public final class DatapackProbe {
                     DatapackExporter.exportEntryTd(dp.get(EntryKind.LOOT_TABLE, "toterra", "chest/bonus"))
                             .equals(io.toterra.subterra.engine.config.Td.write(
                                     dp.get(EntryKind.LOOT_TABLE, "toterra", "chest/bonus").payload())));
+
+            // 10. dual interface: typed API route == td text route (p.2.2.8)
+            for (DatapackEntry entry : dp.entries().values()) {
+                DatapackEntry viaApi = DatapackLookup.entry(dp, entry.kind(), entry.namespace(), entry.path());
+                String viaTd = DatapackLookup.tdText(entry);
+                String viaTdLookup = DatapackLookup.tdText(dp, entry.kind(), entry.namespace(), entry.path());
+                check("双接口一致 " + entry.id(),
+                        viaApi != null
+                                && viaApi == entry
+                                && viaTd.equals(viaTdLookup)
+                                && viaTd.equals(DatapackExporter.exportEntryTd(entry)));
+            }
+            boolean kindsCountAgree = true;
+            for (EntryKind k : EntryKind.values()) {
+                kindsCountAgree &= DatapackLookup.byKind(dp, k).size() == dp.byKind(k).size();
+            }
+            check("双接口 kind 计数一致", kindsCountAgree);
+            boolean tdParseable = true;
+            for (DatapackEntry entry : dp.entries().values()) {
+                String td = DatapackLookup.tdText(entry);
+                try {
+                    io.toterra.subterra.engine.config.Td.parse(td);
+                } catch (Exception ex) {
+                    tdParseable = false;
+                }
+            }
+            check("td 文本可被 tie 解析", tdParseable);
         } finally {
             deleteRecursively(tmp);
         }
