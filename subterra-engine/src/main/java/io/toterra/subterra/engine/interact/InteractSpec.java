@@ -70,11 +70,13 @@ public record InteractSpec(String name, List<InteractSurface> surfaces) {
      * extracts. This method returns byte-identical canonical text each call (no random / timing).
      */
     public String schemaTd() {
-        return "root = \"table\",\n"
+        return "[\n"
+                + "root = \"table\",\n"
                 + "fields = [\n"
                 + "    name = \"string\",\n"
                 + "    surfaces = \"list\",\n"
-                + "],\n";
+                + "],\n"
+                + "]";
     }
 
     /**

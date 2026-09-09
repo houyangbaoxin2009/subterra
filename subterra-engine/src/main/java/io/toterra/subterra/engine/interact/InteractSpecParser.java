@@ -227,11 +227,13 @@ public final class InteractSpecParser {
      * @return 权威 spec schema 的 td 文本 / the authoritative spec-schema td text.
      */
     public static String schemaTd() {
-        return "root = \"table\",\n"
+        return "[\n"
+                + "root = \"table\",\n"
                 + "fields = [\n"
                 + "    name = \"string\",\n"
                 + "    surfaces = \"list\",\n"
-                + "],\n";
+                + "],\n"
+                + "]";
     }
 }
 
