@@ -176,6 +176,10 @@ neoForge {
             // at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.world',
                     System.getProperty('subterra.probe.world', project.findProperty('subterra.probe.world') ?: '')
+            // p.2.10.5 deterministic E2E saveverify hook: gate the engine.saveverify verifiable-save
+            // closed-loop shell at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.saveverify',
+                    System.getProperty('subterra.probe.saveverify', project.findProperty('subterra.probe.saveverify') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

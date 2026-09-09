@@ -37,9 +37,13 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * {@code SimRuntime} shell prints its {@code [Subterra sim]} markers ({@code sim-shell-gate=on} and,
  * once every engine.sim micro-check passes, {@code sim-core-composed-ok}) and the
  * {@code WorldRuntime} shell prints its {@code [Subterra world]} markers ({@code world-shell-gate=on}
- * and {@code world-pack closed-loop OK}). Event-driven, timing-free — it is a union gate that asserts
- * the async, sim and world shells in one live-server launch, so the 5-boot total is unchanged. All
- * async assertions are kept verbatim; the sim/world slots are purely additional.
+ * and {@code world-pack closed-loop OK}). Since p.2.10.5 the boot also absorbs the
+ * {@code engine.saveverify} shell ({@code SaveVerifyRuntime}): the runServer line also passes
+ * {@code -Psubterra.probe.saveverify=1}; the probe asserts its {@code [Subterra saveverify]}
+ * marker ({@code PASS}). Event-driven, timing-free — it is a union gate that asserts
+ * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
+ * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
+ * additional.
  * <p>
  * Before forking, a headless pure-JVM engine-core check runs inside the probe JVM (NOT the game):
  * a 2×2 fixed-coordinate set is pushed through {@link AsyncChunkPipeline.generate} (parallel, P=4)
@@ -70,6 +74,8 @@ public final class AsyncE2EProbe {
     private static final String SIM_MARKER = "[Subterra sim]";
     /** world-pack shell marker prefix emitted by the {@code WorldRuntime} shell (p.2.9.6). */
     private static final String WORLD_MARKER = "[Subterra world]";
+    /** verifiable-save shell marker prefix emitted by the {@code SaveVerifyRuntime} shell (p.2.10.5). */
+    private static final String SAVEVERIFY_MARKER = "[Subterra saveverify]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -95,7 +101,8 @@ public final class AsyncE2EProbe {
         ProcessBuilder pb = new ProcessBuilder(
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
-                "-Psubterra.probe.async=1", "-Psubterra.probe.sim=1", "-Psubterra.probe.world=1");
+                "-Psubterra.probe.async=1", "-Psubterra.probe.sim=1", "-Psubterra.probe.world=1",
+                "-Psubterra.probe.saveverify=1");
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -107,11 +114,13 @@ public final class AsyncE2EProbe {
         // 3 = async-chunk-runtime-initialized,
         // 4 = sim-shell-gate-on, 5 = sim-core-composed-ok   (sim slots, p.2.8.6)
         // 6 = world-shell-gate-on, 7 = world-pack-closed-loop-ok   (world slots, p.2.9.6)
-        boolean[] seen = new boolean[8];
+        // 8 = saveverify-shell-PASS   (verifiable-save closed-loop slot, p.2.10.5)
+        boolean[] seen = new boolean[9];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
         int worldMarkerLines = 0;
+        int saveverifyMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -151,6 +160,12 @@ public final class AsyncE2EProbe {
                 }
                 if (line.contains(WORLD_MARKER) && line.contains("world-pack closed-loop OK")) {
                     seen[7] = true;
+                }
+                if (line.contains(SAVEVERIFY_MARKER)) {
+                    saveverifyMarkerLines++;
+                }
+                if (line.contains(SAVEVERIFY_MARKER) && line.contains("PASS")) {
+                    seen[8] = true;
                 }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
@@ -194,15 +209,17 @@ public final class AsyncE2EProbe {
                 + " engineCore=" + engineCoreOk + " asyncMarkerLines=" + asyncMarkerLines
                 + " simGate=" + seen[4] + " simComposed=" + seen[5] + " simMarkerLines=" + simMarkerLines
                 + " worldGate=" + seen[6] + " worldClosedLoop=" + seen[7] + " worldMarkerLines=" + worldMarkerLines
+                + " saveverifyPass=" + seen[8] + " saveverifyMarkerLines=" + saveverifyMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
-                    + " [Subterra world] line(s) observed)");
+                    + " [Subterra world] + " + saveverifyMarkerLines
+                    + " [Subterra saveverify] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify shell contract not met");
             System.exit(1);
         }
     }
