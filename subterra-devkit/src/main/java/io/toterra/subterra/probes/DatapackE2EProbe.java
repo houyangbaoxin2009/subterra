@@ -13,7 +13,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
- * End-to-end datapack gate (p.2.2 block 2): boots the dev server with a seed
+ * End-to-end datapack gate (p.2.2 block 2+4): boots the dev server with a seed
  * td datapack staged under {@code run/datapacks/} and asserts the registration
  * chain from the boot log (never timing-based):
  * <ul>
@@ -22,7 +22,11 @@ import java.util.concurrent.TimeUnit;
  *   <li>the td recipe {@code toterra:recipe/example} is compiled to a vanilla
  *   ShapedRecipe and merged into the live RecipeManager;</li>
  *   <li>FUNCTION entries resolve through the tie bridge and are called
- *   (dp_logic$seed_42 / dp_logic$farewell → {@code 42} / {@code 108}).</li>
+ *   (dp_logic$seed_42 / dp_logic$farewell → {@code 42} / {@code 108});</li>
+ *   <li>the td loot table {@code toterra:loot_table/chest/bonus} is built and
+ *   merged into the LOOT_TABLE datapack registry (visible marker, pools=1);</li>
+ *   <li>the td worldgen entry is registered into CONFIGURED_FEATURE and the td
+ *   structure entry into STRUCTURE / STRUCTURE_SET (visible markers).</li>
  * </ul>
  * The probe stages the seed by copying devkit resources into
  * {@code run/datapacks/} fresh each run, so the gate stays deterministic and
@@ -66,7 +70,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[13];
+        boolean[] seen = new boolean[16];
         boolean fatal = false;
         boolean signaled = false;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
@@ -115,6 +119,15 @@ public final class DatapackE2EProbe {
                 if (line.contains(DP_MARKER + " loot built toterra:loot_table/chest/bonus (pools=1")) {
                     seen[12] = true;
                 }
+                if (line.contains(DP_MARKER + " loot visible toterra:loot_table/chest/bonus (pools=1, registry=ok")) {
+                    seen[13] = true;
+                }
+                if (line.contains(DP_MARKER + " worldgen visible toterra:worldgen/configured_feature/meadow_of_tie (configured_feature, registry=ok")) {
+                    seen[14] = true;
+                }
+                if (line.contains(DP_MARKER + " structure visible toterra:structure/shrine (structure_set,")) {
+                    seen[15] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -159,7 +172,8 @@ public final class DatapackE2EProbe {
                 + " lang=" + seen[3] + " langTotal=" + seen[4] + " recipe=" + seen[5]
                 + " smoke=" + seen[6] + " recipeTotal=" + seen[7] + " tieGreet=" + seen[8]
                 + " tieFarewell=" + seen[9] + " canonicalShaped=" + seen[10]
-                + " canonicalSmoke=" + seen[11] + " lootBuilt=" + seen[12] + " fatal=" + fatal);
+                + " canonicalSmoke=" + seen[11] + " lootBuilt=" + seen[12] + " lootVisible=" + seen[13]
+                + " worldgenVisible=" + seen[14] + " structureVisible=" + seen[15] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
@@ -208,7 +222,7 @@ public final class DatapackE2EProbe {
         copy("/datapack/mini_dp/data/toterra/recipe/example.td", data.resolve("recipe/example.td"));
         copy("/datapack/mini_dp/data/toterra/recipe/smoke.td", data.resolve("recipe/smoke.td"));
         copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", data.resolve("loot_table/chest/bonus.td"));
-        copy("/datapack/mini_dp/data/toterra/worldgen/biome/meadow_of_tie.td", data.resolve("worldgen/biome/meadow_of_tie.td"));
+        copy("/datapack/mini_dp/data/toterra/worldgen/configured_feature/meadow_of_tie.td", data.resolve("worldgen/configured_feature/meadow_of_tie.td"));
         copy("/datapack/mini_dp/data/toterra/structure/shrine.td", data.resolve("structure/shrine.td"));
         copy("/datapack/mini_dp/data/toterra/function/greet.td", data.resolve("function/greet.td"));
         copy("/datapack/mini_dp/data/toterra/function/farewell.td", data.resolve("function/farewell.td"));

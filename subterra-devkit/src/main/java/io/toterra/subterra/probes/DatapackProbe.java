@@ -86,8 +86,12 @@ public final class DatapackProbe {
             DatapackEntry recipe = dp.get(EntryKind.RECIPE, "toterra", "example");
             check("recipe type", recipe != null && "minecraft:crafting_shaped".equals(recipe.payload().get("type").asString()));
 
-            DatapackEntry world = dp.get(EntryKind.WORLDGEN, "toterra", "biome/meadow_of_tie");
-            check("worldgen depth=0.1", world != null && Math.abs(world.payload().get("depth").asFloat() - 0.1) < 1e-9);
+            DatapackEntry world = dp.get(EntryKind.WORLDGEN, "toterra", "configured_feature/meadow_of_tie");
+            check("worldgen configured_feature type", world != null
+                    && "minecraft:configured_feature".equals(world.payload().get("type").asString()));
+            check("worldgen simple_block + block 命中", world != null
+                    && "minecraft:simple_block".equals(world.payload().get("feature").asString())
+                    && "minecraft:diamond_block".equals(world.payload().get("block").asString()));
 
             // 4. tie logic chain: pack.td declaration → TieLibrary → FFM downcall
             check("tie 库声明 1 条", dp.tieLibraries().size() == 1
@@ -182,7 +186,7 @@ public final class DatapackProbe {
         copy("/datapack/mini_dp/data/toterra/recipe/example.td", dataRoot.resolve("toterra/recipe/example.td"));
         copy("/datapack/mini_dp/data/toterra/recipe/smoke.td", dataRoot.resolve("toterra/recipe/smoke.td"));
         copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", dataRoot.resolve("toterra/loot_table/chest/bonus.td"));
-        copy("/datapack/mini_dp/data/toterra/worldgen/biome/meadow_of_tie.td", dataRoot.resolve("toterra/worldgen/biome/meadow_of_tie.td"));
+        copy("/datapack/mini_dp/data/toterra/worldgen/configured_feature/meadow_of_tie.td", dataRoot.resolve("toterra/worldgen/configured_feature/meadow_of_tie.td"));
         copy("/datapack/mini_dp/data/toterra/structure/shrine.td", dataRoot.resolve("toterra/structure/shrine.td"));
         copy("/datapack/mini_dp/data/toterra/function/greet.td", dataRoot.resolve("toterra/function/greet.td"));
         copy("/datapack/mini_dp/data/toterra/function/farewell.td", dataRoot.resolve("toterra/function/farewell.td"));

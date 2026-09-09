@@ -10,6 +10,13 @@ import io.toterra.subterra.engine.datapack.EntryKind;
 import io.toterra.subterra.engine.datapack.TieLogicBundle;
 import io.toterra.subterra.engine.datapack.TieLogicLoader;
 import io.toterra.subterra.engine.tie.TieFunction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
@@ -18,18 +25,29 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CookingBookCategory;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.item.crafting.SmokingRecipe;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.configurations.SimpleBlockConfiguration;
+import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureSet;
+import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
+import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadType;
+import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement;
+import net.minecraft.world.level.levelgen.structure.structures.DesertPyramidStructure;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.entries.LootItem;
 import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -44,7 +62,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MC-shell datapack registrar (p.2.2 block 2): scans every td pack from the
+ * MC-shell datapack registrar (p.2.2 block 2+): scans every td pack from the
  * configured datapacks directory through the engine.datapack loader (pure td
  * direct loading), then registers the content per kind:
  *
@@ -54,12 +72,21 @@ import java.util.Map;
  * <li>recipe → td {@code recipe = [ type = "minecraft:crafting_shaped", … ]}
  * compiled into a vanilla {@link ShapedRecipe} holder and merged into the live
  * {@link RecipeManager} via {@code replaceRecipes} (+ log markers);</li>
+ * <li>loot_table → td chest schema → {@link LootTable} object, then merged into
+ * the {@code LOOT_TABLE} datapack registry through
+ * {@link DatapackRegistryInjector} (public un-freeze → register → freeze
+ * window; 1.21.1 has no {@code LootDataManager}) (+ log markers);</li>
+ * <li>worldgen → td configured_feature schema → {@link ConfiguredFeature}
+ * registered into {@code CONFIGURED_FEATURE} (+ log markers);</li>
+ * <li>structure → td structure / structure_set schema → {@link Structure} /
+ * {@link StructureSet} registered into {@code STRUCTURE} / {@code STRUCTURE_SET}
+ * (+ log markers);</li>
  * <li>function → tie binding resolved through {@link TieLogicLoader} and called
  * via {@link TieFunction#invoke0()} (0-arg seed contract) (+ log markers).</li>
  * </ul>
  *
  * <p>Deterministic markers feed the E2E gate; a broken pack or a malformed
- * recipe never takes the server down — it is named in a warn and skipped.
+ * entry never takes the server down — it is named in a warn and skipped.
  * Registry merge order vs the item_control recipe stripper: both hook
  * ServerStarted LOWEST; whichever runs first, banned outputs can only be
  * stripped, never re-added by this registrar.
@@ -78,6 +105,8 @@ public final class DatapackRegistrar implements AutoCloseable {
     private final Map<String, String> langMap = new LinkedHashMap<>();
     /** Vanilla recipes built from td and merged into the RecipeManager. */
     private final List<RecipeHolder<?>> recipes = new ArrayList<>();
+    /** Loot tables built from td and merged into the LOOT_TABLE datapack registry. */
+    private final Map<ResourceKey<LootTable>, LootTable> lootTables = new LinkedHashMap<>();
     /** Loaded tie libraries for FUNCTION entries; closed with the registrar. */
     private final List<TieLogicBundle> tieBundles = new ArrayList<>();
 
@@ -145,13 +174,14 @@ public final class DatapackRegistrar implements AutoCloseable {
                 byKind.get(EntryKind.FUNCTION).size());
     }
 
-    /** Registers tag / lang / recipe / tie content and logs deterministic detail markers. */
+    /** Registers tag / lang / recipe / loot / worldgen / structure / tie content and logs deterministic detail markers. */
     public void registerContent() {
         registerTags();
         registerLang();
         registerRecipes();
         registerTie();
-        registerStaged();
+        registerWorldgen();
+        registerStructures();
         registerTdCanonical();
         buildLootTables();
         for (Map.Entry<String, List<String>> e : tagValues.entrySet()) {
@@ -464,27 +494,54 @@ public final class DatapackRegistrar implements AutoCloseable {
         return BuiltInRegistries.ITEM.getKey(stack.getItem()).toString() + "x" + stack.getCount();
     }
 
-    /** Builds LootTables from staged td entries (chest schema, single pool, constant rolls). */
+    /** A built loot table plus the number of pools it carries. */
+    private record BuiltLoot(LootTable table, int pools) {
+    }
+
+    /**
+     * Builds LootTables from td entries (chest schema, single pool, constant
+     * rolls) and merges them into the {@code LOOT_TABLE} datapack registry via
+     * {@link DatapackRegistryInjector} (the 1.21.1 home of loot data — no
+     * {@code LootDataManager} exists; the registry lives in the reloadable layer
+     * exposed by {@code ReloadableServerResources.fullRegistries()}, not in
+     * {@code server.registryAccess()}). Post-injection visibility is re-read
+     * from the registry and logged as a deterministic marker.
+     */
     private void buildLootTables() {
+        Registry<LootTable> registry = server.getServerResources().managers()
+                .fullRegistries().get().registryOrThrow(Registries.LOOT_TABLE);
         for (DatapackEntry e : byKind.get(EntryKind.LOOT_TABLE)) {
-            int pools = buildLootTable(e);
-            if (pools == 0) {
+            BuiltLoot built = buildLootTable(e);
+            if (built == null) {
                 DatapackRuntime.LOGGER.warn("{} skip loot_table {} (unsupported or malformed)", MARKER, e.id());
                 continue;
             }
-            DatapackRuntime.LOGGER.info("{} loot built {} (pools={}, LootDataManager merge deferred)", MARKER, e.id(), pools);
+            ResourceLocation id = ResourceLocation.tryParse(e.id());
+            if (id == null) {
+                DatapackRuntime.LOGGER.warn("{} skip loot_table {} (bad id)", MARKER, e.id());
+                continue;
+            }
+            ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, id);
+            if (DatapackRegistryInjector.inject(registry, key, built.table(), DatapackRuntime.LOGGER, MARKER)) {
+                lootTables.put(key, built.table());
+                DatapackRuntime.LOGGER.info("{} loot built {} (pools={}, merged into LOOT_TABLE registry)",
+                        MARKER, e.id(), built.pools());
+                boolean ok = registry.get(key) == built.table();
+                DatapackRuntime.LOGGER.info("{} loot visible {} (pools={}, registry={})",
+                        MARKER, e.id(), built.pools(), ok ? "ok" : "mismatch");
+            }
         }
     }
 
-    /** Returns the number of pools built (0 = malformed/unsupported). */
-    private static int buildLootTable(DatapackEntry e) {
+    /** Returns the built table and its pool count; null = malformed/unsupported. */
+    private static BuiltLoot buildLootTable(DatapackEntry e) {
         TdTable p = e.payload();
         if (!"minecraft:chest".equals(p.get("type") != null ? p.get("type").asString() : "")) {
-            return 0;
+            return null;
         }
         TdValue poolsValue = p.get("pools");
         if (!(poolsValue instanceof TdTable pools)) {
-            return 0;
+            return null;
         }
         LootTable.Builder tableBuilder = LootTable.lootTable();
         int built = 0;
@@ -513,18 +570,147 @@ public final class DatapackRegistrar implements AutoCloseable {
             tableBuilder.withPool(poolBuilder);
             built++;
         }
-        return built;
+        return built == 0 ? null : new BuiltLoot(tableBuilder.build(), built);
     }
-    private void registerStaged() {
-        for (Map.Entry<EntryKind, List<DatapackEntry>> e : byKind.entrySet()) {
-            if (e.getKey() == EntryKind.LOOT_TABLE || e.getKey() == EntryKind.WORLDGEN
-                    || e.getKey() == EntryKind.STRUCTURE) {
-                for (DatapackEntry entry : e.getValue()) {
-                    DatapackRuntime.LOGGER.info("{} staged {} ({}, vanilla injection deferred)",
-                            MARKER, entry.id(), e.getKey().dir());
-                }
+
+    /**
+     * Registers td worldgen entries into the {@code CONFIGURED_FEATURE}
+     * datapack registry (configured_feature schema, minimal provable sample).
+     */
+    private void registerWorldgen() {
+        Registry<ConfiguredFeature<?, ?>> registry = server.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
+        for (DatapackEntry e : byKind.get(EntryKind.WORLDGEN)) {
+            ConfiguredFeature<?, ?> cf = buildConfiguredFeature(e);
+            if (cf == null) {
+                DatapackRuntime.LOGGER.warn("{} skip worldgen {} (unsupported or malformed)", MARKER, e.id());
+                continue;
+            }
+            ResourceLocation id = ResourceLocation.tryParse(e.id());
+            if (id == null) {
+                DatapackRuntime.LOGGER.warn("{} skip worldgen {} (bad id)", MARKER, e.id());
+                continue;
+            }
+            ResourceKey<ConfiguredFeature<?, ?>> key = ResourceKey.create(Registries.CONFIGURED_FEATURE, id);
+            if (DatapackRegistryInjector.inject(registry, key, cf, DatapackRuntime.LOGGER, MARKER)) {
+                boolean ok = registry.get(key) == cf;
+                DatapackRuntime.LOGGER.info("{} worldgen visible {} (configured_feature, registry={})",
+                        MARKER, e.id(), ok ? "ok" : "mismatch");
             }
         }
+    }
+
+    /** td worldgen entry (configured_feature schema) → a vanilla {@link ConfiguredFeature}. */
+    private static ConfiguredFeature<?, ?> buildConfiguredFeature(DatapackEntry e) {
+        TdTable p = e.payload();
+        if (!"minecraft:configured_feature".equals(p.get("type") != null ? p.get("type").asString() : "")) {
+            return null;
+        }
+        if (!"minecraft:simple_block".equals(p.get("feature") != null ? p.get("feature").asString() : "")) {
+            return null;
+        }
+        String blockId = p.get("block") != null ? p.get("block").asString() : "";
+        ResourceLocation blockLoc = ResourceLocation.tryParse(blockId);
+        Block block = blockLoc == null ? null : BuiltInRegistries.BLOCK.get(blockLoc);
+        if (block == null || block == Blocks.AIR) {
+            return null;
+        }
+        return new ConfiguredFeature<>(Feature.SIMPLE_BLOCK,
+                new SimpleBlockConfiguration(BlockStateProvider.simple(block)));
+    }
+
+    /**
+     * Registers td structure entries into {@code STRUCTURE} and (for the
+     * structure_set schema) {@code STRUCTURE_SET} datapack registries.
+     */
+    private void registerStructures() {
+        Registry<Structure> structureRegistry = server.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        Registry<StructureSet> setRegistry = server.registryAccess().registryOrThrow(Registries.STRUCTURE_SET);
+        Registry<Biome> biomeRegistry = server.registryAccess().registryOrThrow(Registries.BIOME);
+        for (DatapackEntry e : byKind.get(EntryKind.STRUCTURE)) {
+            Structure built = buildStructure(e, biomeRegistry);
+            if (built == null) {
+                DatapackRuntime.LOGGER.warn("{} skip structure {} (unsupported or malformed)", MARKER, e.id());
+                continue;
+            }
+            ResourceLocation id = ResourceLocation.tryParse(e.id());
+            if (id == null) {
+                DatapackRuntime.LOGGER.warn("{} skip structure {} (bad id)", MARKER, e.id());
+                continue;
+            }
+            ResourceKey<Structure> structureKey = ResourceKey.create(Registries.STRUCTURE, id);
+            if (!DatapackRegistryInjector.inject(structureRegistry, structureKey, built,
+                    DatapackRuntime.LOGGER, MARKER)) {
+                continue;
+            }
+            boolean structureSet = "minecraft:structure_set".equals(
+                    e.payload().get("type") != null ? e.payload().get("type").asString() : "");
+            if (!structureSet) {
+                boolean ok = structureRegistry.get(structureKey) == built;
+                DatapackRuntime.LOGGER.info("{} structure visible {} (structure, registry={})",
+                        MARKER, e.id(), ok ? "ok" : "mismatch");
+                continue;
+            }
+            StructurePlacement placement = buildPlacement(e);
+            if (placement == null) {
+                DatapackRuntime.LOGGER.warn("{} skip structure_set {} (bad placement)", MARKER, e.id());
+                continue;
+            }
+            Holder<Structure> holder = structureRegistry.getHolderOrThrow(structureKey);
+            StructureSet set = new StructureSet(holder, placement);
+            ResourceKey<StructureSet> setKey = ResourceKey.create(Registries.STRUCTURE_SET, id);
+            if (DatapackRegistryInjector.inject(setRegistry, setKey, set, DatapackRuntime.LOGGER, MARKER)) {
+                boolean ok = setRegistry.get(setKey) == set;
+                DatapackRuntime.LOGGER.info("{} structure visible {} (structure_set, structure={}, registry={})",
+                        MARKER, e.id(), id, ok ? "ok" : "mismatch");
+            }
+        }
+    }
+
+    /** td structure entry (structure / structure_set schema) → a vanilla {@link Structure}. */
+    private static Structure buildStructure(DatapackEntry e, Registry<Biome> biomeRegistry) {
+        TdTable p = e.payload();
+        String type = p.get("type") != null ? p.get("type").asString() : "";
+        if (!"minecraft:structure".equals(type) && !"minecraft:structure_set".equals(type)) {
+            return null;
+        }
+        List<Holder<Biome>> biomes = biomeHolders(p.get("biomes"), biomeRegistry);
+        if (biomes.isEmpty()) {
+            return null;
+        }
+        return new DesertPyramidStructure(new Structure.StructureSettings(HolderSet.direct(biomes)));
+    }
+
+    /** td structure_set placement fields → {@link RandomSpreadStructurePlacement}. */
+    private static StructurePlacement buildPlacement(DatapackEntry e) {
+        TdTable p = e.payload();
+        if (p.get("spacing") == null || p.get("separation") == null || p.get("salt") == null) {
+            return null;
+        }
+        int spacing = (int) Math.max(1L, p.get("spacing").asInt());
+        int separation = (int) Math.max(0L, p.get("separation").asInt());
+        int salt = (int) p.get("salt").asInt();
+        return new RandomSpreadStructurePlacement(spacing, separation, RandomSpreadType.LINEAR, salt);
+    }
+
+    /** Resolves td biome ids to biome-registry holders (unknown ids skipped). */
+    private static List<Holder<Biome>> biomeHolders(TdValue v, Registry<Biome> biomeRegistry) {
+        List<Holder<Biome>> out = new ArrayList<>();
+        if (!(v instanceof TdTable t)) {
+            return out;
+        }
+        for (TdValue item : t.elements()) {
+            ResourceLocation loc = ResourceLocation.tryParse(item.asString());
+            if (loc == null) {
+                continue;
+            }
+            ResourceKey<Biome> key = ResourceKey.create(Registries.BIOME, loc);
+            try {
+                out.add(biomeRegistry.getHolderOrThrow(key));
+            } catch (Throwable ignored) {
+                // unknown biome id; skip this holder
+            }
+        }
+        return out;
     }
 
     /** tie FUNCTION entries: resolve the binding and call it (0-arg seed contract). */
@@ -565,6 +751,11 @@ public final class DatapackRegistrar implements AutoCloseable {
         return functionCalls;
     }
 
+    /** Loot tables merged into the LOOT_TABLE registry (key → table). */
+    public Map<ResourceKey<LootTable>, LootTable> lootTables() {
+        return lootTables;
+    }
+
     @Override
     public void close() {
         for (TieLogicBundle bundle : tieBundles) {
@@ -581,6 +772,7 @@ public final class DatapackRegistrar implements AutoCloseable {
         tagValues.clear();
         langMap.clear();
         recipes.clear();
+        lootTables.clear();
         functionCalls.clear();
     }
 }
