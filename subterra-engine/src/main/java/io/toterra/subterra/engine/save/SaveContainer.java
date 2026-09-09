@@ -64,6 +64,17 @@ public final class SaveContainer {
     }
 
     /**
+     * 读取某槽的规则叠加层（overlay，只读视图）；无 → 空 map。导出档案 {@code SaveExportArchive}
+     * 用它取每槽的确切 overlay（含无 overlay 的「省略 rules」判定）。Reads a slot's rule overlay
+     * (the save-override layer, read-only view); empty when none is set. Used by the export archive
+     * {@code SaveExportArchive} to capture each slot's exact overlay (and to decide "no rules").
+     */
+    public Map<String, TdValue> ruleOverlays(SaveSlot slot) {
+        Map<String, TdValue> overlay = ruleOverlays.get(slot);
+        return overlay == null ? Map.of() : overlay;
+    }
+
+    /**
      * 读取某槽文档内嵌的 rules 表（形状仿 {@code DatapackRules.fromManifest}：
      * {@code rules = [ [ k = ..., v = ... ], ... ]}）；无 rules / 形状不符 → 空 map。
      * Reads the rules table embedded in a slot's document (shape mirrors
