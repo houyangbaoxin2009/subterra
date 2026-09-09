@@ -699,6 +699,14 @@ def parallelDispatchProbe = tasks.register('runParallelDispatchProbe', JavaExec)
     mainClass = 'io.toterra.subterra.probes.ParallelDispatchProbe'
 }
 
+// p.2.7.4: parallel runner facade with serial golden path, byte-identical contract (engine.parallel), pure JVM.
+def parallelEquivalenceProbe = tasks.register('runParallelEquivalenceProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.7.4: run the parallel-vs-serial equivalence probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ParallelEquivalenceProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
