@@ -175,9 +175,11 @@ public record RecipeDatum(String type,
     /**
      * Round-trips a double through float precision so a fractional experience
      * like {@code 0.35} is written clean instead of as float→double dust
-     * ({@code 0.3499999940395355}).
+     * ({@code 0.3499999940395355}). Public so the MC-shell exporter
+     * ({@code DatapackRecipeExporter}) reuses the same normalization — the two
+     * export paths must stay byte-consistent.
      */
-    static double cleanExperience(double d) {
+    public static double cleanExperience(double d) {
         return Double.parseDouble(Float.toString((float) d));
     }
 }

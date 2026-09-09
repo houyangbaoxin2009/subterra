@@ -104,9 +104,9 @@ public final class DatapackRecipeExporter {
         String ingredientItem = BuiltInRegistries.ITEM.getKey(items[0].getItem()).toString();
         ItemStack res = smoking.getResultItem(ra);
         String resultItem = BuiltInRegistries.ITEM.getKey(res.getItem()).toString();
-        // cleanExperience is package-private to engine.datapack; mirror its
-        // float-precision round-trip inline so output matches byte-for-byte.
-        double experience = Double.parseDouble(Float.toString((float) smoking.getExperience()));
+        // same float-precision normalization as the engine read side, so the
+        // object-derived export matches the payload-derived export byte-for-byte
+        double experience = RecipeDatum.cleanExperience(smoking.getExperience());
         long cookingTime = smoking.getCookingTime();
         RecipeDatum datum = new RecipeDatum("minecraft:smoking", List.of(), List.of(),
                 resultItem, 1L, ingredientItem, experience, cookingTime);
