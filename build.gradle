@@ -180,6 +180,12 @@ neoForge {
             // closed-loop shell at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.saveverify',
                     System.getProperty('subterra.probe.saveverify', project.findProperty('subterra.probe.saveverify') ?: '')
+            // p.2.11.5 deterministic E2E session hook: gate the engine.session programmable-session
+            // closed-loop shell at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
+            // p.2.11.5 确定性 E2E 会话钩子：在 ServerStartedEvent 生命周期门控 engine.session 可编程会话
+            // 闭环壳（缺省 -> 优先级 no-op，纯 no-op 壳）。
+            systemProperty 'subterra.probe.session',
+                    System.getProperty('subterra.probe.session', project.findProperty('subterra.probe.session') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()
