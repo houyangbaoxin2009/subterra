@@ -51,17 +51,40 @@ public final class DatapackExportCommand {
             ctx.getSource().sendFailure(Component.literal("datapack registrar not active"));
             return 0;
         }
-        Path dir = pathArg != null && !pathArg.isBlank()
-                ? Path.of(pathArg).toAbsolutePath().normalize()
-                : Path.of("subterra-export").toAbsolutePath().normalize();
+        String dir = pathArg != null && !pathArg.isBlank()
+                ? pathArg
+                : "subterra-export";
+        boolean ok = exportFrom(reg, dir);
+        if (ok) {
+            ctx.getSource().sendSuccess(() -> Component.literal("subterra export wrote "
+                    + Path.of(dir).toAbsolutePath().normalize()), false);
+        } else {
+            ctx.getSource().sendFailure(Component.literal("subterra export failed (see log markers)"));
+        }
+        return ok ? 1 : 0;
+    }
+
+    /**
+     * Runs the export-archive write + export∘rehydrate byte-identity check against
+     * every loaded pack and logs the deterministic markers ({@code export cmd ...}).
+     * <p>This is the shared core behind both the {@code /subterra export} command and
+     * the deterministic E2E startup hook ({@code subterra.probe.export}: a path the
+     * gate forwards as a system property so the same marker stream is emitted without
+     * relying on stdin round-tripping through the gradle-forked server JVM).
+     *
+     * @return {@code true} if every pack exported and rehydrated byte-identical
+     */
+    public static boolean exportFrom(DatapackRegistrar reg, String pathArg) {
+        Path dir = (pathArg == null || pathArg.isBlank()
+                ? Path.of("subterra-export")
+                : Path.of(pathArg)).toAbsolutePath().normalize();
 
         try {
             Files.createDirectories(dir);
         } catch (IOException e) {
             DatapackRuntime.LOGGER.error("{} export cmd mismatch (dir create failed): {}",
                     DatapackRegistrar.MARKER, e.toString());
-            ctx.getSource().sendFailure(Component.literal("subterra export failed: " + e.getMessage()));
-            return 0;
+            return false;
         }
 
         int totalPacks = 0;
@@ -107,13 +130,11 @@ public final class DatapackExportCommand {
 
         if (failed) {
             DatapackRuntime.LOGGER.error("{} export cmd mismatch", DatapackRegistrar.MARKER);
-            ctx.getSource().sendFailure(Component.literal("subterra export failed (see log markers)"));
-            return 0;
+            return false;
         }
         DatapackRuntime.LOGGER.info("{} export cmd ok (packs={}, bytes={})",
                 DatapackRegistrar.MARKER, totalPacks, totalBytes);
-        ctx.getSource().sendSuccess(() -> Component.literal("subterra export wrote " + dir), false);
-        return 1;
+        return true;
     }
 
     /** Replaces every char outside {@code [A-Za-z0-9._-]} with {@code _} so the file name stays filesystem-safe. */

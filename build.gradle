@@ -152,6 +152,10 @@ neoForge {
                     System.getProperty('subterra.datapacks', project.findProperty('subterra.datapacks') ?: System.getenv('SUBTERRA_DATAPACKS') ?: '')
             // p.2.2.9 save/session rules override file (absent -> no override).
             systemProperty 'subterra.override', System.getProperty('subterra.override', project.findProperty('subterra.override') ?: '')
+            // p.2.2.7 deterministic E2E export hook: forward a target path to run the
+            // export + rehydrate-identity core at startup (absent -> no auto-export).
+            systemProperty 'subterra.probe.export',
+                    System.getProperty('subterra.probe.export', project.findProperty('subterra.probe.export') ?: '')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.

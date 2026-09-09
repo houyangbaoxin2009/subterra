@@ -40,6 +40,12 @@ public final class DatapackRuntime {
         try {
             reg.loadPacks(resolveDatapacksDir());
             reg.registerContent();
+            // p.2.2.7 deterministic E2E hook: run the same export + rehydrate-identity
+            // core at startup when a target path is forwarded (marks every pack).
+            String exportPath = System.getProperty("subterra.probe.export");
+            if (exportPath != null && !exportPath.isBlank()) {
+                DatapackExportCommand.exportFrom(reg, exportPath);
+            }
         } catch (Throwable t) {
             LOGGER.error("[Subterra datapack] load failed: {}", t.toString());
         }

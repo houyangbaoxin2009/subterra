@@ -71,11 +71,18 @@ public final class DatapackE2EProbe {
         String stagedRoot = stageSeedPack(root);
         reapPort(PROBE_PORT);
 
+        // Deterministic export target: forwarded as a gradle -P property to the
+        // runServer config (same reliable channel as subterra.datapacks/override).
+        // This runs the same export + rehydrate-identity core at startup instead of
+        // round-tripping a console command through the gradle-forked server JVM stdin.
+        String exportTarget = root.resolve("build/tmp/subterra-export-e2e").normalize().toString();
+
         ProcessBuilder pb = new ProcessBuilder(
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
                 "-Psubterra.datapacks=" + stagedRoot,
-                "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.td").toString());
+                "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.td").toString(),
+                "-Psubterra.probe.export=" + exportTarget);
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -192,14 +199,11 @@ public final class DatapackE2EProbe {
                 }
                 if (seen[0] && !exportIssued) {
                     exportIssued = true;
-                    try {
-                        process.getOutputStream().write(
-                                "subterra export build/tmp/subterra-export-e2e\n".getBytes(StandardCharsets.UTF_8));
-                        process.getOutputStream().flush();
-                        System.out.println("[DatapackE2EProbe] issued subterra export command");
-                    } catch (IOException ignored) {
-                        // process may be exiting; probe owns cleanup below
-                    }
+                    // Export is driven deterministically at server startup via
+                    // -Psubterra.probe.export (reliable gradle property channel),
+                    // not by a console command over stdin (which does not round-trip
+                    // through the gradle-forked server JVM).
+                    System.out.println("[DatapackE2EProbe] export driven at startup (subterra.probe.export)");
                 }
                 if (all(seen) || fatal) {
                     if (!signaled) {
@@ -318,8 +322,10 @@ public final class DatapackE2EProbe {
         copy("/datapack/mini_dp/extra/obligatory_tower.td", target.resolve("extra/obligatory_tower.td"));
         copy("/tie/dp_logic_probe.dll", target.resolve("tie/dp_logic_probe.dll"));
         // save/session rules override for p.2.2.9: flips pack.td's wild=true -> false
+        // A bare root table with a "rules" key, so that Td.parse's name-strip does
+        // not consume the identifier: fromManifest reads the returned root's rules key.
         Files.writeString(stagedRoot.resolve("overrides.td"),
-                "type tie<data>\nrules = [ [ k = \"wild\", v = false ] ],\n");
+                "type tie<data>\n[ rules = [ [ k = \"wild\", v = false ] ] ]\n");
         System.out.println("[DatapackE2EProbe] staged seed pack at " + target);
         return stagedRoot.toAbsolutePath().normalize().toString();
     }
