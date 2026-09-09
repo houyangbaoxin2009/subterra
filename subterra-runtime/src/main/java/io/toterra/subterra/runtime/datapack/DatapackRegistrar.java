@@ -146,6 +146,11 @@ public final class DatapackRegistrar implements AutoCloseable {
         return byKind;
     }
 
+    /** The datapacks loaded for this server (read-only snapshot for the export command). */
+    public List<Datapack> packs() {
+        return List.copyOf(packs);
+    }
+
     /** Loads every td pack under {@code root} (one subdirectory per pack). */
     public void loadPacks(Path root) {
         if (!Files.isDirectory(root)) {

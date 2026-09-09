@@ -30,6 +30,7 @@ public final class DatapackRuntime {
     /** Registers the NeoForge lifecycle listeners (call from the mod constructor). */
     public static void bootstrap() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.register(DatapackRuntime.class);
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(DatapackExportCommand::onRegisterCommands);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -63,5 +64,10 @@ public final class DatapackRuntime {
             return Path.of(env).toAbsolutePath().normalize();
         }
         return Path.of("datapacks");
+    }
+
+    /** The active registrar for the current server (command entry point). */
+    public static DatapackRegistrar activeRegistrar() {
+        return registrar;
     }
 }

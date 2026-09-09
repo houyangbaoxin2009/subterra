@@ -34,6 +34,9 @@ import java.util.concurrent.TimeUnit;
  *   lang, loot_table, worldgen, structure, function — kind word per entry) and
  *   the whole-pack archive marker ({@code export archive roundtrip ok} with
  *   {@code entries=10}).</li>
+ *   <li>the {@code /subterra export} command writes the loaded pack out as an
+ *   export-archive td doc and verifies the export∘rehydrate identity (markers
+ *   {@code export cmd ok (packs=1,} and per-pack {@code rehydrate=ok}).</li>
  * </ul>
  * The probe stages the seed by copying devkit resources into
  * {@code run/datapacks/} fresh each run, so the gate stays deterministic and
@@ -77,9 +80,10 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[27];
+        boolean[] seen = new boolean[29];
         boolean fatal = false;
         boolean signaled = false;
+        boolean exportIssued = false;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -168,8 +172,25 @@ public final class DatapackE2EProbe {
                 if (line.contains(DP_MARKER + " export archive roundtrip ok (entries=10")) {
                     seen[26] = true;
                 }
+                if (line.contains(DP_MARKER + " export cmd ok (packs=1,")) {
+                    seen[27] = true;
+                }
+                if (line.contains(DP_MARKER + " export cmd ") && line.contains("rehydrate=ok")) {
+                    seen[28] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
+                }
+                if (seen[0] && !exportIssued) {
+                    exportIssued = true;
+                    try {
+                        process.getOutputStream().write(
+                                "subterra export build/tmp/subterra-export-e2e\n".getBytes(StandardCharsets.UTF_8));
+                        process.getOutputStream().flush();
+                        System.out.println("[DatapackE2EProbe] issued subterra export command");
+                    } catch (IOException ignored) {
+                        // process may be exiting; probe owns cleanup below
+                    }
                 }
                 if (all(seen) || fatal) {
                     if (!signaled) {
@@ -217,8 +238,8 @@ public final class DatapackE2EProbe {
                 + " exportExample=" + seen[16] + " exportSmoke=" + seen[17]
                 + " exportTag=" + seen[18] + " exportLang=" + seen[19] + " exportLoot=" + seen[20]
                 + " exportWorldgen=" + seen[21] + " exportStructure=" + seen[22]
-                + " exportTower=" + seen[23] + " exportGreet=" + seen[24] + " exportFarewell=" + seen[25]
-                + " exportArchive=" + seen[26] + " fatal=" + fatal);
+                + " exportTower=" + seen[23] + " exportGreet=" + seen[24] + " exportFarewell=" + seen[25] + " exportArchive=" + seen[26]
+                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
@@ -246,6 +267,20 @@ public final class DatapackE2EProbe {
      * shared dir by default) can never hold a Windows file handle on our dll.
      */
     private static String stageSeedPack(Path root) throws Exception {
+        // clear a previous run's export output so the command starts from a clean dir
+        Path exportDir = root.resolve("build/tmp/subterra-export-e2e");
+        if (Files.exists(exportDir)) {
+            try (var walk = Files.walk(exportDir)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(p -> {
+                            try {
+                                Files.deleteIfExists(p);
+                            } catch (Exception ignored) {
+                                // best-effort; stale leftovers never block staging
+                            }
+                        });
+            }
+        }
         Path stagedRoot = root.resolve("build/tmp/datapacks-e2e");
         if (Files.exists(stagedRoot)) {
             try (var walk = Files.walk(stagedRoot)) {
