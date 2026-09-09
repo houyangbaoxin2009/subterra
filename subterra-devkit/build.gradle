@@ -471,6 +471,17 @@ def saveE2EProbe = tasks.register('runSaveE2EProbe', JavaExec) {
 // bootProbe / datapackE2EProbe — never boot concurrently (DirectoryLock on session.lock).
 saveE2EProbe.configure { mustRunAfter datapackE2EProbe }
 
+// Dev aid (p.2.4): print the devkit runtime classpath so not-yet-wired probes
+// can be verified standalone (java -cp <printed> io.toterra.subterra.probes.X).
+def printDevkitClasspath = tasks.register('printDevkitClasspath') {
+    // resolve at configuration time (execution-time Task.project is not
+    // configuration-cache compatible)
+    def cp = project.sourceSets.main.runtimeClasspath.asPath
+    doLast {
+        println cp
+    }
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
