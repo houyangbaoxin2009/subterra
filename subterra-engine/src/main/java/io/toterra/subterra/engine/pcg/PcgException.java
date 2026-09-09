@@ -21,6 +21,8 @@ public class PcgException extends Exception {
     public static final String NEGATIVE_WEIGHT = "NEGATIVE_WEIGHT";
     /** 权重序列长度与条目序列不一致 / the weights sequence length does not match the items sequence. */
     public static final String BOUND = "BOUND";
+    /** 模板中出现的占位槽在候选池中缺失、无法替换（{@link PcgTextSample}）/ a placeholder slot in the template has no supplied pool to pick from ({@link PcgTextSample}). */
+    public static final String UNKNOWN_SLOT = "UNKNOWN_SLOT";
 
     private final String reason;
 
