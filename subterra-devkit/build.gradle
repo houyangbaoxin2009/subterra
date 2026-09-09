@@ -539,6 +539,23 @@ def networkE2EProbe = tasks.register('runNetworkE2EProbe', JavaExec) {
 // bootProbe / datapackE2EProbe / saveE2EProbe — never boot concurrently (DirectoryLock on session.lock).
 networkE2EProbe.configure { mustRunAfter saveE2EProbe }
 
+// p.2.6.6: E2E gate — boots the dev server with the async gated shell enabled
+// (-Dsubterra.probe.async) and asserts the deterministic markers ([Subterra async]) at
+// ServerStartedEvent. A headless pure-JVM 2x2 parallel-vs-serial engine-core check runs inside
+// the probe first. Event-based, never timing-based, like the other E2E gates.
+def asyncE2EProbe = tasks.register('runAsyncE2EProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.6.6: boot dev server, fire the gated async shell, assert markers (E2E gate)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.AsyncE2EProbe'
+    workingDir = rootProject.projectDir
+    systemProperty 'subterra.projectDir', rootProject.projectDir.absolutePath
+}
+// Fifth boot gate: forks the same gradlew runServer on the same run/world as
+// bootProbe / datapackE2EProbe / saveE2EProbe / networkE2EProbe — never boot
+// concurrently (DirectoryLock on session.lock).
+asyncE2EProbe.configure { mustRunAfter networkE2EProbe }
+
 // p.2.5.1: P2P decentralised-network feasibility benchmark — quantifies the zd payload
 // channel (encoding volume ratio, encode/decode throughput ops/ms, tink v2 frame overhead,
 // and a combined zd->FrameV2(strong)->parse->zd-decode round-trip). Pure JVM, no MC runtime,
@@ -661,5 +678,5 @@ def asyncIoProbe = tasks.register('runAsyncIoProbe', JavaExec) {
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, networkE2EProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, networkE2EProbe, asyncE2EProbe
 }

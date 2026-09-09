@@ -164,6 +164,10 @@ neoForge {
             // ServerStartedEvent lifecycle (absent -> priority no-op).
             systemProperty 'subterra.probe.network',
                     System.getProperty('subterra.probe.network', project.findProperty('subterra.probe.network') ?: '')
+            // p.2.6.6 deterministic E2E async hook: gate the async worldgen shell at the
+            // ServerStartedEvent lifecycle (absent -> priority no-op).
+            systemProperty 'subterra.probe.async',
+                    System.getProperty('subterra.probe.async', project.findProperty('subterra.probe.async') ?: '')
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
