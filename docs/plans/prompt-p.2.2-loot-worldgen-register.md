@@ -1,13 +1,13 @@
-# Subterra p.2.2 数据包重构（td 一等公民）· 第四块剩余：Loot 真合并 + Worldgen/Structure 真注册 · 开发任务提示词
+# Subterra p.2.2 数据包重构（td 一等公民）· p.2.2.4：Loot 真合并 + Worldgen/Structure 真注册 · 开发任务提示词
 
 ## 0. 角色与目标
 你是 Subterra（NeoForge 模组开发框架，服务 Toterra 主模组）的开发代理。
-本次目标 = p.2.2 数据包重构的**第四块剩余**：把已经能"构建出对象"的 loot_table 真正合并进原版 LootDataManager，并把 worldgen / structure 条目真正注册进原版注册表（RegisterEvent 链）。
+本次目标 = p.2.2 数据包重构的**p.2.2.4**：把已经能"构建出对象"的 loot_table 真正合并进原版 LootDataManager，并把 worldgen / structure 条目真正注册进原版注册表（RegisterEvent 链）。
 工作方式：先小任务摸底/定最小闭环 → 逐个实现 → 每个小任务完成即提交（报告一句），全部完成后统一 review+清理+推送。
 
 ## 1. 项目上下文（必读）
 - 系列聚合根 F:\Projects\Toterra-Repo：Subterra（框架，开源 TPL 2.0，origin=github.com/houyangbaoxin2009/subterra）+ Toterra（github.com/houyangbaoxin2009/toterra）。
-- **已落地到第四块第 1 片**（提交见 git log）：
+- **已落地到 p.2.2.4 第 1 片**（提交见 git log）：
   * engine.datapack（纯 JDK 无 JSON）+ DatapackLoader 双发现 + TieLogicBundle + DatapackPack 打包往返。
   * runtime.datapack：DatapackRegistrar 已支持——tag/lang 索引、**crafting_shaped+smoking→RecipeManager.replaceRecipes 合并**、tie 0 参调用、**recipe 规范形往返（canonical ok markers：td→vanilla 对象→规范串逐字符一致）**、**loot_table→LootTable 对象构建（pools=N marker，尚未合并进 LootDataManager）**、worldgen/structure staged markers。
   * DatapackE2EProbe 13 断言 + DatapackProbe 31 断言全绿；probeAcceptance 全绿（含两次开服，mustRunAfter 串行）。
@@ -15,7 +15,7 @@
 - 分层铁律：api ← engine ← runtime/migrate；engine 纯 JDK 不碰 MC；MC 壳落根 sourceSet（subterra-runtime source-host）；iron law 探针覆盖。
 - RegisterEvent 先例：SubterraWorldgen.registerDensityFunctionType（modEventBus RegisterEvent → event.register(Registries.X, id, ()->codec)）；server registryAccess 可见性断言参考其 onServerStarting。
 
-## 2. 本次范围（第四块剩余）
+## 2. 本次范围（p.2.2.4）
 1. **loot 真合并**：把 buildLootTable 产出的 LootTable 合并进原版装载链——首选 ServerResources 的 AddReloadListenerEvent（RecipeStripper 同款）在数据装载时把 td 表以 LootDataType.TABLE 语义并入 LootDataManager（先确认 LootDataManager 1.21.1 的注入面：javap LootDataManager getElement/parse；若公开注入面不存在，则记录与 lod 表并存策略：以 Resources 级监听器持有并在 ServerStarted 后通过 reflect/accessor 合并，或明确锁归 staged 并在本提示词更新中如实标注）。E2E 断言：开服后经 server.getLootData().getElement(key) 可查到 toterra:loot_table/chest/bonus 的 LootTable 且 pools 数正确。
 2. **worldgen 真注册**：RegisterEvent（modEventBus，Registries.CONFIGURED_FEATURE 或 STRUCTURE_SET 中择一可实证的最小样例）——td worldgen 条目最小 schema → 注册进原版注册表 → E2E 用 server.registryAccess().registryOrThrow(...).containsKey(id) 断言可见。
 3. **structure 真注册**：structure_set（或 structure）经 RegisterEvent 注册 + Registry 可见断言；若挂载复杂度超预算，保留 staged 索引 + 明确注释，如实标注（不硬塞）。

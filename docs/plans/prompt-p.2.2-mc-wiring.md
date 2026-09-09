@@ -1,13 +1,13 @@
-# Subterra p.2.2 数据包重构（td 一等公民）· 第二块：MC 壳注册接线 · 开发任务提示词
+# Subterra p.2.2 数据包重构（td 一等公民）· p.2.2.2：MC 壳注册接线 · 开发任务提示词
 
 ## 0. 角色与目标
 你是 Subterra（NeoForge 模组开发框架，服务 Toterra 主模组）的开发代理。
-本次目标 = p.2.2 数据包重构的**第二块**：把第一块已落地的纯 td 直载注册表**拉到 MC 运行时**——数据包装载时机挂钩（开服装载全部 td 包）→ 条目注册进原版注册表（tag/lang/recipe 先行）→ E2E 确定性探针验证注册生效。
+本次目标 = p.2.2 数据包重构的**p.2.2.2**：把 p.2.2.1 已落地的纯 td 直载注册表**拉到 MC 运行时**——数据包装载时机挂钩（开服装载全部 td 包）→ 条目注册进原版注册表（tag/lang/recipe 先行）→ E2E 确定性探针验证注册生效。
 工作方式：先小任务摸底/定最小闭环 → 逐个实现 → 每个小任务完成即提交（报告一句），全部完成后统一 review+清理+推送。
 
 ## 1. 项目上下文（必读）
 - 系列聚合根 F:\Projects\Toterra-Repo：Subterra（框架，开源 TPL 2.0，origin=github.com/houyangbaoxin2009/subterra）+ Toterra（主内容模组，github.com/houyangbaoxin2009/toterra）。
-- **第一块已落地（2026-09-09，提交 633b3ae/192fde1）**：
+- **p.2.2.1 已落地（2026-09-09，提交 633b3ae/192fde1）**：
   * `subterra-engine/.../engine/datapack/`：`EntryKind`（七类 function/recipe/loot_table/worldgen/structure/tag/lang）+ `DatapackEntry`（kind/ns/path/payload，规范 id `ns:kind/path`）+ `Datapack`（按 id 确定性排序注册表 + tie 库声明）+ `DatapackLoader`（**双发现**：目录约定扫描 `data/<ns>/<kind>/<path>.td` + 可选 `pack.td` manifest：name/title/tie 库声明 `[lib,dll]`/增量条目 `[kind,ns,path,file]`；坏 td 抛错带文件路径；重复 id 抛错）+ `TieLogicLoader`→`TieLogicBundle`（AutoCloseable；FUNCTION 条目 payload `lib/fn` → 符号 `<lib>$<fn>`，fn 缺省=条目路径，未导出/未声明即抛）。
   * **决策定案：纯 td 直载，不产出 JSON、不依赖原版数据包管道**（原「td → 原版 JSON 兼容落位」改为「注册进内存注册表，由 MC 壳直接注册进原版注册表」）。
   * `DatapackProbe`（devkit，26 断言全绿，已接 probeAcceptance）：迷你包 mini_dp（9 条目 7 类）+ 捆绑 dll。
@@ -17,13 +17,13 @@
 - tie 动态库 ABI：符号 `<namespace>$<fn>`；导出面 = 顶层/命名空间 pub func，仅标量(i64/f64/bool/trit/char)+string 跨边界；`type tie<class>` 头必须在第 1 行；私有 func 不导出。
 - 分层铁律：api ← engine ← runtime/migrate；engine 纯 JDK 不碰 MC 类路径；**MC 壳（数据包登记、注册表写入、NeoForge 事件）落根 sourceSet**（F:\Projects\Toterra-Repo\Subterra\src\main\java\io\toterra\subterra）；设置侧 `run/config/subterra/*.td` 为配置样例（注意：`type = "..."` 数据键合法，不再被劫持）。
 
-## 2. 本次范围（第二块，MC 壳注册接线）
+## 2. 本次范围（p.2.2.2，MC 壳注册接线）
 1. **数据包装载时机**：开服装载钩子——在正确的生命周期（建议 `RegisterEvent`/世界数据包加载链）扫描 `datapacks/` 目录（或子目录）装载全部 td 包（复用 `DatapackLoader`），失败记录不崩服；包与包之间按 id 合并冲突策略明确（报错或后到覆盖，先定策略）。
 2. **条目注册进原版注册表（先行三类）**：
    * tag → TagManager 注册（td values/replace 语义映射原版 HolderSet）；
    * lang → 本地化注册（td k/v 对注入 LanguageManager 或资源）；
    * recipe → RecipeManager 注册（td recipe 表 → 原版 Recipe，先做 crafting_shaped 一类即算闭环）。
-   * loot_table/worldgen/structure/function：register 壳仅为占位 + 明确「下一块再接线」注释，不在本块硬做全 schema。
+   * loot_table/worldgen/structure/function：register 壳仅为占位 + 明确「下一模块再接线」注释，不在本块硬做全 schema。
 3. **tie 逻辑链路进 MC**：FUNCTION 条目经 TieLogicBundle 装载后，注册为可被 MC 侧调用的事件函数（入参出参按 ABI 标量）；最小闭环为「装载成功 + 符号存在 + 调用一次」的 E2E 断言，不接具体 MC 事件。
 4. **E2E 确定性探针**：接 bootProbe 风格——开服装载一个真实 td 数据包，断言：注册表条目数、tag 在 TagManager 可见、recipe 在 RecipeManager 可见、tie 符号可调用。探针自包含资源（bundled dll 不进 E2E，探针用 tie 逻辑以 i64/i64 标量验证）。
 5. 具体切分以摸底后的最小闭环为准；不确定范围先列出提问，不擅自扩大。

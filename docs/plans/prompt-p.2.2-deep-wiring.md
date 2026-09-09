@@ -1,21 +1,21 @@
-# Subterra p.2.2 数据包重构（td 一等公民）· 第四块：深接线（Loot / Worldgen / Structure 真注入 + DataPack→td 导出）· 开发任务提示词
+# Subterra p.2.2 数据包重构（td 一等公民）· p.2.2.4：深接线（Loot / Worldgen / Structure 真注入 + DataPack→td 导出）· 开发任务提示词
 
 ## 0. 角色与目标
 你是 Subterra（NeoForge 模组开发框架，服务 Toterra 主模组）的开发代理。
-本次目标 = p.2.2 数据包重构的**第四块**：把第三块已交付的三类 staged 索引（loot_table / worldgen / structure）**真正注入原版装载/注册链**，并补 **DataPack→td 导出往返**（从已装入的 RecipeManager 等内容导出为 td，再回灌，往返精确）。
+本次目标 = p.2.2 数据包重构的**p.2.2.4**：把 p.2.2.3 已交付的三类 staged 索引（loot_table / worldgen / structure）**真正注入原版装载/注册链**，并补 **DataPack→td 导出往返**（从已装入的 RecipeManager 等内容导出为 td，再回灌，往返精确）。
 工作方式：先小任务摸底/定最小闭环 → 逐个实现 → 每个小任务完成即提交（报告一句），全部完成后统一 review+清理+推送。
 
 ## 1. 项目上下文（必读）
 - 系列聚合根 F:\Projects\Toterra-Repo：Subterra（框架，开源 TPL 2.0，origin=github.com/houyangbaoxin2009/subterra）+ Toterra（主内容模组，github.com/houyangbaoxin2009/toterra）。
 - **前三块已落地**：
-  * 第一块 engine.datapack（纯 JDK，无 JSON）：EntryKind 七类 / DatapackEntry / Datapack（按 id 排序）/ DatapackLoader（目录约定 + pack.td manifest 双发现）/ TieLogicLoader→TieLogicBundle（`<lib>$<fn>` FFM）/ DatapackProbe。
-  * 第二块 MC 壳（runtime.datapack）：DatapackRuntime（ServerStarted/Stopping + resolveDatapacksDir：prop→findProperty→env→cwd）/ DatapackRegistrar：tag/lang 索引 + **crafting_shaped→ShapedRecipe→RecipeManager.replaceRecipes** + tie 0 参调用；DatapackE2EProbe（9→10 标记开服断言，与 bootProbe 用 mustRunAfter 串行；staging 隔离 build/tmp/datapacks-e2e）。
-  * 第三块：**DatapackPack 打包往返**（目录↔单一 td 文档，base64 content，重载注册表一致）+ **smoking→SmokingRecipe**（buildRecipe 按 type 分派）+ 剩余三类 staged markers（`staged <id> (<kind>, vanilla injection deferred)`）。
+  * p.2.2.1 engine.datapack（纯 JDK，无 JSON）：EntryKind 七类 / DatapackEntry / Datapack（按 id 排序）/ DatapackLoader（目录约定 + pack.td manifest 双发现）/ TieLogicLoader→TieLogicBundle（`<lib>$<fn>` FFM）/ DatapackProbe。
+  * p.2.2.2 MC 壳（runtime.datapack）：DatapackRuntime（ServerStarted/Stopping + resolveDatapacksDir：prop→findProperty→env→cwd）/ DatapackRegistrar：tag/lang 索引 + **crafting_shaped→ShapedRecipe→RecipeManager.replaceRecipes** + tie 0 参调用；DatapackE2EProbe（9→10 标记开服断言，与 bootProbe 用 mustRunAfter 串行；staging 隔离 build/tmp/datapacks-e2e）。
+  * p.2.2.3：**DatapackPack 打包往返**（目录↔单一 td 文档，base64 content，重载注册表一致）+ **smoking→SmokingRecipe**（buildRecipe 按 type 分派）+ 剩余三类 staged markers（`staged <id> (<kind>, vanilla injection deferred)`）。
 - 技术栈：NeoForge 21.1.x / MC 1.21.1；全项目 Java 25；Gradle 9.2；Zulu 25。
 - 关键 API 事实（javap neoform jar 已核实）：Registry.get(ResourceLocation)（非 getValue）；ShapedRecipe(String,CraftingBookCategory,ShapedRecipePattern,ItemStack,boolean) + ShapedRecipePattern.of(Map,List)；SmokingRecipe(String,CookingBookCategory,Ingredient,ItemStack,float,int)；RecipeManager.getRecipes/replaceRecipes(Iterable)。LootDataManager 的注入面在 ServerResources 装载链（AddReloadListenerEvent 模式已有 RecipeStripper 参考）。
 - 分层铁律：api ← engine ← runtime/migrate；engine 纯 JDK 不碰 MC；MC 壳落根 sourceSet（subterra-runtime source-host）；iron law 探针覆盖。
 
-## 2. 本次范围（第四块，深接线）
+## 2. 本次范围（p.2.2.4，深接线）
 1. **loot_table 真注入**：td loot_table 条目 → 原版 LootDataManager（ServerResources 装载窗口，AddReloadListenerEvent 对齐 RecipeStripper；先定最小区间：chest 表桩 + 单 pool + roll，按 LootTable.builder() 构造）→ E2E 断言装载后 LootDataManager 可见（按 ResourceKey 查表非空）。
 2. **worldgen 真注入**：RegisterEvent 挂载点确认（modEventBus 的 RegisterEvent，参考 SubterraWorldgen 注册 subterra:density 的先例）——td worldgen 条目最小样例注册进原版 WorldGen 注册表（候选：configured_feature 或 density_function 先择其一手动接线实证），E2E 断言条目在注册表可见（BuiltInRegistries/RegistryAccess 查询）。
 3. **structure 真注入**：结构集/结构注册（RegisterEvent 挂 ServerProcessJigsawEvent 链或 data-driven 装载窗），最小样例 = structure_set 条目注册 + Registry 可见断言；若挂载复杂度超出该块预算，保留 staged 索引 + 明确注释，并在提示词更新中如实标注（不硬塞）。

@@ -1,25 +1,25 @@
-# Subterra p.2.2 数据包重构（td 一等公民）· 第三块：剩余四类注册 + 打包往返 · 开发任务提示词
+# Subterra p.2.2 数据包重构（td 一等公民）· p.2.2.3：剩余四类注册 + 打包往返 · 开发任务提示词
 
 ## 0. 角色与目标
 你是 Subterra（NeoForge 模组开发框架，服务 Toterra 主模组）的开发代理。
-本次目标 = p.2.2 数据包重构的**第三块**：把第二块已跑通的「td 直载 → 原版注册」接线**补齐剩余四类**（loot_table / worldgen / structure / 更多 recipe 类型），并打通**数据包打包分发（接 engine.config ConfigPack）与配方/战利品往返**。
+本次目标 = p.2.2 数据包重构的**p.2.2.3**：把 p.2.2.2 已跑通的「td 直载 → 原版注册」接线**补齐剩余四类**（loot_table / worldgen / structure / 更多 recipe 类型），并打通**数据包打包分发（接 engine.config ConfigPack）与配方/战利品往返**。
 工作方式：先小任务摸底/定最小闭环 → 逐个实现 → 每个小任务完成即提交（报告一句），全部完成后统一 review+清理+推送。
 
 ## 1. 项目上下文（必读）
 - 系列聚合根 F:\Projects\Toterra-Repo：Subterra（框架，开源 TPL 2.0，origin=github.com/houyangbaoxin2009/subterra）+ Toterra（主内容模组，github.com/houyangbaoxin2009/toterra）。
-- **第一块已落地**（probe 级闭环，提交 b176587/633b3ae/192fde1）：engine.datapack 容器+注册表 + tie 逻辑链（EntryKind 七类 / Datapack / DatapackLoader 双发现 / TieLogicBundle），纯 td 直载无 JSON；DatapackProbe 26 断言。
-- **第二块已落地**（MC 壳接线，提交 fdfb00c/aea4631/<recipe+tie+E2E>）：runtime.datapack（DatapackRuntime 挂 ServerStarted/Stopping；DatapackRegistrar 扫描装载 + 四类注册）；tag/lang 索引 + 确定性 markers；**recipe（crafting_shaped）编译进原版 ShapedRecipe → RecipeManager.replaceRecipes 合并**；**function 经 TieLogicLoader/TieLogicBundle → engine.tie 0 参调用**；DatapackE2EProbe 开服加载 seed 包断言 9 标记全绿（57s）。build.gradle runServer 转发 `subterra.datapacks`。
+- **p.2.2.1 已落地**（probe 级闭环，提交 b176587/633b3ae/192fde1）：engine.datapack 容器+注册表 + tie 逻辑链（EntryKind 七类 / Datapack / DatapackLoader 双发现 / TieLogicBundle），纯 td 直载无 JSON；DatapackProbe 26 断言。
+- **p.2.2.2 已落地**（MC 壳接线，提交 fdfb00c/aea4631/<recipe+tie+E2E>）：runtime.datapack（DatapackRuntime 挂 ServerStarted/Stopping；DatapackRegistrar 扫描装载 + 四类注册）；tag/lang 索引 + 确定性 markers；**recipe（crafting_shaped）编译进原版 ShapedRecipe → RecipeManager.replaceRecipes 合并**；**function 经 TieLogicLoader/TieLogicBundle → engine.tie 0 参调用**；DatapackE2EProbe 开服加载 seed 包断言 9 标记全绿（57s）。build.gradle runServer 转发 `subterra.datapacks`。
 - 技术栈：NeoForge 21.1.x / MC 1.21.1；全项目 Java 25；Gradle 9.2；Zulu 25。
 - 既有设施：td（engine.config）；zd v2；tink v2；tiec（dist preview.6 捆绑 LLVM）；FFM 桥 engine.tie；**ConfigPack（engine.config，td 多文件打包/解包，往返精确）**——数据包打包分发直接复用。
 - tie ABI：符号 `<namespace>$<fn>`；仅标量+string 跨边界；`type tie<class>` 第 1 行；私有不导出。
 - 分层铁律：api ← engine ← runtime/migrate；engine 纯 JDK 不碰 MC；MC 壳落根 sourceSet（subterra-runtime source-host）。
 
-## 2. 本次范围（第三块）
+## 2. 本次范围（p.2.2.3）
 1. **loot_table 注册**：td 声明 → 原版 LootDataManager 注册（最小闭环建议一个 vanilla 桩表类型：minecraft:chest + 单一 pool/bonus roll；或先只做「注册表可见 + 生命周期挂载」占位并明确下一子项的 schema 面）。实时性确认：LootData 装载窗口 = 服务端 datapack reload（ServerResources），与 RecipeManager 的 addReloadListener 模式对齐。
 2. **worldgen / structure 注册**：这两类走 Registry/Worldgen 注册链（BiomeSource/StructureSet/ConfiguredFeature 等），确认挂载点（RegisterEvent 阶段）后至少打通「td 条目 → 原版注册物」各一个最小样例（如 biome 相关或 structure_set）；若挂载点复杂，先以「注册表可见 + 明确注释的接线点」交付。
-3. **recipe 类型扩展 + 往返**：在第一块 crafting_shaped 之外补 cooking/smelting（单类即可）与/或 shapeless；DataPack→td 往返：从已装载的原版 RecipeManager 内容导出为 td（复用 ConfigPack 往返模式，round-trip 精确断言）。
+3. **recipe 类型扩展 + 往返**：在 p.2.2.1 crafting_shaped 之外补 cooking/smelting（单类即可）与/或 shapeless；DataPack→td 往返：从已装载的原版 RecipeManager 内容导出为 td（复用 ConfigPack 往返模式，round-trip 精确断言）。
 4. **数据包打包分发（接 ConfigPack）**：DataPackPack = 目录 → ConfigPack.export（多文件 td 单文档）；DataPackUnpack = ConfigPack.parse → 临时目录 → DatapackLoader.load；确定性断言打包→解包→装载往返一致（含 pack.td manifest 与 tie 库声明携带）。
-5. **E2E/探针**：第三块探针接 probeAcceptance（纯 JVM 探针覆盖打包往返与 recipe 扩展；世界生成/structure 的 E2E 视挂载复杂度决定是否进开服门禁）。
+5. **E2E/探针**：p.2.2.3 探针接 probeAcceptance（纯 JVM 探针覆盖打包往返与 recipe 扩展；世界生成/structure 的 E2E 视挂载复杂度决定是否进开服门禁）。
 6. 具体切分以摸底后的最小闭环为准；不确定范围先列出提问，不擅自扩大。
 
 ## 3. 子代理纪律（大任务必须用，禁止主代理硬扛全量）

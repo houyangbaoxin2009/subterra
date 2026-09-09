@@ -1,21 +1,21 @@
-# Subterra p.2.2 数据包重构（td 一等公民）· 第五块：DataPack→td 导出往返 · 开发任务提示词
+# Subterra p.2.2 数据包重构（td 一等公民）· p.2.2.5：DataPack→td 导出往返 · 开发任务提示词
 
 ## 0. 角色与目标
 你是 Subterra（NeoForge 模组开发框架，服务 Toterra 主模组）的开发代理。
-本次目标 = p.2.2 数据包重构的**第五块**：补 **DataPack→td 导出往返**——从已装入的原版内容（先行 RecipeManager）导出为 td，再经加载链回灌，导出→回灌→再导出逐字节一致（round-trip 精确）。这是「td 是一切数据内容的回程」的闭环证明。
+本次目标 = p.2.2 数据包重构的**p.2.2.5**：补 **DataPack→td 导出往返**——从已装入的原版内容（先行 RecipeManager）导出为 td，再经加载链回灌，导出→回灌→再导出逐字节一致（round-trip 精确）。这是「td 是一切数据内容的回程」的闭环证明。
 工作方式：先小任务摸底/定最小闭环 → 逐个实现 → 每个小任务完成即提交（报告一句），全部完成后统一 review+清理+推送。
 
 ## 1. 项目上下文（必读）
 - 系列聚合根 F:\Projects\Toterra-Repo：Subterra（框架，开源 TPL 2.0，origin=github.com/houyangbaoxin2009/subterra）+ Toterra（github.com/houyangbaoxin2009/toterra）。
 - **前四块已落地**（提交见 git log）：
-  * 第一块 engine.datapack（纯 JDK 无 JSON）：EntryKind 七类 / DatapackEntry / Datapack（按 id 排序）/ DatapackLoader（目录约定 + pack.td manifest 双发现）/ TieLogicLoader→TieLogicBundle（`<lib>$<fn>` FFM）/ DatapackPack 打包往返 / DatapackProbe。
-  * 第二块 MC 壳（runtime.datapack）：DatapackRuntime（ServerStarted/Stopping + resolveDatapacksDir）+ DatapackRegistrar：tag/lang 索引、**crafting_shaped+smoking→RecipeManager.replaceRecipes 合并**、tie 0 参调用；DatapackE2EProbe 开服断言（mustRunAfter bootProbe 串行；staging 隔离 build/tmp/datapacks-e2e）。
-  * 第三块：DatapackPack 打包往返 + smoking→SmokingRecipe + 剩余三类 staged markers。
-  * **第四块（本块已完成）**：loot 真合并 + worldgen/structure 真注册——`DatapackRegistryInjector`（新增，MC 壳）以**公开 unfreeze→register→freeze 窗口**向冻结的 datapack registry 注入；`DatapackRegistrar.buildLootTables` 把 td chest 表合并进 **LOOT_TABLE registry**（1.21.1 无 LootDataManager，注册表在 `ReloadableServerResources.fullRegistries().get()` 的 RELOADABLE 层，**不在 `server.registryAccess()`**——后者不含 RELOADABLE 层，曾踩 `Missing registry: minecraft:loot_table`）；`registerWorldgen` 注册 `ConfiguredFeature`（td configured_feature 最小 schema：`feature="minecraft:simple_block"` + `block`）进 CONFIGURED_FEATURE；`registerStructures` 注册 `Structure`（DesertPyramidStructure 体 + biomes holder，BIOME 也是 datapack registry，经 `registryAccess().registryOrThrow(Registries.BIOME)` 解析）进 STRUCTURE，structure_set schema 再组 `StructureSet` 进 STRUCTURE_SET。seed 资产：worldgen 文件更名 `worldgen/configured_feature/meadow_of_tie.td`；shrine.td 改 structure_set schema；`devkit:obligatory_tower` 保留 `minecraft:structure` schema。DatapackE2EProbe 13→16 标记全绿。
+  * p.2.2.1 engine.datapack（纯 JDK 无 JSON）：EntryKind 七类 / DatapackEntry / Datapack（按 id 排序）/ DatapackLoader（目录约定 + pack.td manifest 双发现）/ TieLogicLoader→TieLogicBundle（`<lib>$<fn>` FFM）/ DatapackPack 打包往返 / DatapackProbe。
+  * p.2.2.2 MC 壳（runtime.datapack）：DatapackRuntime（ServerStarted/Stopping + resolveDatapacksDir）+ DatapackRegistrar：tag/lang 索引、**crafting_shaped+smoking→RecipeManager.replaceRecipes 合并**、tie 0 参调用；DatapackE2EProbe 开服断言（mustRunAfter bootProbe 串行；staging 隔离 build/tmp/datapacks-e2e）。
+  * p.2.2.3：DatapackPack 打包往返 + smoking→SmokingRecipe + 剩余三类 staged markers。
+  * **p.2.2.4（本块已完成）**：loot 真合并 + worldgen/structure 真注册——`DatapackRegistryInjector`（新增，MC 壳）以**公开 unfreeze→register→freeze 窗口**向冻结的 datapack registry 注入；`DatapackRegistrar.buildLootTables` 把 td chest 表合并进 **LOOT_TABLE registry**（1.21.1 无 LootDataManager，注册表在 `ReloadableServerResources.fullRegistries().get()` 的 RELOADABLE 层，**不在 `server.registryAccess()`**——后者不含 RELOADABLE 层，曾踩 `Missing registry: minecraft:loot_table`）；`registerWorldgen` 注册 `ConfiguredFeature`（td configured_feature 最小 schema：`feature="minecraft:simple_block"` + `block`）进 CONFIGURED_FEATURE；`registerStructures` 注册 `Structure`（DesertPyramidStructure 体 + biomes holder，BIOME 也是 datapack registry，经 `registryAccess().registryOrThrow(Registries.BIOME)` 解析）进 STRUCTURE，structure_set schema 再组 `StructureSet` 进 STRUCTURE_SET。seed 资产：worldgen 文件更名 `worldgen/configured_feature/meadow_of_tie.td`；shrine.td 改 structure_set schema；`devkit:obligatory_tower` 保留 `minecraft:structure` schema。DatapackE2EProbe 13→16 标记全绿。
 - 关键 API 事实（javap neoform jar 已核实）：`RegisterEvent` **不对 datapack registry 触发**（`GameData.postRegisterEvents` 只遍历静态 BuiltInRegistries；默认 registryBuilderConsumer 为空操作）；datapack registry 在数据装载时冻结（loot 于 `ReloadableServerRegistries.apply`、worldgen 于 `WorldLoader.load`，均早于 ServerStarted）；`MappedRegistry.unfreeze()`/`freeze()`/`register(key,value,RegistrationInfo.BUILT_IN)` 全公开；`LootTable` 无 `getPools()` 公开访问器（pools 计数由构建侧 `BuiltLoot` record 携带）；`Registry.containsKey(ResourceLocation)` / `getHolderOrThrow(ResourceKey)` 公开。
 - 分层铁律：api ← engine ← runtime/migrate；engine 纯 JDK 不碰 MC；MC 壳落根 sourceSet（subterra-runtime source-host）；iron law 探针覆盖。
 
-## 2. 本次范围（第五块）
+## 2. 本次范围（p.2.2.5）
 1. **导出器核心**：新增纯 JDK `engine.datapack` 导出器（或复用现有 DatapackPack/EntryKind 表示）：从已装入的原版内容 → td 条目（DatumEntry 同构）。先定最小区间：**RecipeManager 导出**——取回 Subterra 注册的 recipe（`to terra:recipe/example` / `smoke`）+ 若干原版 recipe → 转 td 表（类型/pattern/key/result/ingredient/experience/cooking_time 与现有 tdCanonical 一致）。
 2. **回灌往返**：导出 td → 经 DatapackLoader/DatapackRegistrar 或注册器回灌 → 再导出 → 断言**逐字节一致**（round-trip 精确；参考 DatapackPack 的 `Td.write` 逐字比较先例）。
 3. **探针**：新增/扩展纯 JVM 往返断言（导出→回灌→再导出逐字节一致），接 probeAcceptance。

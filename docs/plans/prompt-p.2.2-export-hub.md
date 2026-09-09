@@ -1,22 +1,22 @@
-# Subterra p.2.2 数据包重构（td 一等公民）· 第六块：DataPack 导出扩展 + 导出档案 Hub（接 p.2.18 前哨）· 开发任务提示词
+# Subterra p.2.2 数据包重构（td 一等公民）· p.2.2.6：DataPack 导出扩展 + 导出档案 Hub（接 p.2.18 前哨）· 开发任务提示词
 
 ## 0. 角色与目标
 你是 Subterra（NeoForge 模组开发框架，服务 Toterra 主模组）的开发代理。
-本次目标 = p.2.2 数据包重构的**第六块**：把第五块证明可行的「导出→回灌→再导出逐字节一致」闭环**扩展到全部七类条目**，并把导出产物收敛为一个**数据包导出档案**（registered content → 单一 td 文档，可再水化 = 经 DatapackLoader/DatapackRegistrar 复原），为 p.2.18 `engine.export` 导出 Hub 打前哨。第五块的 closed-loop 假说「td 是一切数据内容的回程」从 recipe 一种推广到所有种类。
+本次目标 = p.2.2 数据包重构的**p.2.2.6**：把 p.2.2.5 证明可行的「导出→回灌→再导出逐字节一致」闭环**扩展到全部七类条目**，并把导出产物收敛为一个**数据包导出档案**（registered content → 单一 td 文档，可再水化 = 经 DatapackLoader/DatapackRegistrar 复原），为 p.2.18 `engine.export` 导出 Hub 打前哨。p.2.2.5 的 closed-loop 假说「td 是一切数据内容的回程」从 recipe 一种推广到所有种类。
 工作方式：先小任务摸底/定最小闭环 → 逐个实现 → 每个小任务完成即提交（报告一句），全部完成后统一 review+清理+推送。
 
 ## 1. 项目上下文（必读）
 - 系列聚合根 F:\Projects\Toterra-Repo：Subterra（框架，开源 TPL 2.0，origin=github.com/houyangbaoxin2009/subterra）+ Toterra（github.com/houyangbaoxin2009/toterra）。
 - **前五块已落地**（提交见 git log）：
-  * 第一块 engine.datapack（纯 JDK 无 JSON）：EntryKind 七类 / DatapackEntry / Datapack（按 id 排序）/ DatapackLoader（目录约定 + pack.td manifest 双发现）/ TieLogicLoader→TieLogicBundle（`<lib>$<fn>` FFM）/ DatapackProbe。
-  * 第二块 MC 壳（runtime.datapack）：DatapackRuntime（ServerStarted/Stopping + resolveDatapacksDir）+ DatapackRegistrar：tag/lang 索引、crafting_shaped+smoking→RecipeManager.replaceRecipes 合并、tie 0 参调用；DatapackE2EProbe 开服断言。
-  * 第三块：DatapackPack 打包往返 + smoking→SmokingRecipe + 剩余三类 staged markers。
-  * 第四块：loot 真合并（LOOT_TABLE datapack registry，`ReloadableServerResources.fullRegistries().get()` RELOADABLE 层）与 worldgen/structure 真注册（CONFIGURED_FEATURE / STRUCTURE / STRUCTURE_SET），`DatapackRegistryInjector` 公开 unfreeze→register→freeze 窗口；E2E 16 标记。
-  * **第五块（本块已完成）**：DataPack→td 导出往返（recipe 先行）——engine.datapack `RecipeDatum`（record：read/write 规范 td，count/cooking_time clamp≥1、experience 经 `cleanExperience` float 往返归一化，镜像 buildShaped/buildSmoking 语义）+ `DatapackExporter.exportRecipeTd` 导出前门；runtime `DatapackRecipeExporter.exportTd(holder, ra)`（holder→datum；ShapedRecipe 对象不保留源字符，pattern 行按格首次出现确定性重建 A,B,C…）+ `DatapackRegistrar.runExportRoundTrip()`（导出→buildRecipe 回灌→再导出，字节级比对，marker `export roundtrip <id> ok (bytes=N)`）；纯 JVM 探针：导出→DatapackLoader 文件重载→再导出逐字节一致 + 三连稳定 + 导出字段无损（=源 payload 序列化）；E2E 标记 16→18 全绿；probeAcceptance 全绿（2m 15s，两次开服）。
+  * p.2.2.1 engine.datapack（纯 JDK 无 JSON）：EntryKind 七类 / DatapackEntry / Datapack（按 id 排序）/ DatapackLoader（目录约定 + pack.td manifest 双发现）/ TieLogicLoader→TieLogicBundle（`<lib>$<fn>` FFM）/ DatapackProbe。
+  * p.2.2.2 MC 壳（runtime.datapack）：DatapackRuntime（ServerStarted/Stopping + resolveDatapacksDir）+ DatapackRegistrar：tag/lang 索引、crafting_shaped+smoking→RecipeManager.replaceRecipes 合并、tie 0 参调用；DatapackE2EProbe 开服断言。
+  * p.2.2.3：DatapackPack 打包往返 + smoking→SmokingRecipe + 剩余三类 staged markers。
+  * p.2.2.4：loot 真合并（LOOT_TABLE datapack registry，`ReloadableServerResources.fullRegistries().get()` RELOADABLE 层）与 worldgen/structure 真注册（CONFIGURED_FEATURE / STRUCTURE / STRUCTURE_SET），`DatapackRegistryInjector` 公开 unfreeze→register→freeze 窗口；E2E 16 标记。
+  * **p.2.2.5（本块已完成）**：DataPack→td 导出往返（recipe 先行）——engine.datapack `RecipeDatum`（record：read/write 规范 td，count/cooking_time clamp≥1、experience 经 `cleanExperience` float 往返归一化，镜像 buildShaped/buildSmoking 语义）+ `DatapackExporter.exportRecipeTd` 导出前门；runtime `DatapackRecipeExporter.exportTd(holder, ra)`（holder→datum；ShapedRecipe 对象不保留源字符，pattern 行按格首次出现确定性重建 A,B,C…）+ `DatapackRegistrar.runExportRoundTrip()`（导出→buildRecipe 回灌→再导出，字节级比对，marker `export roundtrip <id> ok (bytes=N)`）；纯 JVM 探针：导出→DatapackLoader 文件重载→再导出逐字节一致 + 三连稳定 + 导出字段无损（=源 payload 序列化）；E2E 标记 16→18 全绿；probeAcceptance 全绿（2m 15s，两次开服）。
 - 关键 API 事实（javap neoform jar 已核实）：`ShapedRecipePattern` 无 key 访问器（仅 width()/height()/ingredients()）；`ShapedRecipe.pattern` public final；`Ingredient.isEmpty()`/`getItems()` 公开；`SmokingRecipe.getExperience()/getCookingTime()` 公开；`RegisterEvent` 不对 datapack registry 触发；datapack registry 数据装载时冻结；`MappedRegistry.unfreeze()/freeze()/register(key,value,RegistrationInfo.BUILT_IN)` 全公开；`LootTable` 无 getPools()（计数由构建侧携带）。
 - 分层铁律：api ← engine ← runtime/migrate；engine 纯 JDK 不碰 MC；MC 壳落根 sourceSet（subterra-runtime source-host）；iron law 探针覆盖。
 
-## 2. 本次范围（第六块）
+## 2. 本次范围（p.2.2.6）
 1. **导出器扩展**：engine.datapack 导出器从 recipe 扩展到**全部七类**（template：recipe 的 RecipeDatum/DatapackExporter——各 `engine.datapack.XxxDatum` record + read/write 规范 td + 确定性归一化，镜像注册侧消费语义；tag/lang/loot_table/worldgen/structure/function 的导出源=注册侧已装入索引/对象）。schema-free：先按 mini_dp seed 的实际 schema 覆盖（tag `values`+`replace`、lang `[k,v]` 对、loot chest `type/pools[rolls,entries[item,weight]]`、worldgen configured_feature `feature/block`、structure 两 schema、function 无表载荷可导出条目元数据）。
 2. **回灌全类型**：每类导出 td → 经 DatapackLoader 文件重载 + DatapackRegistrar 既有寄存器回灌 → 再导出 → 断言逐字节一致（五类各加 E2E marker 或纯 JVM 断言；loot/worldgen/structure 已注册进 registry 的，回灌=注册侧 build 函数重跑）。
 3. **导出档案 Hub**：`DatapackExporter.exportPack(Datapack)` 把某 pack（或已注册内容）的所有导出条目写为**单一 td 文档**（档案 = `type tie<data>` + `[ [kind,ns,path,payload]... ]` 或复用 DatapackPack 的 base64 files 形态，二选一，最小闭环为准），`DatapackExportArchive.load`/`rehydrate` 复原为 Datapack / 直灌注册器；档案→再导出档案逐字节一致（与 DatapackPack 打包往返并行存在，档案是「内容级」而非「文件级」）。为 p.2.18（language-keys/config/world/registries/migrate-maps，td/zd 双格式，`/subterra export` 指令）留 engine.export 落点注释。
