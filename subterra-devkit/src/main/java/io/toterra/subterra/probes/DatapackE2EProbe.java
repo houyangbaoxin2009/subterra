@@ -27,6 +27,9 @@ import java.util.concurrent.TimeUnit;
  *   merged into the LOOT_TABLE datapack registry (visible marker, pools=1);</li>
  *   <li>the td worldgen entry is registered into CONFIGURED_FEATURE and the td
  *   structure entry into STRUCTURE / STRUCTURE_SET (visible markers).</li>
+ *   <li>the td-built recipes are exported to canonical td, re-imported through
+ *   the registrar builder, and re-exported byte-identical (export round-trip
+ *   markers {@code toterra:example} / {@code toterra:smoke} ok).</li>
  * </ul>
  * The probe stages the seed by copying devkit resources into
  * {@code run/datapacks/} fresh each run, so the gate stays deterministic and
@@ -70,7 +73,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[16];
+        boolean[] seen = new boolean[18];
         boolean fatal = false;
         boolean signaled = false;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
@@ -128,6 +131,12 @@ public final class DatapackE2EProbe {
                 if (line.contains(DP_MARKER + " structure visible toterra:structure/shrine (structure_set,")) {
                     seen[15] = true;
                 }
+                if (line.contains(DP_MARKER + " export roundtrip toterra:example ok")) {
+                    seen[16] = true;
+                }
+                if (line.contains(DP_MARKER + " export roundtrip toterra:smoke ok")) {
+                    seen[17] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -173,7 +182,8 @@ public final class DatapackE2EProbe {
                 + " smoke=" + seen[6] + " recipeTotal=" + seen[7] + " tieGreet=" + seen[8]
                 + " tieFarewell=" + seen[9] + " canonicalShaped=" + seen[10]
                 + " canonicalSmoke=" + seen[11] + " lootBuilt=" + seen[12] + " lootVisible=" + seen[13]
-                + " worldgenVisible=" + seen[14] + " structureVisible=" + seen[15] + " fatal=" + fatal);
+                + " worldgenVisible=" + seen[14] + " structureVisible=" + seen[15]
+                + " exportExample=" + seen[16] + " exportSmoke=" + seen[17] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);

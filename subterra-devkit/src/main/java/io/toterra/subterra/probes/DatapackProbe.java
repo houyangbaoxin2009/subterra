@@ -5,6 +5,7 @@ import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.datapack.DatapackPack;
 import io.toterra.subterra.engine.datapack.Datapack;
 import io.toterra.subterra.engine.datapack.DatapackEntry;
+import io.toterra.subterra.engine.datapack.DatapackExporter;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
 import io.toterra.subterra.engine.datapack.EntryKind;
 import io.toterra.subterra.engine.datapack.TieLogicBundle;
@@ -17,7 +18,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -29,8 +32,10 @@ import java.util.Set;
  * (dir scan + pack.td manifest + 7 kinds), then exercises the tie-logic chain
  * ({@link TieLogicLoader} → {@link TieLogicBundle} → engine.tie downcall:
  * explicit {@code fn}, default {@code fn} from the entry path, private symbol
- * unexported, bool boundary). Also proves malformed td surfaces the offender
- * and repeated loads are deterministic.
+ * unexported, bool boundary). Also proves malformed td surfaces the offender,
+ * repeated loads are deterministic, and the recipe export round-trip
+ * ({@link DatapackExporter} → {@link DatapackLoader} re-load → re-export) is
+ * byte-identical (p.2.2 block 5).
  */
 public final class DatapackProbe {
 
@@ -133,7 +138,41 @@ public final class DatapackProbe {
                     .equals(io.toterra.subterra.engine.config.Td.write(srcRecipe.payload())));
             check("打包往返 pack.td 携带", rt.tieLibraries().equals(dp.tieLibraries()));
 
-            // 7. malformed td names the offender
+            // 7. export round-trip (pure JDK): entry payload -> canonical td -> DatapackLoader
+            //    re-load -> re-export -> byte-identical (p.2.2 block 5)
+            Path rexDp = tmp.resolve("rex_dp");
+            Path rexData = rexDp.resolve("data/toterra/recipe");
+            Map<String, String> text1Map = new LinkedHashMap<>();
+            String[] recipePaths = { "example", "smoke" };
+            for (String rp : recipePaths) {
+                DatapackEntry srcEntry = dp.get(EntryKind.RECIPE, "toterra", rp);
+                String text1 = DatapackExporter.exportRecipeTd(srcEntry);
+                text1Map.put(rp, text1);
+                Path tdFile = rexData.resolve(rp + ".td");
+                Files.createDirectories(tdFile.getParent());
+                Files.writeString(tdFile, "type tie<data>\n" + text1);
+            }
+            Datapack rex = DatapackLoader.load(rexDp);
+            for (String rp : recipePaths) {
+                DatapackEntry r1 = rex.get(EntryKind.RECIPE, "toterra", rp);
+                String text2 = DatapackExporter.exportRecipeTd(r1);
+                check("导出往返 " + rp + " 逐字节一致", text2.equals(text1Map.get(rp)));
+                // third pass: feed the re-export back into a second dir -> must be stable
+                Path rex2 = tmp.resolve("rex_dp_" + rp);
+                Path f2 = rex2.resolve("data/toterra/recipe").resolve(rp + ".td");
+                Files.createDirectories(f2.getParent());
+                Files.writeString(f2, "type tie<data>\n" + text2);
+                Datapack rex2dp = DatapackLoader.load(rex2);
+                String text3 = DatapackExporter.exportRecipeTd(rex2dp.get(EntryKind.RECIPE, "toterra", rp));
+                check("导出往返 " + rp + " 三连稳定", text3.equals(text2));
+                // field-fidelity bonus: the canonical export equals the plain serialization
+                // of the source payload (proves the exporter loses no td field)
+                check("导出字段无损 " + rp,
+                        text1Map.get(rp).equals(
+                                io.toterra.subterra.engine.config.Td.write(dp.get(EntryKind.RECIPE, "toterra", rp).payload())));
+            }
+
+            // 8. malformed td names the offender
             Path bad = tmp.resolve("bad_pack");
             Files.createDirectories(bad.resolve("data/broken/function"));
             Files.writeString(bad.resolve("data/broken/function/x.td"), "type tie<data>\nfunction = [\n");
