@@ -683,6 +683,14 @@ def parallelPartitionProbe = tasks.register('runParallelPartitionProbe', JavaExe
     mainClass = 'io.toterra.subterra.probes.ParallelPartitionProbe'
 }
 
+// p.2.7.2: bounded serial worker bank generalization (engine.parallel), pure JVM.
+def parallelBankProbe = tasks.register('runParallelBankProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.7.2: run the bounded serial worker bank probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ParallelBankProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
