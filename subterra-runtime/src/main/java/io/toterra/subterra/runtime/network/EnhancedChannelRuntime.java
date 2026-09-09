@@ -11,6 +11,8 @@ import io.toterra.subterra.engine.network.bandwidth.BandwidthOptimizer;
 import io.toterra.subterra.engine.network.bandwidth.BandwidthTechnique;
 import io.toterra.subterra.engine.network.crypto.EncryptionConfig;
 import io.toterra.subterra.engine.network.integrity.FrameV2;
+import io.toterra.subterra.engine.p2p.NodeId;
+import io.toterra.subterra.engine.p2p.relay.RelayForwarder;
 
 /**
  * p.2.4.6 runtime 壳：增强网络通道 MC 壳（默认不接管、不阻塞原版连接握手，渐进增强）。
@@ -44,6 +46,31 @@ public final class EnhancedChannelRuntime {
 
     /** 探针 marker 前缀 / probe marker prefix. */
     public static final String MARKER = "[Subterra network]";
+
+    /**
+     * p.2.5.8 relay 关停钩子 marker 前缀。新行风格（{@code [Subterra relay] ...}），仅新增行、
+     * 绝不改动既有 {@code [Subterra network]} marker 文本（NetworkE2EProbe 依赖其原文本保持
+     * original-path-preserved 等）。Relay teardown marker prefix — new marker line (additive only;
+     * existing {@code [Subterra network]} marker text untouched — NetworkE2EProbe depends on it).
+     */
+    public static final String RELAY_MARKER = "[Subterra relay]";
+
+    /**
+     * p.2.5.8 志愿 relay 兜底转发器（内存端语义，不持有真实连接）。本壳仅做关停接线：在
+     * {@code ServerStoppingEvent} 上清空登记表；游戏内无连接时也恒安全（no-op 语义）。
+     * p.2.5.8 voluntary-relay fallback forwarder (memory-endpoint semantics, holds no live
+     * connection). The shell only wires teardown: clears the registry on {@code ServerStoppingEvent},
+     * always safe with no in-game connections (no-op).
+     */
+    private static final RelayForwarder RELAY_FORWARDER = relayForwarder();
+
+    private static RelayForwarder relayForwarder() {
+        byte[] relayId = new byte[NodeId.BYTES];
+        for (int i = 0; i < relayId.length; i++) {
+            relayId[i] = (byte) (0x51 + i);
+        }
+        return new RelayForwarder(NodeId.of(relayId));
+    }
 
     private EnhancedChannelRuntime() {
     }
@@ -102,9 +129,25 @@ public final class EnhancedChannelRuntime {
         if (!networkProbeGated()) {
             return;
         }
+        // p.2.5.8 志愿 relay 兜底转发器关停钩子：清空登记表（内存端恒安全；游戏内无连接也安全）。
+        // p.2.5.8 voluntary-relay teardown hook: clear the endpoint registry. Memory endpoints are
+        // always safe (also safe when the server holds no live relay connection). New marker line,
+        // deterministic; existing marker lines are never modified.
+        try {
+            int cleared = RELAY_FORWARDER.shutdown();
+            printRelay("shutdown hook registrations-cleared=" + cleared);
+        } catch (Throwable t) {
+            // never propagate past the event dispatch; the boot gate stays green
+            printRelay("error:relay-shutdown " + t);
+        }
     }
 
     private static void print(String body) {
         System.out.println(MARKER + " " + body);
+    }
+
+    /** p.2.5.8 relay 关停 marker（新行）。p.2.5.8 relay teardown marker (new line). */
+    private static void printRelay(String body) {
+        System.out.println(RELAY_MARKER + " " + body);
     }
 }
