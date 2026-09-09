@@ -50,13 +50,14 @@
 | p.2.18 | Export hub / 导出器 engine.export（自原 p.2.3 顺移）：language-keys / config / world / registries / migrate-maps，td/zd 双格式，`/subterra export` 指令 | pending / 待开工 |
 | p.2.19 | Runtime wiring migration / runtime 接线迁移（自原 p.2.5 顺移）：launch / runtime-fix / worldgen / optim-shell / tie / cfglog 迁入，export 指令接线（接 p.2.18） | pending / 待开工 |
 | p.2.20 | devkit complete / devkit 完整化 + 官方示例模组脚手架（自原 p.3.1 前移，**可用判据**）：probes 全量接线 + 最小「颠覆性模组」示例（兼作框架自举验收） | pending / 待开工 |
+| p.2.27.1 | Flywheel port / 飞轮移植前哨（2026-09-09 新增，形态 A）：Flywheel 1.0.6（1.21.1/NeoForge 线，MIT 直接包含，保留声明）→ engine.render.instancing（实例格式 / 着色器模板 / 后端 SPI，纯 JDK）+ runtime.render 接线（LevelRenderer / ModelBlockRenderer / EntityRenderDispatcher 钩子）+ 装载与后端确定性探针；作为 p.2.27 实例化基座前哨（一库一子项） | pending / 待开工 |
+| p.2.27 | Self-developed rendering / 自研渲染管线（自原 p.4.2 顺移；2026-09-09 前移，clean-room，参考 Sodium/Embeddium 等登记项）：原版保真块/实体渲染，与 p.2.27.1 实例化基座互补 | pending / 待开工 |
 | p.2.21 | Animation / 动画 engine.anim（自原 p.2.6 顺移）：GeckoLib 核心移植（MIT 声明 + 捆绑库声明）+ runtime anim binding | pending / 待开工 |
 | p.2.22 | UI / HUD core / engine.ui（自原 p.2.7 顺移）：AppleSkin 数据层移植（Unlicense）+ ModMenu 交互模型借鉴（MIT）+ 数据驱动 tooltip（clean-room 参考 DataTip GPL-3.0，td 格式）+ 文档书籍 GUI（clean-room 参考 Patchouli CC-BY-NC-SA，td 驱动）+ 列表/详情/许可视图核心（面板仅作管理视图，玩家侧交互走 p.2.14 interact） | pending / 待开工 |
 | p.2.23 | In-game mod hub / 游戏内模组 Hub（自原 p.2.8 顺移）：td schema 表单自动生成、配置编辑 + 热重载、入口接线、服务器端 op 配置命令 | pending / 待开工 |
 | p.2.24 | AI behavior core / engine.ai（自原 p.2.9 顺移）：clean-room Brain 编排核心（参考 SmartBrainLib 模型）+ runtime ai binding | pending / 待开工 |
 | p.2.25 | Entity scale / 实体缩放 engine.scale（自原 p.3.2 前移入主线）：Pehkui-Rebuilt 核心移植（MIT，保留 Virtuoel 原始版权与重建声明）：ScaleType/ScaleData/ScaleModifier 模型、按维度/标签缩放、数据包缩放规则 + runtime scale binding | pending / 待开工 |
 | p.2.26 | Time scaling / 时间缩放 engine.time（自原 p.3.3 前移入主线，clean-room 自研）：TimeDomain 流速比例模型（全局/实体/区域/玩家域）、tick 预算确定性调度（BudgetScheduler）、逻辑级节流 + 感知级插值，TimeScaleApi + runtime 接线（接 engine.sim p.2.8） | pending / 待开工 |
-| p.2.27 | Self-developed rendering / 自研渲染管线（自原 p.4.2 顺移，clean-room，参考 Sodium/Embeddium 等登记项） | pending / 待开工 |
 
 ## Sequence Notes / 顺序说明
 
@@ -91,6 +92,7 @@
 | Itemban | 物品使用控制 | engine.optim.server.item_control | Apache-2.0 | pending / 待开工 |
 | mcwifipnp | LAN 打洞 | runtime.network.holepunch | 移植为原生模块 | pending / 待开工 |
 | Pehkui-Rebuilt | 实体尺寸缩放（ScaleType / ScaleData / ScaleModifier / ScaleRegistries、按维度/标签、数据包规则） | engine.scale + runtime.scale | MIT 移植，保留 Virtuoel 原始版权与重建声明 | planned / 已立项 |
+| Flywheel | GPU 实例化渲染 + 着色器模板系统（实体 / 方块实体路径） | engine.render.instancing + runtime.render | MIT 直接包含（形态 A，保留声明；p.2.27.1 前哨） | planned / 已立项 |
 
 ## Progress Log / 进度记录
 
@@ -102,3 +104,4 @@
 * 2026-09-08 — Roadmap split per repo / 路线图按仓库拆分：Subterra 框架线迁入本文件，系列 ROAD 仅保留总览。 / 2026-09-08 — 路线图按仓库拆分：Subterra 框架线迁入本文件，系列 ROAD 仅保留总览。
 * 2026-09-08 — **Framework design finalized / 框架设计定稿**: Subterra promoted to a full-stack development framework mod (design `docs/2026-09-08-subterra-framework-design.md`); port register extended (GeckoLib / AppleSkin / ModMenu / SmartBrainLib / C2ME / Export-Language-Keys-for-Compasses / RollingGate; Physics Mod dropped as All Rights Reserved). / 2026-09-08 — **框架设计定稿**：Subterra 升格为全栈开发框架模组；移植登记册扩展（…；Physics Mod 因 All Rights Reserved 剔除）。
 * 2026-09-08 — p.1.8.32 landed (perf: dedup climate-spline/sloped-cheese evals, CachedDensity single-slot ThreadLocal) — pre-framework line last item. / 2026-09-08 — p.1.8.32 落地（性能：气候样条/乳酪去重缓存）——框架化前最后一项。
+* 2026-09-09 — Flywheel assessed / Flywheel 评估：MIT → 形态 A「直接包含」（1.0.6，1.21.1/NeoForge 线）入册，划为 p.2.27 自研渲染管线的前哨子项 p.2.27.1（engine.render.instancing + runtime.render）；自研渲染管线前移至 p.2.20 之后、p.2.21 动画之前（渲染线提前，实例化基座供后续 runtime 渲染接线共用）。 / 2026-09-09 — Flywheel assessed: MIT → direct-include 1.0.6 (1.21.1/NeoForge line) registered as p.2.27.1 (advance guard for p.2.27); the self-developed render line was advanced to right after p.2.20.
