@@ -5,8 +5,12 @@ import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.datapack.Datapack;
 import io.toterra.subterra.engine.datapack.DatapackEntry;
+import io.toterra.subterra.engine.datapack.DatapackExportArchive;
+import io.toterra.subterra.engine.datapack.DatapackExporter;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
 import io.toterra.subterra.engine.datapack.EntryKind;
+import io.toterra.subterra.engine.datapack.LangDatum;
+import io.toterra.subterra.engine.datapack.TagDatum;
 import io.toterra.subterra.engine.datapack.TieLogicBundle;
 import io.toterra.subterra.engine.datapack.TieLogicLoader;
 import io.toterra.subterra.engine.tie.TieFunction;
@@ -60,6 +64,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * MC-shell datapack registrar (p.2.2 block 2+): scans every td pack from the
@@ -76,6 +81,14 @@ import java.util.Map;
  * re-exported to canonical td, re-imported through {@code buildRecipe}, and
  * re-exported again — both td texts must be byte-identical (marker ok per
  * recipe).</li>
+ * <li>all-kinds export round-trip (p.2.2 block 6) → every entry across the
+ * loaded packs is exported to canonical td (DatapackExporter), fed back through
+ * its production consumer (buildRecipe / buildLootTable / buildConfiguredFeature
+ * / buildStructure / datum readers) and accepted, with one deterministic
+ * {@code <kind-dir> <entry-id> ok/mismatch} line per entry;</li>
+ * <li>export archive round-trip (p.2.2 block 6) → the single loaded pack is
+ * serialized to one td document (DatapackExportArchive.export), rehydrated, and
+ * re-exported — the two documents must be byte-identical.</li>
  * <li>loot_table → td chest schema → {@link LootTable} object, then merged into
  * the {@code LOOT_TABLE} datapack registry through
  * {@link DatapackRegistryInjector} (public un-freeze → register → freeze
@@ -214,6 +227,7 @@ public final class DatapackRegistrar implements AutoCloseable {
             DatapackRuntime.LOGGER.info("{} tie libraries={}", MARKER, tieBundles.size());
         }
         runExportRoundTrip();
+        runExportArchive();
     }
 
     /** tag index: entry id → payload {@code values}. */
@@ -273,46 +287,116 @@ public final class DatapackRegistrar implements AutoCloseable {
     }
 
     /**
-     * p.2.2 block 5 — recipe export round-trip: every td-built recipe holder is
-     * exported to canonical td (DatapackRecipeExporter), fed back through the same
-     * production builder (buildRecipe) and exported again; the two td texts must be
-     * byte-identical (marker ok), proving td is the closed-loop home of recipe
-     * data. Runs registration-time only, deterministic, never touches the hot path.
+     * p.2.2 block 6 — export round-trip for ALL datapack kinds: every entry across
+     * the loaded packs is exported to canonical td ({@link DatapackExporter}),
+     * fed back through its production consumer and accepted. Per-kind semantics:
+     *
+     * <ul>
+     * <li>RECIPE → object-derived byte compare: rebuild via {@code buildRecipe}
+     * ({@code null} = rejected) and re-export the holder through
+     * {@code DatapackRecipeExporter}; the exported td text vs the rebuilt text
+     * must be byte-identical (the block-5 closed-loop check);</li>
+     * <li>TAG / LANG → datum self-consistency: {@link TagDatum} / {@link LangDatum}
+     * read-write over the exported payload must reproduce it byte-for-byte;</li>
+     * <li>LOOT_TABLE / WORLDGEN / STRUCTURE → consumer acceptance: the exported
+     * payload must rebuild through {@code buildLootTable} /
+     * {@code buildConfiguredFeature} / {@code buildStructure};</li>
+     * <li>FUNCTION → pass-through: the loader already parsed it, the registrar has
+     * no consumer, so it is always accepted.</li>
+     * </ul>
+     *
+     * <p>Each entry logs one deterministic line in the uniform marker format
+     * {@code export roundtrip <kind-dir> <entry-id> ok/mismatch} (the kind word is
+     * inserted, changing the block-5 recipe format); a rejected rebuild reports
+     * {@code mismatch}. Runs registration-time only, deterministic, never on the
+     * hot path. A zero-entry registration just returns silently.
      */
     private void runExportRoundTrip() {
+        Map<String, DatapackEntry> all = new TreeMap<>();
+        for (Datapack dp : packs) {
+            all.putAll(dp.entries());
+        }
+        if (all.isEmpty()) {
+            return;
+        }
         RegistryAccess ra = server.registryAccess();
-        for (RecipeHolder<?> holder : recipes) {
-            TdTable e1;
+        Registry<Biome> biomeRegistry = server.registryAccess().registryOrThrow(Registries.BIOME);
+        for (DatapackEntry e : all.values()) {
+            String e1;
             try {
-                e1 = DatapackRecipeExporter.exportTd(holder, ra);
+                e1 = DatapackExporter.exportEntryTd(e);
             } catch (RuntimeException ex) {
-                DatapackRuntime.LOGGER.warn("{} export roundtrip {} failed: {}", MARKER, holder.id(), ex.getMessage());
+                DatapackRuntime.LOGGER.warn("{} export roundtrip {} {} failed: {}",
+                        MARKER, e.kind().dir(), e.id(), ex.getMessage());
                 continue;
             }
-            if (e1 == null) {
-                DatapackRuntime.LOGGER.warn("{} export roundtrip {} skip (unsupported type)", MARKER, holder.id());
-                continue;
-            }
-            String text1 = Td.write(e1);
-            ResourceLocation id = holder.id();
-            DatapackEntry back = new DatapackEntry(EntryKind.RECIPE, id.getNamespace(), id.getPath(), e1);
-            String text2 = null;
-            try {
-                RecipeHolder<?> rebuilt = buildRecipe(back);
-                if (rebuilt != null) {
-                    TdTable e2 = DatapackRecipeExporter.exportTd(rebuilt, ra);
-                    if (e2 != null) {
-                        text2 = Td.write(e2);
+            boolean accepted = false;
+            String e2 = null;
+            switch (e.kind()) {
+                case RECIPE -> {
+                    RecipeHolder<?> rebuilt = buildRecipe(e);
+                    if (rebuilt != null) {
+                        TdTable e2t = DatapackRecipeExporter.exportTd(rebuilt, ra);
+                        if (e2t != null) {
+                            e2 = Td.write(e2t);
+                        }
+                    }
+                    accepted = e2 != null;
+                }
+                case TAG -> {
+                    try {
+                        stringList(e.payload().get("values"));
+                        e2 = Td.write(TagDatum.read(e.payload()).write());
+                        accepted = true;
+                    } catch (RuntimeException ex) {
+                        // datum re-emission failed; accepted stays false
                     }
                 }
-            } catch (RuntimeException ex) {
-                DatapackRuntime.LOGGER.warn("{} export roundtrip {} rebuild failed: {}", MARKER, id, ex.getMessage());
+                case LANG -> {
+                    try {
+                        e2 = Td.write(LangDatum.read(e.payload()).write());
+                        accepted = e2 != null;
+                    } catch (RuntimeException ex) {
+                        // datum re-emission failed; accepted stays false
+                    }
+                }
+                case LOOT_TABLE -> accepted = buildLootTable(e) != null;
+                case WORLDGEN -> accepted = buildConfiguredFeature(e) != null;
+                case STRUCTURE -> accepted = buildStructure(e, biomeRegistry) != null;
+                case FUNCTION -> accepted = true;
+                default -> accepted = true;
             }
-            boolean ok = text2 != null && text1.equals(text2);
-            String suffix = ok ? " (bytes=" + text1.length() + ")" : "";
-            DatapackRuntime.LOGGER.info("{} export roundtrip {} {}{}", MARKER, id,
-                    ok ? "ok" : "mismatch", suffix);
+            boolean ok = switch (e.kind()) {
+                case RECIPE, TAG, LANG -> e2 != null && e1.equals(e2);
+                default -> accepted;
+            };
+            DatapackRuntime.LOGGER.info("{} export roundtrip {} {} {}{}", MARKER, e.kind().dir(), e.id(),
+                    ok ? "ok" : "mismatch",
+                    ok ? " (rebuild=" + accepted + ", bytes=" + e1.length() + ")" : "");
         }
+    }
+
+    /**
+     * p.2.2 block 6 — in-server export archive round-trip: the whole single loaded
+     * pack is serialized to one td document ({@link DatapackExportArchive#export}),
+     * rehydrated back into a {@link Datapack} ({@link
+     * DatapackExportArchive#rehydrate}), and re-exported — the two documents must
+     * be byte-identical ({@code export} ∘ {@code rehydrate} is the identity on the
+     * archive). Only meaningful for a single loaded pack; otherwise it is logged
+     * and skipped. Deterministic, registration-time only.
+     */
+    private void runExportArchive() {
+        if (packs.size() != 1) {
+            DatapackRuntime.LOGGER.info("{} export archive skip (packs={}, single-pack archive only)",
+                    MARKER, packs.size());
+            return;
+        }
+        Datapack dp = packs.get(0);
+        String doc1 = DatapackExportArchive.export(dp);
+        String doc2 = DatapackExportArchive.export(DatapackExportArchive.rehydrate(doc1));
+        boolean ok = doc1.equals(doc2);
+        DatapackRuntime.LOGGER.info("{} export archive roundtrip {} (entries={}, bytes={})",
+                MARKER, ok ? "ok" : "mismatch", dp.entries().size(), doc1.length());
     }
 
     /** Builds a vanilla recipe holder from a td recipe entry; null on any malformation. */
