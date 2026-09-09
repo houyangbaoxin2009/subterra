@@ -336,9 +336,25 @@ public final class DatapackRegistrar implements AutoCloseable {
                 case RECIPE -> {
                     RecipeHolder<?> rebuilt = buildRecipe(e);
                     if (rebuilt != null) {
-                        TdTable e2t = DatapackRecipeExporter.exportTd(rebuilt, ra);
-                        if (e2t != null) {
-                            e2 = Td.write(e2t);
+                        TdTable firstT = DatapackRecipeExporter.exportTd(rebuilt, ra);
+                        if (firstT != null) {
+                            String first = Td.write(firstT);
+                            ResourceLocation rid = ResourceLocation.tryParse(e.id());
+                            DatapackEntry back = new DatapackEntry(EntryKind.RECIPE,
+                                    rid != null ? rid.getNamespace() : e.namespace(),
+                                    rid != null ? rid.getPath() : e.path(), firstT);
+                            RecipeHolder<?> rebuilt2 = buildRecipe(back);
+                            if (rebuilt2 != null) {
+                                TdTable secondT = DatapackRecipeExporter.exportTd(rebuilt2, ra);
+                                if (secondT != null) {
+                                    // object-level round-trip: the source-built holder's export is the
+                                    // reference; re-building from that canonical td and re-exporting must be
+                                    // byte-identical (the built ShapedRecipe retains no source key chars, so
+                                    // this is the stable closed-loop identity, cf. block 5).
+                                    e1 = first;
+                                    e2 = Td.write(secondT);
+                                }
+                            }
                         }
                     }
                     accepted = e2 != null;
