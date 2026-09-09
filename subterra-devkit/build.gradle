@@ -774,6 +774,15 @@ def worldPackProbe = tasks.register('runWorldPackProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.WorldPackProbe'
 }
 
+// p.2.10.4: save-verifiability probe — verifiable-save archive ledger: five corruption classes
+// (flip / truncate / reorder / wrong-key / replay) all rejected, intact archive accepted. Pure JVM.
+def saveVerifyProbe = tasks.register('runSaveVerifyProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.10.4: run the verifiable-save corruption/tamper deterministic probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SaveVerifyProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
