@@ -34,11 +34,20 @@ import java.util.TreeMap;
  *   datapack = "base64(DatapackPack.export(datapackDir))",
  * ]
  * }</pre>
- * Determinism: section order is fixed ({@code version → meta → save →
- * datapack}); the {@code meta} keys are sorted via a {@link TreeMap} and always
- * emitted (empty table when none); the {@code save}/{@code datapack} payloads
- * are themselves deterministic ({@link SaveExportArchive} / {@link DatapackPack}
- * guarantee it).
+ * Determinism (p.2.9.2): section order is fixed ({@code version → meta →
+ * save → datapack}); {@code meta} keys are sorted via a {@link TreeMap} and
+ * always emitted (empty table when none); the {@code save}/{@code datapack}
+ * payloads are themselves deterministic ({@link SaveExportArchive} /
+ * {@link DatapackPack} guarantee it). No wall-clock, no timestamps, no
+ * default-seed randomness — a deterministic archive.
+ *
+ * <p>Round-trip contract (asserted by the p.2.9.4 probe):
+ * {@code export(rehydrate(export(w))).equals(export(w))} byte-for-byte; the
+ * rehydrated {@link SaveContainer} is field-level equal to the one exported
+ * ({@code slots()} identical, each slot's document text identical, overlays /
+ * global rules identical); {@code datapackDocument} equals the decoded value.
+ * This is the stable-seed bridge to p.2.8: {@code meta} carries deterministic
+ * steady-state keys such as {@code world.seed} / {@code world.tick}.
  *
  * <p>格式示例（纯 JDK，无 JSON）：
  * <pre>{@code
@@ -50,6 +59,16 @@ import java.util.TreeMap;
  *   datapack = "base64(DatapackPack.export(datapackDir))",
  * ]
  * }</pre>
+ * 确定性（p.2.9.2）：段序固定（{@code version → meta → save → datapack}）；{@code meta}
+ * 键经 {@link TreeMap} 排序并恒输出（无则空表）；{@code save}/{@code datapack} 载荷本身
+ * 确定（由 {@link SaveExportArchive} / {@link DatapackPack} 保证）。无时钟、无时间戳、
+ * 无默认种子随机——确定性归档。
+ *
+ * <p>往返契约（由 p.2.9.4 探针断言）：
+ * {@code export(rehydrate(export(w))).equals(export(w))} 逐字节一致；再水化的
+ * {@link SaveContainer} 与导出前的容器字段级等值（{@code slots()} 一致、每槽文档文本一致、
+ * overlay / 全局规则一致）；{@code datapackDocument} 与解码值一致。这是 p.2.8 稳态衔接：
+ * {@code meta} 携带 {@code world.seed} / {@code world.tick} 等确定性稳态键。
  */
 public final class WorldPack {
 
