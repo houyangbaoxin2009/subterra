@@ -68,13 +68,14 @@ public final class SchemaCodec {
         }
 
         java.util.List<SchemaField> fields = new java.util.ArrayList<>();
-        java.util.Set<String> seen = new java.util.HashSet<>();
         TdValue fieldsVal = doc.get("fields");
         if (fieldsVal != null && fieldsVal instanceof TdTable fieldsTable) {
+            java.util.List<String> duplicates = fieldsTable.duplicates();
+            if (!duplicates.isEmpty()) {
+                throw new SchemaViolationException(SchemaViolationException.DUPLICATE_FIELD,
+                        "field=" + duplicates.get(0));
+            }
             for (String fieldName : fieldsTable.keys()) {
-                if (!seen.add(fieldName)) {
-                    throw new SchemaViolationException(SchemaViolationException.DUPLICATE_FIELD, "field=" + fieldName);
-                }
                 TdValue fieldKindVal = fieldsTable.get(fieldName);
                 SchemaKind fieldKind = SchemaKind.fromTd(fieldKindVal == null ? "" : fieldKindVal.asString());
                 if (fieldKind == null) {

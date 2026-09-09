@@ -20,17 +20,21 @@ public final class TdTable implements TdValue {
     private final Map<String, TdValue> named;
     private final List<String> keyOrder;
     private final List<TdValue> arrayElements;
+    private final List<String> duplicates;
 
     TdTable(List<TdEntry> entries) {
         this.named = new LinkedHashMap<>();
         this.keyOrder = new ArrayList<>();
         this.arrayElements = new ArrayList<>();
+        this.duplicates = new ArrayList<>();
         for (TdEntry e : entries) {
             if (e.key() == null) {
                 arrayElements.add(e.value());
             } else if (!named.containsKey(e.key())) {
                 named.put(e.key(), e.value());
                 keyOrder.add(e.key());
+            } else {
+                duplicates.add(e.key());
             }
         }
     }
@@ -53,6 +57,15 @@ public final class TdTable implements TdValue {
     /** True when the table has no entries at all. */
     public boolean isEmpty() {
         return keyOrder.isEmpty() && arrayElements.isEmpty();
+    }
+
+    /** Keys that appeared as a named entry more than once, in order of their second+ occurrence.
+     *  Empty when every key is unique. First occurrence still wins for {@link #get}/{@link #keys()};
+     *  this accessor merely exposes the duplicates so document layers (e.g. the schema codec) can
+     *  reject them deterministically. Purely additive — no effect on existing first-wins consumers.
+     *  重复命名的键（按第 2+ 次出现顺序）；取名层面首现获胜语义不变，仅供文档层（如 schema 编解码）检测。 */
+    public List<String> duplicates() {
+        return List.copyOf(duplicates);
     }
 
     /**
