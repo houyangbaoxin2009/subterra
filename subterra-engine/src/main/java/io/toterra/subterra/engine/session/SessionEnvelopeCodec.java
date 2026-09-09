@@ -156,10 +156,9 @@ public final class SessionEnvelopeCodec {
                     "negative seq " + seq);
         }
         String meta = decodeB64(metaRow.valueStr(), SessionEnvelopeException.PAYLOAD, "meta");
-        String payloadB64 = decodeB64(payRow.valueStr(), SessionEnvelopeException.PAYLOAD, "payload");
         byte[] payload;
         try {
-            payload = Base64.getDecoder().decode(payloadB64);
+            payload = Base64.getDecoder().decode(payRow.valueStr());
         } catch (IllegalArgumentException e) {
             throw new SessionEnvelopeException(SessionEnvelopeException.PAYLOAD,
                     "payload segment is not canonical base64");
