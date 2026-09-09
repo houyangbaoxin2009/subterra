@@ -29,6 +29,8 @@ public class InteractViolationException extends Exception {
     public static final String MISSING_ATTITUDE = "MISSING_ATTITUDE";
     /** 未知态度文本 / an unknown attitude text. */
     public static final String UNKNOWN_ATTITUDE = "UNKNOWN_ATTITUDE";
+    /** 表面映射产出含系统气味词（零 HUD 守卫拦截）/ a surface-mapping output carries a system-scent term (intercepted by the zero-HUD guard). */
+    public static final String SYSTEM_SCENT = "SYSTEM_SCENT";
 
     private final String reason;
 
