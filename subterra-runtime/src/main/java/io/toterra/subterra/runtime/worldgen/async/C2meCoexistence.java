@@ -1,8 +1,10 @@
-// C2ME (Concurrent Chunk Management Engine) is adopted as an optional peer,
-// MIT (c) ishland: Subterra does not bundle or port it — the official NeoForge
-// ver/1.21.1 jar runs stand-alone with its own c2me.toml. This coordinator only
-// detects its presence and logs coexistence guidance on the shared control
-// surfaces (view/simulation distance, chunk I/O threading).
+// C2ME (Concurrent Chunk Management Engine) is a supported compatible peer,
+// MIT (c) ishland: Subterra bundles its own derived async chunk engine
+// (engine.worldgen.async) whose design follows C2ME's concurrency model (MIT
+// attributed in the root NOTICE). The official NeoForge ver/1.21.1 jar remains
+// a fully supported peer running stand-alone with its own c2me.toml. This
+// coordinator detects its presence and logs coexistence guidance on the shared
+// control surfaces (view/simulation distance, chunk I/O threading).
 package io.toterra.subterra.runtime.worldgen.async;
 
 import com.mojang.logging.LogUtils;
@@ -13,10 +15,12 @@ import org.slf4j.Logger;
 /**
  * C2ME coexistence coordinator: detects the official C2ME NeoForge mod
  * ({@code c2me_base}) once at mod loading and, when present, logs guidance so
- * Subterra avoids double-governing the same surfaces (C2ME owns the async
- * chunk pipeline; Subterra's dynamic view-distance / worker tuning are
- * orthogonal but may be de-prioritized deliberately). Detection is a simple
- * {@link ModList#isLoaded(String)} lookup; C2ME's own config is untouched.
+ * Subterra avoids double-governing the same surfaces. Subterra bundles its own
+ * derived async chunk engine (engine.worldgen.async — the design follows C2ME's
+ * concurrency model, MIT-attributed in the root NOTICE; original code, not a
+ * verbatim copy). The official C2ME mod remains a supported compatible peer;
+ * its own config is untouched. Detection is a simple
+ * {@link ModList#isLoaded(String)} lookup.
  */
 public final class C2meCoexistence {
 
@@ -39,9 +43,11 @@ public final class C2meCoexistence {
         present = ModList.get().isLoaded(C2ME_MODID);
         checked = true;
         if (present) {
-            LOGGER.info("[subterra_c2me] official C2ME (async chunk engine) detected; coexisting. "
-                    + "C2ME owns the async chunk pipeline (config/c2me.toml); Subterra keeps its own "
-                    + "dynamic view-distance / worker tuning orthogonal.");
+            LOGGER.info("[subterra_c2me] official C2ME (MIT compatible peer) detected; coexisting. "
+                    + "Subterra bundles its own derived async chunk engine (engine.worldgen.async, "
+                    + "design follows C2ME's concurrency model, MIT attributed in NOTICE); the official "
+                    + "C2ME keeps its own config/c2me.toml and Subterra's dynamic view-distance / worker "
+                    + "tuning stays orthogonal.");
         }
     }
 

@@ -127,10 +127,12 @@ config="subterra-jec.mixins.json"
     ordering="NONE"
     side="BOTH"
 
-# C2ME (MIT, adopted as an optional peer): official NeoForge async chunk engine.
-# Subterra does not bundle or port it; this optional dependency only lets the
-# loader track its presence so the C2meCoexistence coordinator can log and
-# de-prioritize overlapping control surfaces (view distance, chunk I/O).
+# C2ME (MIT): official NeoForge async chunk engine — a supported compatible
+# peer. Subterra bundles its own derived async chunk engine
+# (engine.worldgen.async; design follows C2ME's concurrency model, MIT-attributed
+# in the root NOTICE). This optional dependency lets the loader track C2ME's
+# presence so the C2meCoexistence coordinator can log coexistence guidance on the
+# overlapping control surfaces (view distance, chunk I/O).
 [[dependencies.${mod_id}]]
     modId="c2me_base"
     type="optional"

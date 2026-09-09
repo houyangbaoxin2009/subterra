@@ -28,3 +28,5 @@ Subterra is a full-stack development framework mod (NeoForge 21.1.x / Minecraft 
 本仓库按 **Tie Public License v2.0（TPL 2.0）** 授权发布（全文见 [LICENSE](LICENSE)）：你可自由使用、修改并分发本软件源码，包括用于商业产品，仅需保留版权声明并附本许可证；而使用本框架开发的模组与作品完全归你所有，不附带任何署名义务。
 
 EN: This repository is released under the **Tie Public License v2.0 (TPL 2.0)** (full text in [LICENSE](LICENSE)): you may freely use, modify, and redistribute the source code, including in commercial products, provided you retain the copyright notice and a copy of the license; mods and works you build with this framework are entirely your own, with no attribution obligation.
+
+* **第三方声明 / Third-party notices**: 异步世界生成核心 `engine.worldgen.async` 为遵循 C2ME（MIT）并发模型的原创派生设计实现（非逐字复制），C2ME 依 MIT 许可署名；详见 [NOTICE](NOTICE)。/ The async worldgen core `engine.worldgen.async` is an original derived-design implementation following the C2ME (MIT) concurrency model (not a verbatim copy); C2ME attribution is provided under the MIT license, see [NOTICE](NOTICE).

@@ -112,9 +112,10 @@ public class Subterra {
         // and the crash-report diagnostics callable.
         SubterraLogging.bootstrap();
 
-        // C2ME coexistence (adopted, MIT, optional peer): detects the official
-        // C2ME jar (ModList is queryable only after mod loading) and logs
-        // coexistence guidance on the shared control surfaces; no code bundled.
+        // C2ME coexistence (MIT, supported compatible peer): detects the official
+        // C2ME jar (ModList is queryable only after mod loading) and logs coexistence
+        // guidance on the shared control surfaces; Subterra bundles its own derived
+        // async chunk engine (engine.worldgen.async, MIT-attributed in NOTICE). Optional.
         io.toterra.subterra.runtime.worldgen.async.C2meCoexistence.bootstrap(modContainer);
     }
 

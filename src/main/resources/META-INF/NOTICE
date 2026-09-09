@@ -1,0 +1,20 @@
+Subterra — Third-Party Notices / 第三方声明
+
+C2ME (Concurrent Chunk Management Engine)
+  * License: MIT
+  * Copyright (c) ishland / RelativityMC
+  * Upstream: https://github.com/ishland/C2ME
+
+Subterra's async worldgen core (engine.worldgen.async, per-bank serial with
+cross-bank parallel dispatch, deterministic Z-then-X merge, and an ordered async
+I/O queue) implements C2ME's concurrency model as ORIGINAL Subterra code — a
+derived-design implementation, not a verbatim copy. Attribution is provided as
+required by the MIT license; the runtime shell contacts C2ME only as a
+coexistence check, never bundling its code.
+
+Subterra 的异步世界生成核心（engine.worldgen.async：bank 内串行、bank 间并行分发、
+先 Z 后 X 的确定性归并，以及有序异步 I/O 队列）以 Subterra 原创代码实现了 C2ME 的并发
+模型——属"派生设计实现"，并非逐字复制。依 MIT 许可作出本署名；runtime 壳仅以共存检测
+方式感知 C2ME，从不附带其代码。
+
+The full MIT License text is available in the upstream C2ME repository above.
