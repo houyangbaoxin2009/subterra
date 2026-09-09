@@ -471,19 +471,76 @@ def saveE2EProbe = tasks.register('runSaveE2EProbe', JavaExec) {
 // bootProbe / datapackE2EProbe — never boot concurrently (DirectoryLock on session.lock).
 saveE2EProbe.configure { mustRunAfter datapackE2EProbe }
 
-// Dev aid (p.2.4): print the devkit runtime classpath so not-yet-wired probes
-// can be verified standalone (java -cp <printed> io.toterra.subterra.probes.X).
-def printDevkitClasspath = tasks.register('printDevkitClasspath') {
-    // resolve at configuration time (execution-time Task.project is not
-    // configuration-cache compatible)
-    def cp = project.sourceSets.main.runtimeClasspath.asPath
-    doLast {
-        println cp
-    }
+// ---- p.2.4 enhanced-channel probes (engine.network cores, pure JVM) ----
+
+// p.2.4.1: engine.network.frame — tink v1 crc32 frame carrier (FrameV1/Iterator/Crc32Ieee)
+// + v2 ABI constants (FrameConst) + zd payload bridge (ZdFrameBridge). Language-agnostic
+// ABI; the p.2.5 baseline. Pure JVM (no Minecraft runtime).
+def networkFrameProbe = tasks.register('runNetworkFrameProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.4.1: run the engine.network.frame probe (tink v1 carrier + v2 ABI + zd bridge, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NetworkFrameProbe'
 }
+
+// p.2.4.2: engine.network.integrity — tsha1f portable Java + tink v2 frame integrity codec
+// (FrameV2: fast/strong slots, ext TLV unknown-skip, v1-compat read, reserved-bit reject,
+// streaming split/join) + single-byte-tamper rejection. Pure JVM.
+def networkIntegrityProbe = tasks.register('runNetworkIntegrityProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.4.2: run the engine.network.integrity probe (tsha1f KAT + FrameV2 codec, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NetworkIntegrityProbe'
+}
+
+// p.2.4.3: engine.network.strategy — three-tier payload strategy (L1 high-freq incremental
+// diff + interest-domain subscribe / L2 mid-freq snapshot + change stream / L3 low-freq
+// encrypted marker): deterministic selector, incremental diff round-trip, ordered change-stream
+// replay. Pure JVM.
+def networkStrategyProbe = tasks.register('runNetworkStrategyProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.4.3: run the engine.network.strategy probe (3-tier payload strategy core, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NetworkStrategyProbe'
+}
+
+// p.2.4.4: engine.network.bandwidth — bandwidth-cuts optimizer: three quantified techniques
+// + argmax selection (fixed-enum order breaks ties), deterministic hit counts, L3-encryption
+// fit via LAN-trustable toggle. Pure JVM.
+def networkOptimizerProbe = tasks.register('runNetworkOptimizerProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.4.4: run the engine.network.bandwidth optimizer probe (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NetworkOptimizerProbe'
+}
+
+// p.2.4.5: engine.network.crypto — x25519 + SHA-256 KDF → AES-256-GCM (12B nonce = 8B BE seq
+// + 4B zero, same-key never repeats), round-trip / tamper-reject / wrong-key-reject, LAN-
+// trustable toggle (default on, L3 strategy hookup). Pure JVM.
+def networkCryptoProbe = tasks.register('runNetworkCryptoProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.4.5: run the engine.network.crypto probe (x25519+AEAD, LAN-trust toggle, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NetworkCryptoProbe'
+}
+
+// p.2.4.6: E2E gate — boots the dev server with the enhanced-channel gated shell enabled
+// (-Dsubterra.probe.network) and asserts the deterministic markers ([Subterra network]) at
+// ServerStartedEvent. Event-based, never timing-based, like the other E2E gates.
+def networkE2EProbe = tasks.register('runNetworkE2EProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.4.6: boot dev server, fire the gated enhanced-channel shell, assert markers (E2E gate)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NetworkE2EProbe'
+    workingDir = rootProject.projectDir
+    systemProperty 'subterra.projectDir', rootProject.projectDir.absolutePath
+}
+// Fourth boot gate: forks the same gradlew runServer on the same run/world as
+// bootProbe / datapackE2EProbe / saveE2EProbe — never boot concurrently (DirectoryLock on session.lock).
+networkE2EProbe.configure { mustRunAfter saveE2EProbe }
 
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, networkE2EProbe
 }
