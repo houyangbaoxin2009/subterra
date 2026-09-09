@@ -5,6 +5,7 @@ import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.datapack.DatapackPack;
 import io.toterra.subterra.engine.datapack.Datapack;
 import io.toterra.subterra.engine.datapack.DatapackEntry;
+import io.toterra.subterra.engine.datapack.DatapackExportArchive;
 import io.toterra.subterra.engine.datapack.DatapackExporter;
 import io.toterra.subterra.engine.datapack.DatapackLoader;
 import io.toterra.subterra.engine.datapack.EntryKind;
@@ -35,7 +36,11 @@ import java.util.Set;
  * unexported, bool boundary). Also proves malformed td surfaces the offender,
  * repeated loads are deterministic, and the recipe export round-trip
  * ({@link DatapackExporter} → {@link DatapackLoader} re-load → re-export) is
- * byte-identical (p.2.2 block 5).
+ * byte-identical (p.2.2 block 5). Block 6 extends the round-trip to all kinds
+ * (per-entry file reload) and to the whole-pack {@link DatapackExportArchive}
+ * archive ({@code export}∘{@code rehydrate} identity + entry-count parity),
+ * plus a field-fidelity check that the canonical per-kind export equals the
+ * plain payload serialization.
  */
 public final class DatapackProbe {
 
@@ -182,6 +187,44 @@ public final class DatapackProbe {
             } catch (IllegalArgumentException e) {
                 check("畸形 td 抛错含文件", e.getMessage().contains("x.td"));
             }
+
+            // 9. export round-trip all kinds + archive (p.2.2 block 6)
+            int checked = 0;
+            for (DatapackEntry entry : dp.entries().values()) {
+                String e1 = DatapackExporter.exportEntryTd(entry);
+                String safeId = entry.id().replace('/', '_').replace(':', '_');
+                Path pack7 = tmp.resolve("dp7_" + safeId);
+                Path tdFile = pack7.resolve("data").resolve(entry.namespace())
+                        .resolve(entry.kind().dir()).resolve(entry.path() + ".td");
+                Files.createDirectories(tdFile.getParent());
+                Files.writeString(tdFile, "type tie<data>\n" + e1);
+                Datapack reloaded = DatapackLoader.load(pack7);
+                DatapackEntry re = reloaded.get(entry.kind(), entry.namespace(), entry.path());
+                check("导出往返 " + entry.id(), e1.equals(re != null ? DatapackExporter.exportEntryTd(re) : null));
+                checked++;
+            }
+            check("导出全类往返覆盖 (" + checked + " 条)", checked == dp.entries().size());
+
+            // archive round-trip: whole pack -> one td doc -> rehydrate -> re-export
+            String doc1 = DatapackExportArchive.export(dp);
+            Datapack rehydrated = DatapackExportArchive.rehydrate(doc1);
+            String doc2 = DatapackExportArchive.export(rehydrated);
+            check("导出档案 往返 逐字节一致", doc1.equals(doc2));
+            check("导出档案 条目数保留", rehydrated.entries().size() == dp.entries().size());
+
+            // field fidelity: canonical export == plain payload serialization
+            check("导出 tag 无损",
+                    DatapackExporter.exportEntryTd(dp.get(EntryKind.TAG, "toterra", "item/special"))
+                            .equals(io.toterra.subterra.engine.config.Td.write(
+                                    dp.get(EntryKind.TAG, "toterra", "item/special").payload())));
+            check("导出 lang 无损",
+                    DatapackExporter.exportEntryTd(dp.get(EntryKind.LANG, "toterra", "en_us"))
+                            .equals(io.toterra.subterra.engine.config.Td.write(
+                                    dp.get(EntryKind.LANG, "toterra", "en_us").payload())));
+            check("导出 loot 无损(透传)",
+                    DatapackExporter.exportEntryTd(dp.get(EntryKind.LOOT_TABLE, "toterra", "chest/bonus"))
+                            .equals(io.toterra.subterra.engine.config.Td.write(
+                                    dp.get(EntryKind.LOOT_TABLE, "toterra", "chest/bonus").payload())));
         } finally {
             deleteRecursively(tmp);
         }
