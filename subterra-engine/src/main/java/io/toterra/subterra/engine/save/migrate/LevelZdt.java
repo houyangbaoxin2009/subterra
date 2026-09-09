@@ -1,15 +1,11 @@
 package io.toterra.subterra.engine.save.migrate;
 
-import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdHeader;
 import io.toterra.subterra.engine.zd.ZdRow;
 import io.toterra.subterra.engine.zd.ZdVolume;
 
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +13,8 @@ import java.util.TreeMap;
 
 /**
  * 混合文档本体（p.2.3.2）：把 {@link LevelDatum} 映射为「td 元数据 + zd 载荷」的单一文件，约定
- * 扩展名 {@code .zdt}。文档形状与 {@code DatapackExportArchive} 同构：
+ * 扩展名 {@code .zdt}。文档形状与 {@code DatapackExportArchive} 同构，具体结构委托
+ * {@link ZdtTransfer}（p.2.3.3 泛化）：
  * <pre>{@code
  * type tie<data>
  * level = [
@@ -26,20 +23,21 @@ import java.util.TreeMap;
  *   zd = "<base64>",
  * ]
  * }</pre>
- * {@code zd} 载荷把 {@code LevelDatum} 写成一组 {@link ZdRow}：1 行表根（kind 0、key=meta、
+ * {@code zd} 载荷把 {@link LevelDatum} 写成一组 {@link ZdRow}：1 行表根（kind 0、key=meta、
  * child=4）+ 4 行标量（seed/time 为 kind 2 i64、name 为 kind 1 字符串、rules 为 kind 0 child=N 再
- * 跟 N 行 {@code rule_<k>}），经 {@code ZdDocWriter.write(0, rows)} 得字节后 Base64 嵌入。本子项取
- * 舍：zd 压缩/列式/字典变体不开，flags=0（最小子集）。
+ * 跟 N 行 {@code rule_<k>}），经 {@code ZdtTransfer.write} 得字节后 Base64 嵌入。本子项取舍：zd
+ * 压缩/列式/字典变体不开，flags=0（最小子集）。对外行为与产出文本逐字节不变（p.2.3.3 重构，21
+ * 断言钉住）。
  * <p>
  * Hybrid-document core (p.2.3.2): maps a {@link LevelDatum} to a single file of "td metadata + zd
  * payload", with the conventional extension {@code .zdt}. The document shape mirrors
- * {@code DatapackExportArchive}:
- * ... (see above) ...
- * The {@code zd} payload flattens the {@link LevelDatum} into {@link ZdRow}s: a 1-row table root
- * (kind 0, key=meta, child=4) + 4 scalar rows (seed/time as kind-2 i64, name as kind-1 string, rules
- * as a kind-0 child=N row followed by N {@code rule_<k>} rows), written via
- * {@code ZdDocWriter.write(0, rows)} and Base64-embedded. This sub-item keeps flags = 0 (the minimal
- * subset): the zd compressed / columnar / dictionary variants are intentionally left closed here.
+ * {@code DatapackExportArchive} and its structure is delegated to {@link ZdtTransfer} (generalised
+ * in p.2.3.3). The {@code zd} payload flattens the {@link LevelDatum} into {@link ZdRow}s: a 1-row
+ * table root (kind 0, key=meta, child=4) + 4 scalar rows (seed/time as kind-2 i64, name as kind-1
+ * string, rules as a kind-0 child=N row followed by N {@code rule_<k>} rows), embedded via
+ * {@code ZdtTransfer.write}. This sub-item keeps flags = 0 (the minimal subset). The external
+ * behaviour and the emitted text are byte-identical after the p.2.3.3 refactor (pinned by 21
+ * assertions).
  */
 public final class LevelZdt {
 
@@ -59,19 +57,14 @@ public final class LevelZdt {
      * keys are deterministically sorted alphabetically before entering both meta and zd.
      */
     public static String toTd(LevelDatum d) {
+        Map<String, TdValue> sorted = sorted(d.rules());
         TdTable.Builder metaB = TdTable.builder()
                 .put("name", TdValue.str(d.name()))
                 .put("seed", TdValue.of(d.seed()))
                 .put("time", TdValue.of(d.dayTime()))
-                .put("rules", rulesTable(d.rules()));
-        String zdB64 = Base64.getEncoder().encodeToString(buildZd(d.rules(), d.seed(), d.dayTime(), d.name()));
-        TdTable doc = TdTable.builder()
-                .put("version", TdValue.of(VERSION))
-                .put("meta", metaB.build())
-                .put("zd", TdValue.str(zdB64))
-                .build();
-        // 顶层具名表（level = [...]），Td.parse 反解析时剥名 —— 与 DatapackExportArchive 同构。
-        return "type tie<data>\n" + Td.write(TdTable.builder().put(MARKER, doc).build());
+                .put("rules", rulesTable(sorted));
+        return ZdtTransfer.write(MARKER, VERSION, metaB.build(),
+                buildZdRows(d.rules(), d.seed(), d.dayTime(), d.name()));
     }
 
     /**
@@ -80,54 +73,29 @@ public final class LevelZdt {
      * to report the zd header etc.).
      */
     public static byte[] zdPayload(String tdText) {
-        TdTable doc = levelDoc(tdText);
-        TdValue zdValue = doc.get("zd");
-        if (!(zdValue instanceof TdValue.Scalar zdScalar) || zdScalar.kind() != TdValue.Kind.STRING) {
-            throw new IllegalArgumentException("level zdt missing 'zd' string");
-        }
-        return Base64.getDecoder().decode(zdScalar.str());
-    }
-
-    private static TdTable levelDoc(String tdText) {
-        TdTable root = Td.parse(tdText);
-        TdValue markerValue = root.get(MARKER);
-        if (!(markerValue instanceof TdTable doc)) {
-            throw new IllegalArgumentException("not a level zdt document (missing 'level')");
-        }
-        return doc;
+        return ZdtTransfer.zdBytes(tdText);
     }
 
     /**
-     * 反解析 {@code .zdt} 文档为 {@link LevelDatum}。校验 version、zd 头合法；交叉断言 zd 载荷解出
-     * 的裸字段（name/seed/time/rules）必须与 meta 一致，不一致或头非法抛 {@link IllegalArgumentException}。
-     * Parses a {@code .zdt} document back into a {@link LevelDatum}. Validates the version and the zd
-     * header; cross-asserts that the bare fields decoded from the zd payload (name/seed/time/rules) match
+     * 反解析 {@code .zdt} 文档为 {@link LevelDatum}。委托 {@link ZdtTransfer} 校验版本与 zd 头，并
+     * 交叉断言 zd 载荷解出的裸字段（name/seed/time/rules）必须与 meta 一致，不一致或头非法抛
+     * {@link IllegalArgumentException}。Parses a {@code .zdt} document back into a
+     * {@link LevelDatum}. It delegates version / zd-header validation to {@link ZdtTransfer} and
+     * cross-asserts that the bare fields decoded from the zd payload (name/seed/time/rules) match
      * the meta; on mismatch or an invalid header raises {@link IllegalArgumentException}.
      */
     public static LevelDatum parse(String tdText) {
-        TdTable doc = levelDoc(tdText);
-        long version = doc.get("version") != null ? doc.get("version").asInt() : -1;
-        if (version != VERSION) {
-            throw new IllegalArgumentException("unsupported level zdt version: " + version);
+        ZdtTransfer.TableDoc doc = ZdtTransfer.parse(tdText);
+        if (doc.version() != VERSION) {
+            throw new IllegalArgumentException("unsupported level zdt version: " + doc.version());
         }
-        TdValue metaValue = doc.get("meta");
-        if (!(metaValue instanceof TdTable meta)) {
-            throw new IllegalArgumentException("level zdt missing 'meta' table");
-        }
+        TdTable meta = doc.meta();
         String name = meta.get("name") != null ? meta.get("name").asString() : "";
         long seed = meta.get("seed") != null ? meta.get("seed").asInt() : 0L;
         long time = meta.get("time") != null ? meta.get("time").asInt() : 0L;
         Map<String, TdValue> rules = rulesFrom(meta.get("rules"));
 
-        TdValue zdValue = doc.get("zd");
-        if (!(zdValue instanceof TdValue.Scalar zdScalar) || zdScalar.kind() != TdValue.Kind.STRING) {
-            throw new IllegalArgumentException("level zdt missing 'zd' string");
-        }
-        byte[] zdBytes = Base64.getDecoder().decode(zdScalar.str());
-        if (!ZdHeader.isZd(zdBytes) || ZdHeader.parseVersion(zdBytes, 0) != 2) {
-            throw new IllegalArgumentException("level zdt zd payload has an invalid header");
-        }
-        Decoded zd = decodeZd(zdBytes);
+        Decoded zd = decodeZd(doc.zdBytes());
         // 交叉断言 / cross-assert: zd 裸字段必须与 meta 一致
         if (!zd.name.equals(name) || zd.seed != seed || zd.time != time || !rulesEqual(zd.rules, rules)) {
             throw new IllegalArgumentException("level zdt zd payload disagrees with td meta");
@@ -139,7 +107,7 @@ public final class LevelZdt {
 
     private static TdTable rulesTable(Map<String, TdValue> rules) {
         TdTable.Builder b = TdTable.builder();
-        for (Map.Entry<String, TdValue> e : sorted(rules).entrySet()) {
+        for (Map.Entry<String, TdValue> e : rules.entrySet()) {
             b.element(TdTable.builder().put("k", e.getKey()).put("v", e.getValue()).build());
         }
         return b.build();
@@ -164,7 +132,7 @@ public final class LevelZdt {
         return out;
     }
 
-    private static byte[] buildZd(Map<String, TdValue> rules, long seed, long time, String name) {
+    private static List<ZdRow> buildZdRows(Map<String, TdValue> rules, long seed, long time, String name) {
         List<ZdRow> rows = new ArrayList<>();
         rows.add(new ZdRow(0, ROOT_ZD_KEY, 0L, 0.0, "", 4));
         rows.add(new ZdRow(2, "seed", seed, 0.0, "", 0));
@@ -176,7 +144,7 @@ public final class LevelZdt {
         for (Map.Entry<String, TdValue> e : sorted.entrySet()) {
             rows.add(ruleRow(e.getKey(), e.getValue()));
         }
-        return ZdDocWriter.write(0, rows);
+        return rows;
     }
 
     private static ZdRow ruleRow(String key, TdValue v) {

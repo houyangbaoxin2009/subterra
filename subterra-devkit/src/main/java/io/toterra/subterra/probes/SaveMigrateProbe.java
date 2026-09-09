@@ -11,7 +11,6 @@ import io.toterra.subterra.engine.save.migrate.NbtTreeReader;
 import io.toterra.subterra.engine.zd.ZdHeader;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
@@ -122,7 +121,7 @@ public final class SaveMigrateProbe {
         gr.put("randomTickSpeed", "3");        // numeric string
         gr.put("keepInventory", (byte) 1);     // numeric byte -> long 1
         gr.put("someNum", 7L);                 // numeric long
-        byte[] nbt = NbtProbeWriter.root(
+        byte[] nbt = NbtFixture.root(
                 wCompound("Data", dataChildren("P1", 123L, 1000L,
                         new byte[][]{gameRules(gr)})));
         byte[] p1 = gzipped(nbt);
@@ -180,7 +179,7 @@ public final class SaveMigrateProbe {
     private static void baseFixtureUncompressed() throws Exception {
         Map<String, Object> gr = new LinkedHashMap<>();
         gr.put("doFireTick", "true");
-        byte[] nbt = NbtProbeWriter.root(
+        byte[] nbt = NbtFixture.root(
                 wCompound("Data", dataChildren("Raw", 9L, 5L, new byte[][]{gameRules(gr)})));
         LevelDatum d = LevelDatReader.read(nbt); // raw, uncompressed
         check("read: 未压缩路径解析", "Raw".equals(d.name()) && d.seed() == 9 && d.dayTime() == 5);
@@ -188,7 +187,7 @@ public final class SaveMigrateProbe {
 
     /** 缺 GameRules / 缺 DayTime → 默认. */
     private static void missingRulesAndTime() throws Exception {
-        byte[] noRules = NbtProbeWriter.root(
+        byte[] noRules = NbtFixture.root(
                 wCompound("Data", dataChildren("P2", 77L, null, new byte[0][])));
         LevelDatum d = LevelDatReader.read(gzipped(noRules));
         check("read: 缺 GameRules → rules 空", d.rules().isEmpty());
@@ -199,7 +198,7 @@ public final class SaveMigrateProbe {
     private static void chineseName() throws Exception {
         Map<String, Object> gr = new LinkedHashMap<>();
         gr.put("doMobLoot", "true");
-        byte[] nbt = NbtProbeWriter.root(
+        byte[] nbt = NbtFixture.root(
                 wCompound("Data", dataChildren("雨林城市", 20240607L, 24000L, new byte[][]{gameRules(gr)})));
         LevelDatum d = LevelDatReader.read(gzipped(nbt));
         String s = LevelZdt.toTd(d);
@@ -213,7 +212,7 @@ public final class SaveMigrateProbe {
     private static void worldGenSettingsSeed() throws Exception {
         byte[] wgs = wCompound("WorldGenSettings",
                 new byte[][]{wLong("seed", 424242L)});
-        byte[] nbt = NbtProbeWriter.root(
+        byte[] nbt = NbtFixture.root(
                 wCompound("Data", dataChildren("Modern", null, 8L,
                         new byte[][]{wgs})));
         LevelDatum d = LevelDatReader.read(gzipped(nbt));
@@ -226,7 +225,7 @@ public final class SaveMigrateProbe {
         gr.put("wild", "true");
         gr.put("tick", "40");
         gr.put("alpha", "false");
-        byte[] nbt = NbtProbeWriter.root(
+        byte[] nbt = NbtFixture.root(
                 wCompound("Data", dataChildren("Rules", 1L, 1L, new byte[][]{gameRules(gr)})));
         LevelDatum d = LevelDatReader.read(gzipped(nbt));
         String r1 = DatapackRules.render(d.rules());
@@ -239,7 +238,7 @@ public final class SaveMigrateProbe {
     private static void tamperedZdRejected() throws Exception {
         Map<String, Object> gr = new LinkedHashMap<>();
         gr.put("a", "true");
-        byte[] nbt = NbtProbeWriter.root(
+        byte[] nbt = NbtFixture.root(
                 wCompound("Data", dataChildren("T", 5L, 5L, new byte[][]{gameRules(gr)})));
         LevelDatum d = LevelDatReader.read(gzipped(nbt));
         String good = LevelZdt.toTd(d);
@@ -254,78 +253,31 @@ public final class SaveMigrateProbe {
         check("zdt: 交叉断言不一致抛 IllegalArgumentException", threw);
     }
 
-    // ---- helpers ----
-
-    // ---- NBT writer (probe-local, pure JDK; engine is read-only on NBT) -------
+    // ---- helpers: NBT writer lifted into the shared {@link NbtFixture} (p.2.3.3
+    // read-only refactor; these thin delegates keep the call sites unchanged). ----
 
     private static byte[] wString(String name, String val) {
-        byte[] nb = name.getBytes(StandardCharsets.UTF_8);
-        byte[] vb = val.getBytes(StandardCharsets.UTF_8);
-        ByteArrayOutputStream o = new ByteArrayOutputStream();
-        o.write(8);
-        writeName(o, nb);
-        o.write((vb.length >> 8) & 0xFF);
-        o.write(vb.length & 0xFF);
-        o.writeBytes(vb);
-        return o.toByteArray();
+        return NbtFixture.wString(name, val);
     }
 
     private static byte[] wLong(String name, long val) {
-        ByteArrayOutputStream o = new ByteArrayOutputStream();
-        o.write(4);
-        writeName(o, name.getBytes(StandardCharsets.UTF_8));
-        for (int i = 7; i >= 0; i--) {
-            o.write((int) ((val >> (i * 8)) & 0xFF));
-        }
-        return o.toByteArray();
+        return NbtFixture.wLong(name, val);
     }
 
     private static byte[] wInt(String name, int val) {
-        ByteArrayOutputStream o = new ByteArrayOutputStream();
-        o.write(3);
-        writeName(o, name.getBytes(StandardCharsets.UTF_8));
-        o.write((val >> 24) & 0xFF);
-        o.write((val >> 16) & 0xFF);
-        o.write((val >> 8) & 0xFF);
-        o.write(val & 0xFF);
-        return o.toByteArray();
+        return NbtFixture.wInt(name, val);
     }
 
     private static byte[] wByte(String name, int val) {
-        ByteArrayOutputStream o = new ByteArrayOutputStream();
-        o.write(1);
-        writeName(o, name.getBytes(StandardCharsets.UTF_8));
-        o.write(val & 0xFF);
-        return o.toByteArray();
+        return NbtFixture.wByte(name, val);
     }
 
     private static byte[] wCompound(String name, byte[][] kids) {
-        ByteArrayOutputStream o = new ByteArrayOutputStream();
-        o.write(10);
-        writeName(o, name.getBytes(StandardCharsets.UTF_8));
-        for (byte[] k : kids) {
-            o.writeBytes(k);
-        }
-        o.write(0); // TAG_End
-        return o.toByteArray();
+        return NbtFixture.wCompound(name, kids);
     }
 
-    private static void writeName(ByteArrayOutputStream o, byte[] nb) {
-        o.write((nb.length >> 8) & 0xFF);
-        o.write(nb.length & 0xFF);
-        o.writeBytes(nb);
-    }
-
-    /** 根：具名 COMPOUND（名字留空，与 level.dat 惯例一致）后接 payload+GRULES. */
-    private static final class NbtProbeWriter {
-        static byte[] root(byte[] namedCompound) {
-            ByteArrayOutputStream o = new ByteArrayOutputStream();
-            o.write(10);                 // root type COMPOUND
-            o.write(0);
-            o.write(0);                  // empty root name
-            o.writeBytes(namedCompound); // includes children + trailing TAG_End
-            o.write(0);                  // TAG_End for root itself
-            return o.toByteArray();
-        }
+    /** 根：具名 COMPOUND（名字留空，与 level.dat 惯例一致）后接 payload. */
+    private static byte[] root(byte[] namedCompound) {
+        return NbtFixture.root(namedCompound);
     }
 }
