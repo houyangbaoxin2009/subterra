@@ -72,6 +72,10 @@ import java.util.Map;
  * <li>recipe → td {@code recipe = [ type = "minecraft:crafting_shaped", … ]}
  * compiled into a vanilla {@link ShapedRecipe} holder and merged into the live
  * {@link RecipeManager} via {@code replaceRecipes} (+ log markers);</li>
+ * <li>recipe export round-trip (p.2.2 block 5) → each td-built recipe holder is
+ * re-exported to canonical td, re-imported through {@code buildRecipe}, and
+ * re-exported again — both td texts must be byte-identical (marker ok per
+ * recipe).</li>
  * <li>loot_table → td chest schema → {@link LootTable} object, then merged into
  * the {@code LOOT_TABLE} datapack registry through
  * {@link DatapackRegistryInjector} (public un-freeze → register → freeze
@@ -209,6 +213,7 @@ public final class DatapackRegistrar implements AutoCloseable {
         if (!tieBundles.isEmpty()) {
             DatapackRuntime.LOGGER.info("{} tie libraries={}", MARKER, tieBundles.size());
         }
+        runExportRoundTrip();
     }
 
     /** tag index: entry id → payload {@code values}. */
@@ -265,6 +270,49 @@ public final class DatapackRegistrar implements AutoCloseable {
         merged.addAll(existing);
         merged.addAll(recipes);
         manager.replaceRecipes(merged);
+    }
+
+    /**
+     * p.2.2 block 5 — recipe export round-trip: every td-built recipe holder is
+     * exported to canonical td (DatapackRecipeExporter), fed back through the same
+     * production builder (buildRecipe) and exported again; the two td texts must be
+     * byte-identical (marker ok), proving td is the closed-loop home of recipe
+     * data. Runs registration-time only, deterministic, never touches the hot path.
+     */
+    private void runExportRoundTrip() {
+        RegistryAccess ra = server.registryAccess();
+        for (RecipeHolder<?> holder : recipes) {
+            TdTable e1;
+            try {
+                e1 = DatapackRecipeExporter.exportTd(holder, ra);
+            } catch (RuntimeException ex) {
+                DatapackRuntime.LOGGER.warn("{} export roundtrip {} failed: {}", MARKER, holder.id(), ex.getMessage());
+                continue;
+            }
+            if (e1 == null) {
+                DatapackRuntime.LOGGER.warn("{} export roundtrip {} skip (unsupported type)", MARKER, holder.id());
+                continue;
+            }
+            String text1 = Td.write(e1);
+            ResourceLocation id = holder.id();
+            DatapackEntry back = new DatapackEntry(EntryKind.RECIPE, id.getNamespace(), id.getPath(), e1);
+            String text2 = null;
+            try {
+                RecipeHolder<?> rebuilt = buildRecipe(back);
+                if (rebuilt != null) {
+                    TdTable e2 = DatapackRecipeExporter.exportTd(rebuilt, ra);
+                    if (e2 != null) {
+                        text2 = Td.write(e2);
+                    }
+                }
+            } catch (RuntimeException ex) {
+                DatapackRuntime.LOGGER.warn("{} export roundtrip {} rebuild failed: {}", MARKER, id, ex.getMessage());
+            }
+            boolean ok = text2 != null && text1.equals(text2);
+            String suffix = ok ? " (bytes=" + text1.length() + ")" : "";
+            DatapackRuntime.LOGGER.info("{} export roundtrip {} {}{}", MARKER, id,
+                    ok ? "ok" : "mismatch", suffix);
+        }
     }
 
     /** Builds a vanilla recipe holder from a td recipe entry; null on any malformation. */
