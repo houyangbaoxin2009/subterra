@@ -38,9 +38,13 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * once every engine.sim micro-check passes, {@code sim-core-composed-ok}) and the
  * {@code WorldRuntime} shell prints its {@code [Subterra world]} markers ({@code world-shell-gate=on}
  * and {@code world-pack closed-loop OK}). Since p.2.10.5 the boot also absorbs the
- * {@code engine.saveverify} shell ({@code SaveVerifyRuntime}): the runServer line also passes
+ * {@code SaveVerifyRuntime}): the runServer line also passes
  * {@code -Psubterra.probe.saveverify=1}; the probe asserts its {@code [Subterra saveverify]}
- * marker ({@code PASS}). Event-driven, timing-free — it is a union gate that asserts
+ * marker ({@code PASS}). Since p.2.19.2 the same boot also absorbs the launch runtime shell
+ * ({@code LaunchRuntime}, {@code -Psubterra.probe.launch=probe}) and the fix runtime shell
+ * ({@code FixRuntime} over the {@code Java25Gaps} registry, {@code -Psubterra.probe.fix=probe});
+ * the probe asserts their {@code [Subterra launch]} and {@code [Subterra fix]} ok markers.
+ * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
  * additional.
@@ -58,9 +62,12 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * {@code -Psubterra.probe.world=1}，探针断言 {@code SimRuntime} 壳打印其 {@code [Subterra sim]}
  * marker（{@code sim-shell-gate=on}，以及当所有 engine.sim 微校验均通过时的
  * {@code sim-core-composed-ok}），并断言 {@code WorldRuntime} 壳打印其 {@code [Subterra world]}
- * marker（{@code world-shell-gate=on} 与 {@code world-pack closed-loop OK}）。事件驱动、禁时序——
- * 它是一次性并断言 async、sim 与 world 三个壳的联合门，故 5 次开服总数不变。既有 async 断言
- * 逐字保持；sim/world 槽纯属新增。
+ * marker（{@code world-shell-gate=on} 与 {@code world-pack closed-loop OK}）。p.2.19.2 起，
+ * <em>同一次</em>开服再并入 launch 壳（{@code LaunchRuntime}，{@code -Psubterra.probe.launch=probe}）
+ * 与 fix 壳（{@code FixRuntime} 消费 {@code Java25Gaps} registry，{@code -Psubterra.probe.fix=probe}），
+ * 探针断言其 {@code [Subterra launch]} 与 {@code [Subterra fix]} ok marker。事件驱动、禁时序——
+ * 它是一次性并断言 async、sim、world、saveverify、launch、fix 六壳的联合门，故 5 次开服总数不变。
+ * 既有 async 断言逐字保持；sim/world/saveverify/launch/fix 槽纯属新增。
  */
 public final class AsyncE2EProbe {
 
@@ -78,6 +85,10 @@ public final class AsyncE2EProbe {
     private static final String SAVEVERIFY_MARKER = "[Subterra saveverify]";
     /** programmable-session shell marker prefix emitted by the {@code SessionRuntime} shell (p.2.11.5). */
     private static final String SESSION_MARKER = "[Subterra session]";
+    /** launch runtime shell marker prefix emitted by the {@code LaunchRuntime} shell (p.2.19.2). */
+    private static final String LAUNCH_MARKER = "[Subterra launch]";
+    /** fix runtime shell marker prefix emitted by the {@code FixRuntime} shell over Java25Gaps (p.2.19.2). */
+    private static final String FIX_MARKER = "[Subterra fix]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -104,7 +115,8 @@ public final class AsyncE2EProbe {
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
                 "-Psubterra.probe.async=1", "-Psubterra.probe.sim=1", "-Psubterra.probe.world=1",
-                "-Psubterra.probe.saveverify=1", "-Psubterra.probe.session=1");
+                "-Psubterra.probe.saveverify=1", "-Psubterra.probe.session=1",
+                "-Psubterra.probe.launch=probe", "-Psubterra.probe.fix=probe");
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -118,13 +130,17 @@ public final class AsyncE2EProbe {
         // 6 = world-shell-gate-on, 7 = world-pack-closed-loop-ok   (world slots, p.2.9.6)
         // 8 = saveverify-shell-PASS   (verifiable-save closed-loop slot, p.2.10.5)
         // 9 = session-shell-PASS   (programmable-session closed-loop slot, p.2.11.5)
-        boolean[] seen = new boolean[10];
+        // 10 = launch-shell-ok   (launch runtime health slot, p.2.19.2)
+        // 11 = fix-shell-ok   (Java25Gaps registry slot, p.2.19.2)
+        boolean[] seen = new boolean[12];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
         int worldMarkerLines = 0;
         int saveverifyMarkerLines = 0;
         int sessionMarkerLines = 0;
+        int launchMarkerLines = 0;
+        int fixMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -177,6 +193,18 @@ public final class AsyncE2EProbe {
                 if (line.contains(SESSION_MARKER) && line.contains("PASS")) {
                     seen[9] = true;
                 }
+                if (line.contains(LAUNCH_MARKER)) {
+                    launchMarkerLines++;
+                }
+                if (line.contains(LAUNCH_MARKER) && line.contains("ok (checks=")) {
+                    seen[10] = true;
+                }
+                if (line.contains(FIX_MARKER)) {
+                    fixMarkerLines++;
+                }
+                if (line.contains(FIX_MARKER) && line.contains("ok (open=")) {
+                    seen[11] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -221,17 +249,21 @@ public final class AsyncE2EProbe {
                 + " worldGate=" + seen[6] + " worldClosedLoop=" + seen[7] + " worldMarkerLines=" + worldMarkerLines
                 + " saveverifyPass=" + seen[8] + " saveverifyMarkerLines=" + saveverifyMarkerLines
                 + " sessionPass=" + seen[9] + " sessionMarkerLines=" + sessionMarkerLines
+                + " launchOk=" + seen[10] + " launchMarkerLines=" + launchMarkerLines
+                + " fixOk=" + seen[11] + " fixMarkerLines=" + fixMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
                     + " [Subterra saveverify] + " + sessionMarkerLines
-                    + " [Subterra session] line(s) observed)");
+                    + " [Subterra session] + " + launchMarkerLines
+                    + " [Subterra launch] + " + fixMarkerLines
+                    + " [Subterra fix] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix shell contract not met");
             System.exit(1);
         }
     }

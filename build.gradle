@@ -194,6 +194,15 @@ neoForge {
             // 闭环壳（缺省 -> 优先级 no-op，纯 no-op 壳）。
             systemProperty 'subterra.probe.session',
                     System.getProperty('subterra.probe.session', project.findProperty('subterra.probe.session') ?: '')
+            // p.2.19.2 deterministic E2E launch hook: gate the launch runtime shell (LaunchRuntime,
+            // L1 JVM-args health check) at the ServerStartedEvent lifecycle (absent -> priority no-op;
+            // the L1 checks still log at commonSetup).
+            systemProperty 'subterra.probe.launch',
+                    System.getProperty('subterra.probe.launch', project.findProperty('subterra.probe.launch') ?: '')
+            // p.2.19.2 deterministic E2E fix hook: gate the Java25Gaps registry shell (FixRuntime) at
+            // the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.fix',
+                    System.getProperty('subterra.probe.fix', project.findProperty('subterra.probe.fix') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

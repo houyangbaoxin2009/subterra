@@ -13,12 +13,6 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
-import io.toterra.subterra.runtime.launch.JvmEnv;
-import io.toterra.subterra.runtime.launch.JvmLaunchArgs;
-
-import java.lang.management.ManagementFactory;
-import java.util.List;
-
 /**
  * Subterra — foundation mod for the Toterra series.
  * L1 launch: verifies the Java runtime (1.21.1 targets Java 21 bytecode; runs on Java 25 LTS).
@@ -102,21 +96,14 @@ public class Subterra {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
-        // L1 launch check: log Java version and verification result
-        JvmEnv.Report report = JvmEnv.verify();
-        LOGGER.info("Subterra L1: Java {} (min supported 21, verified: {})", report.javaVersion(), report.verified());
-        if (!report.verified()) {
-            LOGGER.warn("Subterra L1: Java {} is below the supported baseline; launch arguments may be incomplete.", report.javaVersion());
-        }
+        // Launch runtime (p.2.19.2): folds the L1 JVM-env + JVM-args read-only checks into a
+        // deterministic health report (same L1 log text, so the ServerBootProbe assertions stand)
+        // and registers the subterra.probe.launch ServerStarted gate (default no-op).
+        io.toterra.subterra.runtime.launch.LaunchRuntime.bootstrap();
 
-        // L1 launch check: verify the JVM argument package was injected before process start
-        List<String> applied = ManagementFactory.getRuntimeMXBean().getInputArguments();
-        List<String> missing = JvmLaunchArgs.missingStaticFlags(applied);
-        if (!missing.isEmpty()) {
-            LOGGER.warn("Subterra L1: missing JVM tuning flags: {} — inject the Subterra launch argument package before starting the game (see subterra-launch JvmLaunchArgs).", missing);
-        } else {
-            LOGGER.info("Subterra L1: JVM argument package present ({})", JvmLaunchArgs.staticTuningFlags().size() + " static flags");
-        }
+        // Fix runtime (p.2.19.2): folds the Java25Gaps registry into the boot lifecycle via the
+        // subterra.probe.fix ServerStarted gate (read-only consumer; default no-op).
+        io.toterra.subterra.runtime.fix.FixRuntime.bootstrap();
 
         // Logging module boot-time wiring: td config, sinks, module registry,
         // and the crash-report diagnostics callable.
