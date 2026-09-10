@@ -156,6 +156,10 @@ neoForge {
             // export + rehydrate-identity core at startup (absent -> no auto-export).
             systemProperty 'subterra.probe.export',
                     System.getProperty('subterra.probe.export', project.findProperty('subterra.probe.export') ?: '')
+            // p.2.17.4 deterministic E2E rule hook: forward a probe flag to run the
+            // rule view core at startup (absent -> no auto-view).
+            systemProperty 'subterra.probe.rule',
+                    System.getProperty('subterra.probe.rule', project.findProperty('subterra.probe.rule') ?: '')
             // p.2.3.2 deterministic E2E save hook: gate the level.dat -> zdt migration
             // shell at the ServerStartedEvent lifecycle (absent -> priority no-op).
             systemProperty 'subterra.probe.save',

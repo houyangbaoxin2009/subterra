@@ -89,6 +89,11 @@ public class Subterra {
         // Datapack runtime (p.2.2): wires the td datapack loader into the server
         // lifecycle (ServerStartedEvent); registration lands in the registrar.
         io.toterra.subterra.runtime.datapack.DatapackRuntime.bootstrap();
+
+        // Rules runtime (p.2.17.4): /subterra rule command tree + the rule store
+        // shell (ServerStartedEvent); the deterministic E2E view hook is gated by
+        // subterra.probe.rule, mirroring the datapack export probe channel.
+        io.toterra.subterra.runtime.rules.RulesRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

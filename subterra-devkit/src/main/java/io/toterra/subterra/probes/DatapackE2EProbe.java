@@ -39,6 +39,10 @@ import java.util.concurrent.TimeUnit;
  *   {@code export cmd ok (packs=1,} and per-pack {@code rehydrate=ok}).</li>
  *   <li>the effective datapack rules are logged from pack.td ({@code rules tick
  *   = 40}) and the save override file wins ({@code rules wild = false}, p.2.2.9).</li>
+ *   <li>the p.2.17.4 rule shell runs its deterministic view core at startup
+ *   (forwarded via {@code -Psubterra.probe.rule}) and asserts the full render
+ *   marker ({@code [Subterra rule] view ok (rules=4, render=…
+ *   subterra.worldgen.seed_offset=42)} — the save-overrides layer wins).</li>
  * </ul>
  * The probe stages the seed by copying devkit resources into
  * {@code run/datapacks/} fresh each run, so the gate stays deterministic and
@@ -52,6 +56,7 @@ public final class DatapackE2EProbe {
     private static final long BOOT_DEADLINE_MINUTES = 6;
     private static final int PROBE_PORT = 25599;
     private static final String DP_MARKER = "[Subterra datapack]";
+    private static final String RULE_MARKER = "[Subterra rule]";
 
     private DatapackE2EProbe() {
     }
@@ -82,7 +87,8 @@ public final class DatapackE2EProbe {
                 "--console=plain", "--no-daemon",
                 "-Psubterra.datapacks=" + stagedRoot,
                 "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.td").toString(),
-                "-Psubterra.probe.export=" + exportTarget);
+                "-Psubterra.probe.export=" + exportTarget,
+                "-Psubterra.probe.rule=probe");
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -90,7 +96,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[31];
+        boolean[] seen = new boolean[32];
         boolean fatal = false;
         boolean signaled = false;
         boolean exportIssued = false;
@@ -194,6 +200,9 @@ public final class DatapackE2EProbe {
                 if (line.contains(DP_MARKER + " rules wild = false")) {
                     seen[30] = true;
                 }
+                if (line.contains(RULE_MARKER + " view ok (rules=4, render=subterra.entity.activation.range=32.0; subterra.optim.enable=true; subterra.render.weather=clear; subterra.worldgen.seed_offset=42")) {
+                    seen[31] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -252,7 +261,7 @@ public final class DatapackE2EProbe {
                 + " exportTag=" + seen[18] + " exportLang=" + seen[19] + " exportLoot=" + seen[20]
                 + " exportWorldgen=" + seen[21] + " exportStructure=" + seen[22]
                 + " exportTower=" + seen[23] + " exportGreet=" + seen[24] + " exportFarewell=" + seen[25] + " exportArchive=" + seen[26]
-                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " rulesTick=" + seen[29] + " rulesWild=" + seen[30] + " fatal=" + fatal);
+                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " rulesTick=" + seen[29] + " rulesWild=" + seen[30] + " ruleView=" + seen[31] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
