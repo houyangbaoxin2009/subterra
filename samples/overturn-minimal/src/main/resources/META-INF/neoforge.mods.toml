@@ -1,0 +1,32 @@
+// p.2.20.3 官方示例模组最小 manifest —— 框架装配元数据的声明形态。
+// 本模块为纯 Java 库形态（不引 MC、不引 NeoForge userdev 插件），MC 装配发生在根工程
+// （root moddev 项目 coalesce 各子模块输出）；因此该文件在样例模块内不被 FML 消费，
+// 而是作为「框架消费方装配元数据」的声明：entrypoint 指向 OverturnMinimal，供框架装配面
+// 读取；[[mods]] 字段保持 FML 合法最小子集（版本按仓库惯例镜像 p-track：剥掉 "p." 前缀）。
+//
+// p.2.20.3 official sample minimal manifest — a declaration of framework assembly metadata.
+// This module is a pure-Java library shape (no MC, no NeoForge userdev plugin); MC assembly
+// happens in the root moddev project, which coalesces the submodule outputs. The file is
+// therefore not consumed by FML here; it declares the consumer's assembly metadata for the
+// framework assembly surface (entrypoint -> OverturnMinimal), keeping a minimal FML-legal
+// [[mods]] subset (version mirrors the p-track by stripping the "p." prefix, repo convention).
+modLoader="javafml"
+loaderVersion="[1,)"
+license="Tie Public License v2.0 (TPL 2.0)"
+
+[[mods]]
+modId="overturn_minimal"
+version="2.20.3"
+displayName="Overturn Minimal"
+description='''最小「颠覆性模组」官方示例：用框架纯 JDK 规则系统改写世界生成密度偏移。
+A minimal "overturn" mod official sample: rewrites the worldgen density offset through the framework's pure-JDK rule system.'''
+# 框架装配元数据声明（非 FML 标准字段）：入口类。
+# Framework assembly metadata declaration (not an FML-standard field): the entry class.
+entrypoint="io.toterra.sample.overturn.OverturnMinimal"
+
+[[dependencies.overturn_minimal]]
+modId="subterra"
+type="required"
+versionRange="[2.0.0,)"
+ordering="NONE"
+side="BOTH"

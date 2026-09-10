@@ -1,0 +1,19 @@
+plugins {
+    id 'java'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+// p.2.20.3: align on Java 25 (whole-project release 25; see root build.gradle).
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+// Official sample: pure-JDK library shape — no MC dependency, no NeoForge userdev
+// plugin (MC assembly lives in the root moddev project). Consumes the framework's
+// pure-JDK surface only: api contract + engine core. subterra-runtime is a root
+// source-host directory (not a Gradle subproject), so nothing to declare here;
+// add it only if a later capability actually needs MC-layer shells.
+dependencies {
+    implementation project(':subterra-api')
+    implementation project(':subterra-engine')
+}

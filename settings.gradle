@@ -15,5 +15,8 @@ include 'subterra-api'
 include 'subterra-engine'
 include 'subterra-migrate'
 include 'subterra-devkit'
+// p.2.20.3 official sample: minimal framework consumer (pure-JDK library shape;
+// MC assembly stays in the root project).
+include 'samples:overturn-minimal'
 
 rootProject.name = 'subterra'
