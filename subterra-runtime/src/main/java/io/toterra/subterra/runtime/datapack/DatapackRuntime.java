@@ -27,10 +27,14 @@ public final class DatapackRuntime {
     private DatapackRuntime() {
     }
 
-    /** Registers the NeoForge lifecycle listeners (call from the mod constructor). */
+    /**
+     * Registers the NeoForge lifecycle listeners (call from the mod constructor). Command
+     * registration is not here: the p.2.19.5 fold-in moved the /subterra export command (and the
+     * p.2.2.7 export startup hook) to ExportRuntime / ExportCommandCore (runtime.export), so
+     * DatapackRuntime keeps only the datapack loading responsibility.
+     */
     public static void bootstrap() {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.register(DatapackRuntime.class);
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(DatapackExportCommand::onRegisterCommands);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -40,12 +44,9 @@ public final class DatapackRuntime {
         try {
             reg.loadPacks(resolveDatapacksDir());
             reg.registerContent();
-            // p.2.2.7 deterministic E2E hook: run the same export + rehydrate-identity
-            // core at startup when a target path is forwarded (marks every pack).
-            String exportPath = System.getProperty("subterra.probe.export");
-            if (exportPath != null && !exportPath.isBlank()) {
-                DatapackExportCommand.exportFrom(reg, exportPath);
-            }
+            // p.2.19.5: the p.2.2.7 deterministic E2E export hook (subterra.probe.export gate)
+            // moved to ExportRuntime.onServerStarted (runs after this listener in registration
+            // order, so the registrar is loaded here first).
         } catch (Throwable t) {
             LOGGER.error("[Subterra datapack] load failed: {}", t.toString());
         }

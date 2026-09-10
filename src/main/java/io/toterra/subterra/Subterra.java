@@ -89,10 +89,12 @@ public class Subterra {
         // subterra.probe.rule, mirroring the datapack export probe channel.
         io.toterra.subterra.runtime.rules.RulesRuntime.bootstrap();
 
-        // Export hub runtime (p.2.18.5): /subterra export <form> [<path>] branch over
-        // engine.export ExportHub + the deterministic all-forms E2E hook gated by
-        // subterra.probe.exportHub (coexists with the p.2.2.7 export [path] command).
-        io.toterra.subterra.runtime.export.ExportHubRuntime.bootstrap();
+        // Export runtime (p.2.19.5): unified /subterra export [<form>] [<path>] command core
+        // (ExportCommandCore, single-point registration) + both deterministic startup gates
+        // (subterra.probe.export datapack hook folded in from DatapackRuntime, subterra.probe.exportHub
+        // all-forms hook folded in from ExportHubRuntime). Must bootstrap AFTER DatapackRuntime so the
+        // export gate sees the loaded registrar (same LOWEST priority fires in registration order).
+        io.toterra.subterra.runtime.export.ExportRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

@@ -1,144 +1,36 @@
 package io.toterra.subterra.runtime.datapack;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
-import io.toterra.subterra.engine.datapack.Datapack;
-import io.toterra.subterra.engine.datapack.DatapackExportArchive;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import io.toterra.subterra.runtime.export.ExportCommandCore;
 
 /**
- * p.2.2.7 — {@code /subterra export [<path>]} — writes every currently loaded
- * td datapack out as a content-level export-archive td document
- * ({@link DatapackExportArchive}), one {@code <pack-name>.td} per pack, under
- * the requested directory (default {@code subterra-export} below the server
- * working directory). Each document is verified immediately by rehydrating it
- * through {@link DatapackExportArchive#rehydrate} and re-exporting — the two
- * documents must be byte-identical (export ∘ rehydrate is the identity on the
- * archive). Ops (permission level 2) may run it on the server console; it is a
- * forward hook to the p.2.18 engine.export capability.
+ * p.2.19.5 — 委托壳：p.2.2.7 的 datapack 全量导出核心（{@link #exportFrom}，markers
+ * {@code export cmd ...} 逐字符不变）已收编进统一 {@link ExportCommandCore}（runtime.export，同一
+ * {@code /subterra export} 命令树单点注册）；本类保留 {@link #exportFrom} 公开面作为兼容委托入口，
+ * 命令注册与启动钩子均收敛到 ExportCommandCore.onRegisterCommands / ExportRuntime。
  *
- * <p>Deterministic markers feed the E2E gate: one
- * {@code export cmd <pack> ok/mismatch (... rehydrate=ok/mismatch)} line per
- * pack, then a single aggregate {@code export cmd ok (packs=N, bytes=M)} or
- * {@code export cmd mismatch}.
+ * <p>p.2.19.5 — delegating shell: the p.2.2.7 datapack all-packs export core ({@link #exportFrom},
+ * markers {@code export cmd ...} character-for-character unchanged) is folded into the unified
+ * {@link ExportCommandCore} (runtime.export, single-point registration of the one
+ * {@code /subterra export} command tree); this class keeps the {@link #exportFrom} public surface as
+ * a compatibility delegate, while command registration and the startup hooks live in
+ * ExportCommandCore.onRegisterCommands / ExportRuntime.
  */
 public final class DatapackExportCommand {
 
     private DatapackExportCommand() {
     }
 
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("subterra")
-                .requires(s -> s.hasPermission(2))
-                .then(Commands.literal("export")
-                        .executes(ctx -> runExport(ctx, null))
-                        .then(Commands.argument("path", StringArgumentType.string())
-                                .executes(ctx ->
-                                        runExport(ctx, StringArgumentType.getString(ctx, "path"))))));
-    }
-
-    private static int runExport(CommandContext<CommandSourceStack> ctx, String pathArg) {
-        DatapackRegistrar reg = DatapackRuntime.activeRegistrar();
-        if (reg == null) {
-            ctx.getSource().sendFailure(Component.literal("datapack registrar not active"));
-            return 0;
-        }
-        String dir = pathArg != null && !pathArg.isBlank()
-                ? pathArg
-                : "subterra-export";
-        boolean ok = exportFrom(reg, dir);
-        if (ok) {
-            ctx.getSource().sendSuccess(() -> Component.literal("subterra export wrote "
-                    + Path.of(dir).toAbsolutePath().normalize()), false);
-        } else {
-            ctx.getSource().sendFailure(Component.literal("subterra export failed (see log markers)"));
-        }
-        return ok ? 1 : 0;
-    }
-
     /**
-     * Runs the export-archive write + export∘rehydrate byte-identity check against
-     * every loaded pack and logs the deterministic markers ({@code export cmd ...}).
-     * <p>This is the shared core behind both the {@code /subterra export} command and
-     * the deterministic E2E startup hook ({@code subterra.probe.export}: a path the
-     * gate forwards as a system property so the same marker stream is emitted without
-     * relying on stdin round-tripping through the gradle-forked server JVM).
+     * 委托统一导出核心（p.2.19.5）。
+     * Delegates to the unified export core (p.2.19.5).
      *
-     * @return {@code true} if every pack exported and rehydrated byte-identical
+     * @param reg     活跃 datapack 注册器 / the active datapack registrar.
+     * @param pathArg 目标目录（null/空白 → {@code subterra-export}）/ target directory (null/blank →
+     *                {@code subterra-export}).
+     * @return {@code true} 若每个 pack 导出且回水化逐字节恒等 / {@code true} if every pack exported and
+     *         rehydrated byte-identical.
      */
     public static boolean exportFrom(DatapackRegistrar reg, String pathArg) {
-        Path dir = (pathArg == null || pathArg.isBlank()
-                ? Path.of("subterra-export")
-                : Path.of(pathArg)).toAbsolutePath().normalize();
-
-        try {
-            Files.createDirectories(dir);
-        } catch (IOException e) {
-            DatapackRuntime.LOGGER.error("{} export cmd mismatch (dir create failed): {}",
-                    DatapackRegistrar.MARKER, e.toString());
-            return false;
-        }
-
-        int totalPacks = 0;
-        long totalBytes = 0L;
-        boolean failed = false;
-        for (Datapack pack : reg.packs()) {
-            String doc;
-            try {
-                doc = DatapackExportArchive.export(pack);
-            } catch (RuntimeException e) {
-                DatapackRuntime.LOGGER.error("{} export cmd mismatch (export failed): {}",
-                        DatapackRegistrar.MARKER, e.toString());
-                failed = true;
-                continue;
-            }
-            String reExported;
-            boolean identity;
-            try {
-                reExported = DatapackExportArchive.export(DatapackExportArchive.rehydrate(doc));
-                identity = doc.equals(reExported);
-            } catch (RuntimeException e) {
-                DatapackRuntime.LOGGER.error("{} export cmd {} mismatch (rehydrate failed): {}",
-                        DatapackRegistrar.MARKER, pack.name(), e.toString());
-                identity = false;
-            }
-            if (!identity) {
-                failed = true;
-            }
-            try {
-                Files.writeString(dir.resolve(safeName(pack.name()) + ".td"), doc);
-            } catch (IOException e) {
-                DatapackRuntime.LOGGER.error("{} export cmd mismatch (write failed): {}",
-                        DatapackRegistrar.MARKER, e.toString());
-                failed = true;
-                continue;
-            }
-            totalPacks++;
-            totalBytes += (long) doc.getBytes(StandardCharsets.UTF_8).length;
-            DatapackRuntime.LOGGER.info("{} export cmd {} {} (entries={}, rehydrate={})",
-                    DatapackRegistrar.MARKER, pack.name(), identity ? "ok" : "mismatch",
-                    pack.entries().size(), identity ? "ok" : "mismatch");
-        }
-
-        if (failed) {
-            DatapackRuntime.LOGGER.error("{} export cmd mismatch", DatapackRegistrar.MARKER);
-            return false;
-        }
-        DatapackRuntime.LOGGER.info("{} export cmd ok (packs={}, bytes={})",
-                DatapackRegistrar.MARKER, totalPacks, totalBytes);
-        return true;
-    }
-
-    /** Replaces every char outside {@code [A-Za-z0-9._-]} with {@code _} so the file name stays filesystem-safe. */
-    private static String safeName(String name) {
-        return name.replaceAll("[^A-Za-z0-9._-]", "_");
+        return ExportCommandCore.exportFrom(reg, pathArg);
     }
 }
