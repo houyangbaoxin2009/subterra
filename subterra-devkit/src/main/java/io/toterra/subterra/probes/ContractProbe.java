@@ -49,8 +49,9 @@ import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
  *       （值转 {@code TdValue.str}）key 集合与覆盖关系一致；{@code render} 与
  *       {@code DatapackRules.render}（同输入 TdValue 版）逐字符一致（标量场景，含空映射）。</li>
  *   <li><b>Exporter 注册表</b>：注册 world/save/datapack 三内建后 {@code forms() ==
- *       [world, save, datapack]}（注册序，与 engine {@code ExportKind.form()} 逐一相等）；
- *       重复 form 二次注册 IAE；{@code port()} 命中/未命中（未注册 → null，null → null）。</li>
+ *       [world, save, datapack]}（注册序，与 engine {@code ExportKind.form()} 前三项逐一相等；
+ *       engine 枚举可含 api 内建之外的扩展 form，故仅要求前缀一致）；重复 form 二次注册 IAE；
+ *       {@code port()} 命中/未命中（未注册 → null，null → null）。</li>
  *   <li><b>事件契约</b>：{@code EventStream} append 递增 seq 通过；seq ≤ lastSeq 拒绝
  *       （乱序/重放）且不推进状态；{@code events()} 回放序固定；{@code EventEnvelope}
  *       fromText → textPayload 往返一致；防御拷贝（改入数组不影响信封/流内）。</li>
@@ -82,9 +83,10 @@ import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
  *       {@code render} is char-identical to {@code DatapackRules.render} (same scalar inputs,
  *       empty map included).</li>
  *   <li><b>exporter registry</b>: after registering the world/save/datapack built-ins,
- *       {@code forms() == [world, save, datapack]} (registration order, each equal to engine
- *       {@code ExportKind.form()}); a duplicate-form second register is an IAE; {@code port()}
- *       hits and misses (unregistered form → null, null → null).</li>
+ *       {@code forms() == [world, save, datapack]} (registration order, each equal to the
+ *       first three engine {@code ExportKind.form()} values — the engine enum may carry
+ *       api-extrinsic forms, so only prefix agreement is required); a duplicate-form second
+ *       register is an IAE; {@code port()} hits and misses (unregistered form → null, null → null).</li>
  *   <li><b>event contract</b>: {@code EventStream} append accepts strictly increasing seqs; seq ≤
  *       lastSeq (reorder/replay) is rejected without advancing state; {@code events()} replay order
  *       is fixed; {@code EventEnvelope} fromText → textPayload round-trips; defensive copies keep
@@ -296,13 +298,15 @@ public final class ContractProbe {
         ExporterRegistry.register(ExportKindSpec.save(), port(ExportKindSpec.save()));
         ExporterRegistry.register(ExportKindSpec.datapack(), port(ExportKindSpec.datapack()));
 
-        // registration order == [world, save, datapack], one-by-one equal to engine forms
+        // registration order == [world, save, datapack], a prefix of the engine's
+        // enum-order forms (engine ExportKind grows with p.2.18-side extensions,
+        // e.g. language_keys/config/registries/migrate_maps — beyond the api built-ins)
         List<String> forms = ExporterRegistry.forms();
-        boolean formsMatch = forms.size() == ExportKind.values().length;
+        boolean formsMatch = forms.size() <= ExportKind.values().length;
         for (int i = 0; formsMatch && i < forms.size(); i++) {
             formsMatch = forms.get(i).equals(ExportKind.values()[i].form());
         }
-        check("ExporterRegistry forms() == [world, save, datapack] (registration order, == engine ExportKind.form())",
+        check("ExporterRegistry forms() == [world, save, datapack] (registration order, prefix of engine ExportKind.form())",
                 formsMatch && forms.equals(List.of("world", "save", "datapack")));
 
         List<ExportKindSpec> kinds = ExporterRegistry.kinds();
