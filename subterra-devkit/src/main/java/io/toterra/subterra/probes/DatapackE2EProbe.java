@@ -57,6 +57,7 @@ public final class DatapackE2EProbe {
     private static final int PROBE_PORT = 25599;
     private static final String DP_MARKER = "[Subterra datapack]";
     private static final String RULE_MARKER = "[Subterra rule]";
+    private static final String EXPORT_MARKER = "[Subterra export]";
 
     private DatapackE2EProbe() {
     }
@@ -81,6 +82,9 @@ public final class DatapackE2EProbe {
         // This runs the same export + rehydrate-identity core at startup instead of
         // round-tripping a console command through the gradle-forked server JVM stdin.
         String exportTarget = root.resolve("build/tmp/subterra-export-e2e").normalize().toString();
+        // p.2.18.5 export-hub target: the all-seven-forms hub core (per-form td/zd +
+        // rehydrate identity) driven by the same startup-property channel.
+        String exportHubTarget = root.resolve("build/tmp/subterra-export-hub-e2e").normalize().toString();
 
         ProcessBuilder pb = new ProcessBuilder(
                 gradlew, "runServer", "-x", "downloadAssets",
@@ -88,6 +92,7 @@ public final class DatapackE2EProbe {
                 "-Psubterra.datapacks=" + stagedRoot,
                 "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.td").toString(),
                 "-Psubterra.probe.export=" + exportTarget,
+                "-Psubterra.probe.exportHub=" + exportHubTarget,
                 "-Psubterra.probe.rule=probe");
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
@@ -96,7 +101,7 @@ public final class DatapackE2EProbe {
 
         Process process = pb.start();
 
-        boolean[] seen = new boolean[32];
+        boolean[] seen = new boolean[35];
         boolean fatal = false;
         boolean signaled = false;
         boolean exportIssued = false;
@@ -203,6 +208,15 @@ public final class DatapackE2EProbe {
                 if (line.contains(RULE_MARKER + " view ok (rules=4, render=subterra.entity.activation.range=32.0; subterra.optim.enable=true; subterra.render.weather=clear; subterra.worldgen.seed_offset=42")) {
                     seen[31] = true;
                 }
+                if (line.contains(EXPORT_MARKER + " export hub ok (forms=5")) {
+                    seen[32] = true;
+                }
+                if (line.contains(EXPORT_MARKER + " export hub datapack ok (") && line.contains("rehydrate=ok")) {
+                    seen[33] = true;
+                }
+                if (line.contains(EXPORT_MARKER + " export hub language_keys ok (") && line.contains("rehydrate=ok")) {
+                    seen[34] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -261,7 +275,8 @@ public final class DatapackE2EProbe {
                 + " exportTag=" + seen[18] + " exportLang=" + seen[19] + " exportLoot=" + seen[20]
                 + " exportWorldgen=" + seen[21] + " exportStructure=" + seen[22]
                 + " exportTower=" + seen[23] + " exportGreet=" + seen[24] + " exportFarewell=" + seen[25] + " exportArchive=" + seen[26]
-                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " rulesTick=" + seen[29] + " rulesWild=" + seen[30] + " ruleView=" + seen[31] + " fatal=" + fatal);
+                + " exportCmd=" + seen[27] + " exportRehydrate=" + seen[28] + " rulesTick=" + seen[29] + " rulesWild=" + seen[30] + " ruleView=" + seen[31]
+                + " exportHubOk=" + seen[32] + " exportHubDatapack=" + seen[33] + " exportHubLangKeys=" + seen[34] + " fatal=" + fatal);
         if (pass) {
             System.out.println("[DatapackE2EProbe] PASS (td datapack loaded + registered on a live server)");
             System.exit(0);
@@ -293,6 +308,20 @@ public final class DatapackE2EProbe {
         Path exportDir = root.resolve("build/tmp/subterra-export-e2e");
         if (Files.exists(exportDir)) {
             try (var walk = Files.walk(exportDir)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(p -> {
+                            try {
+                                Files.deleteIfExists(p);
+                            } catch (Exception ignored) {
+                                // best-effort; stale leftovers never block staging
+                            }
+                        });
+            }
+        }
+        // p.2.18.5: same hygiene for the export-hub staging output (seven per-form files).
+        Path exportHubDir = root.resolve("build/tmp/subterra-export-hub-e2e");
+        if (Files.exists(exportHubDir)) {
+            try (var walk = Files.walk(exportHubDir)) {
                 walk.sorted(java.util.Comparator.reverseOrder())
                         .forEach(p -> {
                             try {

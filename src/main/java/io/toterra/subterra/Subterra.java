@@ -94,6 +94,11 @@ public class Subterra {
         // shell (ServerStartedEvent); the deterministic E2E view hook is gated by
         // subterra.probe.rule, mirroring the datapack export probe channel.
         io.toterra.subterra.runtime.rules.RulesRuntime.bootstrap();
+
+        // Export hub runtime (p.2.18.5): /subterra export <form> [<path>] branch over
+        // engine.export ExportHub + the deterministic all-forms E2E hook gated by
+        // subterra.probe.exportHub (coexists with the p.2.2.7 export [path] command).
+        io.toterra.subterra.runtime.export.ExportHubRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
