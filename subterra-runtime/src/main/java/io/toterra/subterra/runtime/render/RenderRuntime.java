@@ -35,18 +35,22 @@ import java.util.Map;
  * 正常不可达）打 {@code render mismatch (error=...)} marker。示例后端注册进静态注册表属探针门控
  * 的 dev 装载面，真实 GPU/MC 后端注入留 p.2.27。
  * <p>
- * <b>p.2.27 三 MC 钩子接线点（本子项仅文档化，不实现真实注入）</b>：Flywheel 式实例化渲染需要
- * 挂进 Minecraft 客户端渲染管线，p.2.27 将在以下三点接入（各钩子均以本壳的确定性装载/格式校验为
- * 前置，避免范围膨胀——真实 MC/OpenGL 注入不在本子项）：
+ * <b>p.2.27.2 三 MC 钩子真实注入（确定性校验接线）</b>：Flywheel 式实例化渲染挂进 Minecraft
+ * 客户端渲染管线，p.2.27.2 在以下三点接入（各钩子均以本壳的确定性装载/格式校验为前置；真实
+ * MC/OpenGL 渲染接管不在本子项——只读核对 + 确定性 marker，不改变渲染输出）：
  * <ol>
  *   <li>{@code net.minecraft.client.renderer.LevelRenderer}（区块级实例化渲染编译/装载面——
- *       实例格式与着色器模板经本壳装载校验后在此消费）；</li>
+ *       {@link RenderStage} 固定序经 {@link RenderHooks#serverWiringCheck()} 只读核对，客户端
+ *       实际 LevelRenderer 实例与 NeoForge 阶段面经 {@link RenderHooksClient} 核对）；</li>
  *   <li>{@code net.minecraft.client.renderer.block.ModelBlockRenderer}（方块模型实例数据面——
- *       实例字段布局/偏移由 {@link InstanceFormat} 决定）；</li>
+ *       {@code VertexLayout.BLOCK} 32B 布局/偏移只读核对，实例字段布局对齐该布局）；</li>
  *   <li>{@code net.minecraft.client.renderer.entity.EntityRenderDispatcher}（实体渲染调度面——
- *       按实体选择实例化后端，确定性缺省经 {@link BackendRegistry#defaultFor}）。</li>
+ *       按确定性方块实例格式经 {@link BackendRegistry#defaultFor} 选缺省后端）。</li>
  * </ol>
- * 接续表另见仓库 runtime 接线文档；本子项只做门控 marker 与装载确定性证明。
+ * 门控同 {@code subterra.probe.render}（默认 no-op）：服务端门控内打 {@code hooks ok (level=..,
+ * blockModel=.., entity=..)}（供 E2E 断言），客户端首个 level 渲染阶段打 {@code hooks client ok
+ * (...)}（runClient/单机 dev 校验面）。接续表另见仓库 runtime 接线文档；本子项交付门控 marker、
+ * 装载确定性证明与三钩子校验接线。
  * <p>
  * p.2.27.1.2 — the render runtime shell: folds the p.2.27.1.1 engine.render.instancing
  * (the Flywheel 1.0.6 instancing-core pure-JDK port: {@link InstanceFormat} /
@@ -71,22 +75,28 @@ import java.util.Map;
  * static registry are a probe-gated dev load surface; the real GPU/MC backend injection lands
  * with p.2.27.
  * <p>
- * <b>p.2.27 three MC hook wiring points (documented only in this sub-item, no real injection)</b>:
- * Flywheel-style instanced rendering has to hook the Minecraft client render pipeline; p.2.27
- * will wire the following three points (each hook builds on this shell's deterministic load /
- * format verification — no scope creep: real MC/OpenGL injection is out of scope here):
+ * <b>p.2.27.2 real injection of the three MC hooks (deterministic check wiring)</b>:
+ * Flywheel-style instanced rendering hooks the Minecraft client render pipeline; p.2.27.2 wires
+ * the following three points (each hook builds on this shell's deterministic load / format
+ * verification — real MC/OpenGL render takeover is out of scope here: read-only verification +
+ * deterministic marker, render output untouched):
  * <ol>
  *   <li>{@code net.minecraft.client.renderer.LevelRenderer} (chunk-level instanced-render
- *       compile/load surface — the instance format and shader template verified by this shell
- *       are consumed here);</li>
+ *       compile/load surface — the {@link RenderStage} fixed order is read-only checked by
+ *       {@link RenderHooks#serverWiringCheck()}, and the live LevelRenderer + the NeoForge stage
+ *       surface are checked by {@link RenderHooksClient});</li>
  *   <li>{@code net.minecraft.client.renderer.block.ModelBlockRenderer} (block-model instance
- *       data surface — field layout/offsets come from {@link InstanceFormat});</li>
+ *       data surface — read-only check of the {@code VertexLayout.BLOCK} 32B layout/offsets, the
+ *       instance field layout aligns to it);</li>
  *   <li>{@code net.minecraft.client.renderer.entity.EntityRenderDispatcher} (entity render
- *       dispatch surface — picks the instancing backend per entity, deterministic default via
- *       {@link BackendRegistry#defaultFor}).</li>
+ *       dispatch surface — picks the default backend per the deterministic block-instance format
+ *       via {@link BackendRegistry#defaultFor}).</li>
  * </ol>
- * The wiring table also lives in the repository runtime wiring docs; this sub-item only
- * delivers the gated marker and the load-determinism proof.
+ * Same gate {@code subterra.probe.render} (default no-op): the server-side gate prints
+ * {@code hooks ok (level=.., blockModel=.., entity=..)} (E2E-asserted), and the first client
+ * level-render stage prints {@code hooks client ok (...)} (runClient / singleplayer dev-check
+ * surface). The wiring table also lives in the repository runtime wiring docs; this sub-item
+ * delivers the gated marker, the load-determinism proof and the three-hook check wiring.
  */
 public final class RenderRuntime {
 
@@ -144,6 +154,12 @@ public final class RenderRuntime {
                     + Integer.toHexString(format.canonicalText().hashCode());
             LOGGER.info("{} ok (backends={}, format={}, shader={} bytes, verify=ok)",
                     MARKER, backends, digest, shader.length);
+
+            // p.2.27.2: three MC hooks deterministic check wiring (RenderStage fixed order /
+            // VertexLayout.BLOCK 32B layout / BackendRegistry.defaultFor backend selection),
+            // gated by the same subterra.probe.render property — read-only, emits the
+            // "hooks ok" marker (E2E-asserted) or a "hooks mismatch" marker on a violation.
+            RenderHooks.serverWiringCheck();
         } catch (RuntimeException e) {
             // the samples are legal, so a mismatch is a program error — never emit a false ok.
             LOGGER.warn("{} render mismatch (error={})", MARKER, e.getMessage());

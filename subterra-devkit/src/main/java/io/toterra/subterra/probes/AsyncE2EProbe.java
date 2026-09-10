@@ -56,6 +56,10 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * into build/tmp and forwards it as {@code -Psubterra.tie.lib}, asserting either the
  * {@code [Subterra tie]} {@code ok (lib=} or {@code skip (no tie lib)} marker (ok when the dev
  * environment provides a tiec dll, deterministic skip when it does not).
+ * Since p.2.27.2 the same boot also absorbs the render-hooks wiring slot
+ * ({@code RenderHooks.serverWiringCheck}, same {@code -Psubterra.probe.render=probe} gate): the
+ * probe asserts the {@code [Subterra render]} {@code hooks ok (level=} marker (three-hook
+ * deterministic check wiring over engine.render + engine.render.instancing).
  * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
@@ -177,7 +181,8 @@ public final class AsyncE2EProbe {
         // 13 = cfglog-log-ok   (LogRuntime engine.log MC-shell marker slot, p.2.19.3)
         // 14 = tie-ok-or-skip   (TieRuntime FFM bridge slot: ok (lib= or skip (no tie lib), p.2.19.4)
         // 15 = render-shell-ok   (RenderRuntime engine.render.instancing load slot, p.2.27.1.2)
-        boolean[] seen = new boolean[16];
+        // 16 = render-hooks-ok   (RenderHooks deterministic three-hook wiring slot, p.2.27.2)
+        boolean[] seen = new boolean[17];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -275,6 +280,9 @@ public final class AsyncE2EProbe {
                 if (line.contains(RENDER_MARKER) && line.contains("ok (backends=")) {
                     seen[15] = true;
                 }
+                if (line.contains(RENDER_MARKER) && line.contains("hooks ok (level=")) {
+                    seen[16] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -325,9 +333,10 @@ public final class AsyncE2EProbe {
                 + " cfglogMarkerLines=" + cfglogMarkerLines
                 + " tieOkOrSkip=" + seen[14] + " tieMarkerLines=" + tieMarkerLines
                 + " renderOk=" + seen[15] + " renderMarkerLines=" + renderMarkerLines
+                + " hooksOk=" + seen[16]
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
@@ -340,7 +349,7 @@ public final class AsyncE2EProbe {
                     + " [Subterra render] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks shell contract not met");
             System.exit(1);
         }
     }
