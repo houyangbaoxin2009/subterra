@@ -102,6 +102,13 @@ public class Subterra {
         // (LevelRenderer / ModelBlockRenderer / EntityRenderDispatcher) are documented wiring
         // points for p.2.27, not injected here.
         io.toterra.subterra.runtime.render.RenderRuntime.bootstrap();
+
+        // Anim runtime (p.2.21.2): gated shell over engine.anim (GeckoLib 4 pure-JDK keyframe
+        // animation core) — deterministic sample animation state-machine drive via the
+        // subterra.probe.anim ServerStarted gate (default no-op). The three MC animation
+        // lifecycle wiring surfaces (data load / drive update / render consume) are documented
+        // wiring points in AnimRuntime, not injected here.
+        io.toterra.subterra.runtime.anim.AnimRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

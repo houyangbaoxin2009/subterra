@@ -60,6 +60,10 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * ({@code RenderHooks.serverWiringCheck}, same {@code -Psubterra.probe.render=probe} gate): the
  * probe asserts the {@code [Subterra render]} {@code hooks ok (level=} marker (three-hook
  * deterministic check wiring over engine.render + engine.render.instancing).
+ * Since p.2.21.2 the same boot also absorbs the anim shell ({@code AnimRuntime},
+ * {@code -Psubterra.probe.anim=probe}): the probe asserts the {@code [Subterra anim]}
+ * {@code ok (states=} marker (deterministic sample animation state-machine drive over
+ * engine.anim, p.2.21.1).
  * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
@@ -89,7 +93,9 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * {@code -Psubterra.probe.tie=probe}）：探针把捆绑资源 {@code /tie/tiefib_probe.dll} 暂存到
  * build/tmp 并以 {@code -Psubterra.tie.lib} 转发，断言 {@code [Subterra tie]} 的
  * {@code ok (lib=} 或 {@code skip (no tie lib)} marker 二者其一（dev 环境提供 tiec dll 则 ok，
- * 无则确定性 skip）。事件驱动、禁时序——
+ * 无则确定性 skip）。p.2.21.2 起，同一次开服再并入 anim 壳（{@code AnimRuntime}，
+ * {@code -Psubterra.probe.anim=probe}）：探针断言其 {@code [Subterra anim]} 的 {@code ok (states=}
+ * marker（engine.anim 确定性示例动画状态机驱动，p.2.21.1）。事件驱动、禁时序——
  * 它是一次性并断言 async、sim、world、saveverify、launch、fix 六壳的联合门，故 5 次开服总数不变。
  * 既有 async 断言逐字保持；sim/world/saveverify/launch/fix 槽纯属新增。
  */
@@ -123,6 +129,9 @@ public final class AsyncE2EProbe {
     /** render shell marker prefix emitted by the {@code RenderRuntime} shell over
      * engine.render.instancing, gated by subterra.probe.render (p.2.27.1.2). */
     private static final String RENDER_MARKER = "[Subterra render]";
+    /** anim shell marker prefix emitted by the {@code AnimRuntime} shell over engine.anim,
+     * gated by subterra.probe.anim (p.2.21.2). */
+    private static final String ANIM_MARKER = "[Subterra anim]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -157,7 +166,8 @@ public final class AsyncE2EProbe {
                 "-Psubterra.probe.launch=probe", "-Psubterra.probe.fix=probe",
                 "-Psubterra.probe.cfglog=probe",
                 "-Psubterra.probe.tie=probe",
-                "-Psubterra.probe.render=probe"));
+                "-Psubterra.probe.render=probe",
+                "-Psubterra.probe.anim=probe"));
         if (tieLib != null) {
             cmd.add("-Psubterra.tie.lib=" + tieLib);
         }
@@ -182,7 +192,8 @@ public final class AsyncE2EProbe {
         // 14 = tie-ok-or-skip   (TieRuntime FFM bridge slot: ok (lib= or skip (no tie lib), p.2.19.4)
         // 15 = render-shell-ok   (RenderRuntime engine.render.instancing load slot, p.2.27.1.2)
         // 16 = render-hooks-ok   (RenderHooks deterministic three-hook wiring slot, p.2.27.2)
-        boolean[] seen = new boolean[17];
+        // 17 = anim-shell-ok   (AnimRuntime deterministic anim state-machine drive slot, p.2.21.2)
+        boolean[] seen = new boolean[18];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -194,6 +205,7 @@ public final class AsyncE2EProbe {
         int cfglogMarkerLines = 0;
         int tieMarkerLines = 0;
         int renderMarkerLines = 0;
+        int animMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -283,6 +295,12 @@ public final class AsyncE2EProbe {
                 if (line.contains(RENDER_MARKER) && line.contains("hooks ok (level=")) {
                     seen[16] = true;
                 }
+                if (line.contains(ANIM_MARKER)) {
+                    animMarkerLines++;
+                }
+                if (line.contains(ANIM_MARKER) && line.contains("ok (states=")) {
+                    seen[17] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -334,6 +352,7 @@ public final class AsyncE2EProbe {
                 + " tieOkOrSkip=" + seen[14] + " tieMarkerLines=" + tieMarkerLines
                 + " renderOk=" + seen[15] + " renderMarkerLines=" + renderMarkerLines
                 + " hooksOk=" + seen[16]
+                + " animOk=" + seen[17] + " animMarkerLines=" + animMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
             System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks shells fired on a live server, "
@@ -346,10 +365,11 @@ public final class AsyncE2EProbe {
                     + " [Subterra fix] + " + cfglogMarkerLines
                     + " [Subterra cfglog] + " + tieMarkerLines
                     + " [Subterra tie] + " + renderMarkerLines
-                    + " [Subterra render] line(s) observed)");
+                    + " [Subterra render] + " + animMarkerLines
+                    + " [Subterra anim] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim shell contract not met");
             System.exit(1);
         }
     }
