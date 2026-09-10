@@ -95,6 +95,13 @@ public class Subterra {
         // all-forms hook folded in from ExportHubRuntime). Must bootstrap AFTER DatapackRuntime so the
         // export gate sees the loaded registrar (same LOWEST priority fires in registration order).
         io.toterra.subterra.runtime.export.ExportRuntime.bootstrap();
+
+        // Render runtime (p.2.27.1.2): gated shell over engine.render.instancing (Flywheel 1.0.6
+        // pure-JDK port) — deterministic load verification via the subterra.probe.render
+        // ServerStarted gate (default no-op). The three MC render hooks
+        // (LevelRenderer / ModelBlockRenderer / EntityRenderDispatcher) are documented wiring
+        // points for p.2.27, not injected here.
+        io.toterra.subterra.runtime.render.RenderRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

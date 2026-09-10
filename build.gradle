@@ -216,6 +216,11 @@ neoForge {
                     System.getProperty('subterra.probe.tie', project.findProperty('subterra.probe.tie') ?: '')
             systemProperty 'subterra.tie.lib',
                     System.getProperty('subterra.tie.lib', project.findProperty('subterra.tie.lib') ?: '')
+            // p.2.27.1.2 deterministic E2E render hook: gate the RenderRuntime shell
+            // (engine.render.instancing deterministic sample load) at the ServerStartedEvent
+            // lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.render',
+                    System.getProperty('subterra.probe.render', project.findProperty('subterra.probe.render') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

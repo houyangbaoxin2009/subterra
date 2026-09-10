@@ -116,6 +116,9 @@ public final class AsyncE2EProbe {
     /** tie shell marker prefix emitted by the {@code TieRuntime} shell over the engine.tie FFM
      * bridge, gated by subterra.probe.tie (p.2.19.4). */
     private static final String TIE_MARKER = "[Subterra tie]";
+    /** render shell marker prefix emitted by the {@code RenderRuntime} shell over
+     * engine.render.instancing, gated by subterra.probe.render (p.2.27.1.2). */
+    private static final String RENDER_MARKER = "[Subterra render]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -149,7 +152,8 @@ public final class AsyncE2EProbe {
                 "-Psubterra.probe.saveverify=1", "-Psubterra.probe.session=1",
                 "-Psubterra.probe.launch=probe", "-Psubterra.probe.fix=probe",
                 "-Psubterra.probe.cfglog=probe",
-                "-Psubterra.probe.tie=probe"));
+                "-Psubterra.probe.tie=probe",
+                "-Psubterra.probe.render=probe"));
         if (tieLib != null) {
             cmd.add("-Psubterra.tie.lib=" + tieLib);
         }
@@ -172,7 +176,8 @@ public final class AsyncE2EProbe {
         // 12 = cfglog-config-ok   (ConfigRuntime two-tier sample + hot-reload gate slot, p.2.19.3)
         // 13 = cfglog-log-ok   (LogRuntime engine.log MC-shell marker slot, p.2.19.3)
         // 14 = tie-ok-or-skip   (TieRuntime FFM bridge slot: ok (lib= or skip (no tie lib), p.2.19.4)
-        boolean[] seen = new boolean[15];
+        // 15 = render-shell-ok   (RenderRuntime engine.render.instancing load slot, p.2.27.1.2)
+        boolean[] seen = new boolean[16];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -183,6 +188,7 @@ public final class AsyncE2EProbe {
         int fixMarkerLines = 0;
         int cfglogMarkerLines = 0;
         int tieMarkerLines = 0;
+        int renderMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -263,6 +269,12 @@ public final class AsyncE2EProbe {
                         && (line.contains("ok (lib=") || line.contains("skip (no tie lib)"))) {
                     seen[14] = true;
                 }
+                if (line.contains(RENDER_MARKER)) {
+                    renderMarkerLines++;
+                }
+                if (line.contains(RENDER_MARKER) && line.contains("ok (backends=")) {
+                    seen[15] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -312,9 +324,10 @@ public final class AsyncE2EProbe {
                 + " cfglogConfigOk=" + seen[12] + " cfglogLogOk=" + seen[13]
                 + " cfglogMarkerLines=" + cfglogMarkerLines
                 + " tieOkOrSkip=" + seen[14] + " tieMarkerLines=" + tieMarkerLines
+                + " renderOk=" + seen[15] + " renderMarkerLines=" + renderMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
@@ -323,10 +336,11 @@ public final class AsyncE2EProbe {
                     + " [Subterra launch] + " + fixMarkerLines
                     + " [Subterra fix] + " + cfglogMarkerLines
                     + " [Subterra cfglog] + " + tieMarkerLines
-                    + " [Subterra tie] line(s) observed)");
+                    + " [Subterra tie] + " + renderMarkerLines
+                    + " [Subterra render] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render shell contract not met");
             System.exit(1);
         }
     }
