@@ -117,6 +117,11 @@ public class Subterra {
         // marker (same subterra.probe.cfglog property; default no-op).
         io.toterra.subterra.runtime.cfglog.LogRuntime.bootstrap();
 
+        // Tie runtime (p.2.19.4): folds the tiec -> DLL -> FFM bridge (engine.tie) into the boot
+        // lifecycle via the subterra.probe.tie ServerStarted gate (load via subterra.tie.lib or the
+        // bundled /tie/tiefib_probe.dll resource; skip marker when no tie library is present).
+        io.toterra.subterra.runtime.tie.TieRuntime.bootstrap();
+
         // C2ME coexistence (MIT, supported compatible peer): detects the official
         // C2ME jar (ModList is queryable only after mod loading) and logs coexistence
         // guidance on the shared control surfaces; Subterra bundles its own derived

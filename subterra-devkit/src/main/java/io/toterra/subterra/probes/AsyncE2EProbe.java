@@ -2,11 +2,13 @@ package io.toterra.subterra.probes;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -49,6 +51,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * + RuleStore/RuleReloader hot-reload gate) and the {@code LogRuntime} shell (engine.log MC-shell
  * load verification + deterministic marker); the probe asserts their {@code [Subterra cfglog]}
  * {@code config ok (rules=} and {@code log ok (ring=} markers.
+ * Since p.2.19.4 the same boot also absorbs the tie shell ({@code TieRuntime},
+ * {@code -Psubterra.probe.tie=probe}): the probe stages the bundled {@code /tie/tiefib_probe.dll}
+ * into build/tmp and forwards it as {@code -Psubterra.tie.lib}, asserting either the
+ * {@code [Subterra tie]} {@code ok (lib=} or {@code skip (no tie lib)} marker (ok when the dev
+ * environment provides a tiec dll, deterministic skip when it does not).
  * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
@@ -74,7 +81,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * 并入 cfglog 两壳（共用同一门控 {@code -Psubterra.probe.cfglog=probe}）：{@code ConfigRuntime} 壳
  * （td 双层样例装载 + RuleStore/RuleReloader 热重载门）与 {@code LogRuntime} 壳（engine.log MC 壳
  * 装载验证 + 确定性 marker），探针断言其 {@code [Subterra cfglog]} 的 {@code config ok (rules=} 与
- * {@code log ok (ring=} marker。事件驱动、禁时序——
+ * {@code log ok (ring=} marker。p.2.19.4 起，同一次开服再并入 tie 壳（{@code TieRuntime}，
+ * {@code -Psubterra.probe.tie=probe}）：探针把捆绑资源 {@code /tie/tiefib_probe.dll} 暂存到
+ * build/tmp 并以 {@code -Psubterra.tie.lib} 转发，断言 {@code [Subterra tie]} 的
+ * {@code ok (lib=} 或 {@code skip (no tie lib)} marker 二者其一（dev 环境提供 tiec dll 则 ok，
+ * 无则确定性 skip）。事件驱动、禁时序——
  * 它是一次性并断言 async、sim、world、saveverify、launch、fix 六壳的联合门，故 5 次开服总数不变。
  * 既有 async 断言逐字保持；sim/world/saveverify/launch/fix 槽纯属新增。
  */
@@ -102,6 +113,9 @@ public final class AsyncE2EProbe {
      * RuleStore/RuleReloader hot-reload gate) and {@code LogRuntime} (engine.log MC-shell load
      * verification) shells, both gated by subterra.probe.cfglog (p.2.19.3). */
     private static final String CFGLOG_MARKER = "[Subterra cfglog]";
+    /** tie shell marker prefix emitted by the {@code TieRuntime} shell over the engine.tie FFM
+     * bridge, gated by subterra.probe.tie (p.2.19.4). */
+    private static final String TIE_MARKER = "[Subterra tie]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -124,13 +138,22 @@ public final class AsyncE2EProbe {
         ensureAssetProperties(root);
         reapPort(PROBE_PORT);
 
-        ProcessBuilder pb = new ProcessBuilder(
+        // p.2.19.4: stage the bundled tiec dll for the tie shell (null -> the game JVM sees no
+        // tie lib and TieRuntime prints the deterministic skip marker).
+        String tieLib = stageTieLib(root);
+
+        List<String> cmd = new ArrayList<>(List.of(
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
                 "-Psubterra.probe.async=1", "-Psubterra.probe.sim=1", "-Psubterra.probe.world=1",
                 "-Psubterra.probe.saveverify=1", "-Psubterra.probe.session=1",
                 "-Psubterra.probe.launch=probe", "-Psubterra.probe.fix=probe",
-                "-Psubterra.probe.cfglog=probe");
+                "-Psubterra.probe.cfglog=probe",
+                "-Psubterra.probe.tie=probe"));
+        if (tieLib != null) {
+            cmd.add("-Psubterra.tie.lib=" + tieLib);
+        }
+        ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -148,7 +171,8 @@ public final class AsyncE2EProbe {
         // 11 = fix-shell-ok   (Java25Gaps registry slot, p.2.19.2)
         // 12 = cfglog-config-ok   (ConfigRuntime two-tier sample + hot-reload gate slot, p.2.19.3)
         // 13 = cfglog-log-ok   (LogRuntime engine.log MC-shell marker slot, p.2.19.3)
-        boolean[] seen = new boolean[14];
+        // 14 = tie-ok-or-skip   (TieRuntime FFM bridge slot: ok (lib= or skip (no tie lib), p.2.19.4)
+        boolean[] seen = new boolean[15];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -158,6 +182,7 @@ public final class AsyncE2EProbe {
         int launchMarkerLines = 0;
         int fixMarkerLines = 0;
         int cfglogMarkerLines = 0;
+        int tieMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -231,6 +256,13 @@ public final class AsyncE2EProbe {
                 if (line.contains(CFGLOG_MARKER) && line.contains("log ok (ring=")) {
                     seen[13] = true;
                 }
+                if (line.contains(TIE_MARKER)) {
+                    tieMarkerLines++;
+                }
+                if (line.contains(TIE_MARKER)
+                        && (line.contains("ok (lib=") || line.contains("skip (no tie lib)"))) {
+                    seen[14] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -279,9 +311,10 @@ public final class AsyncE2EProbe {
                 + " fixOk=" + seen[11] + " fixMarkerLines=" + fixMarkerLines
                 + " cfglogConfigOk=" + seen[12] + " cfglogLogOk=" + seen[13]
                 + " cfglogMarkerLines=" + cfglogMarkerLines
+                + " tieOkOrSkip=" + seen[14] + " tieMarkerLines=" + tieMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
@@ -289,10 +322,11 @@ public final class AsyncE2EProbe {
                     + " [Subterra session] + " + launchMarkerLines
                     + " [Subterra launch] + " + fixMarkerLines
                     + " [Subterra fix] + " + cfglogMarkerLines
-                    + " [Subterra cfglog] line(s) observed)");
+                    + " [Subterra cfglog] + " + tieMarkerLines
+                    + " [Subterra tie] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie shell contract not met");
             System.exit(1);
         }
     }
@@ -388,6 +422,25 @@ public final class AsyncE2EProbe {
     }
 
     // ---------- boot hygiene (mirrors NetworkE2EProbe / SaveE2EProbe) ----------
+
+    /**
+     * Stages the bundled tiec dll ({@code /tie/tiefib_probe.dll}, the same TieBridgeProbe ABI) into
+     * {@code build/tmp/tie-e2e} and returns its absolute path; null when the resource is missing
+     * (the game JVM then sees no tie lib and TieRuntime prints the deterministic skip marker).
+     */
+    private static String stageTieLib(Path root) throws Exception {
+        Path target = root.resolve("build/tmp/tie-e2e/tiefib_probe.dll");
+        try (InputStream in = AsyncE2EProbe.class.getResourceAsStream("/tie/tiefib_probe.dll")) {
+            if (in == null) {
+                System.out.println("[AsyncE2EProbe] tie lib resource missing — expecting the tie shell skip marker");
+                return null;
+            }
+            Files.createDirectories(target.getParent());
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("[AsyncE2EProbe] staged tie lib: " + target);
+            return target.toString();
+        }
+    }
 
     private static void ensureAssetProperties(Path root) throws Exception {
         Path props = root.resolve("build/moddev/minecraft_assets.properties");

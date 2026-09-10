@@ -208,6 +208,14 @@ neoForge {
             // (LogRuntime) at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.cfglog',
                     System.getProperty('subterra.probe.cfglog', project.findProperty('subterra.probe.cfglog') ?: '')
+            // p.2.19.4 deterministic E2E tie hook: gate the TieRuntime MC shell (tiec DLL -> FFM
+            // load + one deterministic ABI call) at the ServerStartedEvent lifecycle; subterra.tie.lib
+            // forwards an external tiec-built dll path (absent -> bundled classpath resource ->
+            // deterministic skip marker, not a failure).
+            systemProperty 'subterra.probe.tie',
+                    System.getProperty('subterra.probe.tie', project.findProperty('subterra.probe.tie') ?: '')
+            systemProperty 'subterra.tie.lib',
+                    System.getProperty('subterra.tie.lib', project.findProperty('subterra.tie.lib') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()
