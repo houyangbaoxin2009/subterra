@@ -44,6 +44,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * ({@code LaunchRuntime}, {@code -Psubterra.probe.launch=probe}) and the fix runtime shell
  * ({@code FixRuntime} over the {@code Java25Gaps} registry, {@code -Psubterra.probe.fix=probe});
  * the probe asserts their {@code [Subterra launch]} and {@code [Subterra fix]} ok markers.
+ * Since p.2.19.3 the same boot also absorbs the cfglog shells (both gated by the shared
+ * {@code -Psubterra.probe.cfglog=probe}): the {@code ConfigRuntime} shell (two-tier td sample load
+ * + RuleStore/RuleReloader hot-reload gate) and the {@code LogRuntime} shell (engine.log MC-shell
+ * load verification + deterministic marker); the probe asserts their {@code [Subterra cfglog]}
+ * {@code config ok (rules=} and {@code log ok (ring=} markers.
  * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
@@ -65,7 +70,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * marker（{@code world-shell-gate=on} 与 {@code world-pack closed-loop OK}）。p.2.19.2 起，
  * <em>同一次</em>开服再并入 launch 壳（{@code LaunchRuntime}，{@code -Psubterra.probe.launch=probe}）
  * 与 fix 壳（{@code FixRuntime} 消费 {@code Java25Gaps} registry，{@code -Psubterra.probe.fix=probe}），
- * 探针断言其 {@code [Subterra launch]} 与 {@code [Subterra fix]} ok marker。事件驱动、禁时序——
+ * 探针断言其 {@code [Subterra launch]} 与 {@code [Subterra fix]} ok marker。p.2.19.3 起，同一次开服再
+ * 并入 cfglog 两壳（共用同一门控 {@code -Psubterra.probe.cfglog=probe}）：{@code ConfigRuntime} 壳
+ * （td 双层样例装载 + RuleStore/RuleReloader 热重载门）与 {@code LogRuntime} 壳（engine.log MC 壳
+ * 装载验证 + 确定性 marker），探针断言其 {@code [Subterra cfglog]} 的 {@code config ok (rules=} 与
+ * {@code log ok (ring=} marker。事件驱动、禁时序——
  * 它是一次性并断言 async、sim、world、saveverify、launch、fix 六壳的联合门，故 5 次开服总数不变。
  * 既有 async 断言逐字保持；sim/world/saveverify/launch/fix 槽纯属新增。
  */
@@ -89,6 +98,10 @@ public final class AsyncE2EProbe {
     private static final String LAUNCH_MARKER = "[Subterra launch]";
     /** fix runtime shell marker prefix emitted by the {@code FixRuntime} shell over Java25Gaps (p.2.19.2). */
     private static final String FIX_MARKER = "[Subterra fix]";
+    /** cfglog shells marker prefix emitted by the {@code ConfigRuntime} (two-tier td sample load +
+     * RuleStore/RuleReloader hot-reload gate) and {@code LogRuntime} (engine.log MC-shell load
+     * verification) shells, both gated by subterra.probe.cfglog (p.2.19.3). */
+    private static final String CFGLOG_MARKER = "[Subterra cfglog]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -116,7 +129,8 @@ public final class AsyncE2EProbe {
                 "--console=plain", "--no-daemon",
                 "-Psubterra.probe.async=1", "-Psubterra.probe.sim=1", "-Psubterra.probe.world=1",
                 "-Psubterra.probe.saveverify=1", "-Psubterra.probe.session=1",
-                "-Psubterra.probe.launch=probe", "-Psubterra.probe.fix=probe");
+                "-Psubterra.probe.launch=probe", "-Psubterra.probe.fix=probe",
+                "-Psubterra.probe.cfglog=probe");
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         pb.environment().merge("JAVA_TOOL_OPTIONS", "-Djava.net.preferIPv4Stack=true",
@@ -132,7 +146,9 @@ public final class AsyncE2EProbe {
         // 9 = session-shell-PASS   (programmable-session closed-loop slot, p.2.11.5)
         // 10 = launch-shell-ok   (launch runtime health slot, p.2.19.2)
         // 11 = fix-shell-ok   (Java25Gaps registry slot, p.2.19.2)
-        boolean[] seen = new boolean[12];
+        // 12 = cfglog-config-ok   (ConfigRuntime two-tier sample + hot-reload gate slot, p.2.19.3)
+        // 13 = cfglog-log-ok   (LogRuntime engine.log MC-shell marker slot, p.2.19.3)
+        boolean[] seen = new boolean[14];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -141,6 +157,7 @@ public final class AsyncE2EProbe {
         int sessionMarkerLines = 0;
         int launchMarkerLines = 0;
         int fixMarkerLines = 0;
+        int cfglogMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -205,6 +222,15 @@ public final class AsyncE2EProbe {
                 if (line.contains(FIX_MARKER) && line.contains("ok (open=")) {
                     seen[11] = true;
                 }
+                if (line.contains(CFGLOG_MARKER)) {
+                    cfglogMarkerLines++;
+                }
+                if (line.contains(CFGLOG_MARKER) && line.contains("config ok (rules=")) {
+                    seen[12] = true;
+                }
+                if (line.contains(CFGLOG_MARKER) && line.contains("log ok (ring=")) {
+                    seen[13] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -251,19 +277,22 @@ public final class AsyncE2EProbe {
                 + " sessionPass=" + seen[9] + " sessionMarkerLines=" + sessionMarkerLines
                 + " launchOk=" + seen[10] + " launchMarkerLines=" + launchMarkerLines
                 + " fixOk=" + seen[11] + " fixMarkerLines=" + fixMarkerLines
+                + " cfglogConfigOk=" + seen[12] + " cfglogLogOk=" + seen[13]
+                + " cfglogMarkerLines=" + cfglogMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
                     + " [Subterra saveverify] + " + sessionMarkerLines
                     + " [Subterra session] + " + launchMarkerLines
                     + " [Subterra launch] + " + fixMarkerLines
-                    + " [Subterra fix] line(s) observed)");
+                    + " [Subterra fix] + " + cfglogMarkerLines
+                    + " [Subterra cfglog] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog shell contract not met");
             System.exit(1);
         }
     }

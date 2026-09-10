@@ -203,6 +203,11 @@ neoForge {
             // the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.fix',
                     System.getProperty('subterra.probe.fix', project.findProperty('subterra.probe.fix') ?: '')
+            // p.2.19.3 deterministic E2E cfglog hook: gate both the td config hot-reload shell
+            // (ConfigRuntime, RuleStore/RuleReloader sample load) and the engine.log MC-shell shell
+            // (LogRuntime) at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.cfglog',
+                    System.getProperty('subterra.probe.cfglog', project.findProperty('subterra.probe.cfglog') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

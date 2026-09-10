@@ -109,6 +109,14 @@ public class Subterra {
         // and the crash-report diagnostics callable.
         SubterraLogging.bootstrap();
 
+        // Config runtime (p.2.19.3): td two-tier sample load + RuleStore/RuleReloader hot-reload
+        // gate (subterra.probe.cfglog; default no-op).
+        io.toterra.subterra.runtime.cfglog.ConfigRuntime.bootstrap();
+
+        // Log runtime (p.2.19.3): engine.log MC-shell load verification + deterministic gate
+        // marker (same subterra.probe.cfglog property; default no-op).
+        io.toterra.subterra.runtime.cfglog.LogRuntime.bootstrap();
+
         // C2ME coexistence (MIT, supported compatible peer): detects the official
         // C2ME jar (ModList is queryable only after mod loading) and logs coexistence
         // guidance on the shared control surfaces; Subterra bundles its own derived
