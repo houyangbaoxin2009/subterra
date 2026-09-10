@@ -821,8 +821,16 @@ def interactProbe = tasks.register('runInteractProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.InteractProbe'
 }
 
-
-
+// p.2.15.2: one-time golden asset generator — freezes the pure-JDK mirror NoiseRouter
+// bits for seed 44905237 into a td golden doc (12 points x 15 fields, int64 bit patterns).
+// Pure JVM, no MC runtime. Deliberately NOT wired into probeAcceptance: it writes into
+// src/main/resources and must run only when the baseline needs (re)freezing.
+def vanillaGoldenGen = tasks.register('runVanillaGoldenGen', JavaExec) {
+    group = 'verification'
+    description = 'p.2.15.2: generate the vanilla-fidelity golden td doc (NoiseRouter mirror bits, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.VanillaGoldenGen'
+}
 
 tasks.register('probeAcceptance') {
     group = 'verification'
