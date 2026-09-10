@@ -832,8 +832,18 @@ def vanillaGoldenGen = tasks.register('runVanillaGoldenGen', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.VanillaGoldenGen'
 }
 
+// p.2.15.3: golden-gate regression probe — turns the frozen vanilla-fidelity td doc into a
+// regression gate over the live NoiseRouter mirror (metadata anchor, 180 bit-exact regressions,
+// determinism re-entry, doc round-trip). Pure JVM, no MC runtime.
+def vanillaGoldenProbe = tasks.register('runVanillaGoldenProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.15.3: golden-gate regression over the frozen td doc vs live NoiseRouter mirror (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.VanillaGoldenProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all acceptance probes (pure-JVM + end-to-end boot gate)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe
 }
