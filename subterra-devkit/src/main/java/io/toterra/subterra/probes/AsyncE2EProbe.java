@@ -81,6 +81,13 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * {@code [Subterra scale]} {@code ok (types=} marker — a deterministic sample
  * ScaleData + rules td load + modifier registration-order application over
  * engine.scale (p.2.25.1).
+ * Since p.2.26.4 the same boot also absorbs the time shell ({@code TimeRuntime},
+ * {@code -Psubterra.probe.time=probe}): the probe asserts the {@code [Subterra time]}
+ * {@code ok (domains=} marker — a deterministic four-domain TimeScale + TimeScaleApi
+ * pure functions + fixed-tick TimeBudgetScheduler budget drive over engine.time
+ * (p.2.26.1) + api.time (p.2.26.2) + engine.time budget scheduling (p.2.26.3); the MC
+ * logic-tick lifecycle wiring surfaces (data load / logic-tick budget drive /
+ * perception consume) are documented wiring points only, with no logic-tick injection.
  * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
@@ -121,6 +128,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * （{@code override ok}）——engine.hub 表单结构 + 双层配置编辑 + 热重载确定性消费
  * （p.2.23.1/.2），即 {@code /subterra hub} op 配置命令的共享核心。事件驱动、禁时序——
  * 它是一次性并断言 async、sim、world、saveverify、launch、fix 六壳的联合门，故 5 次开服总数不变。
+ * p.2.26.4 起，同一次开服再并入 time 壳（{@code TimeRuntime}，
+ * {@code -Psubterra.probe.time=probe}）：探针断言其 {@code [Subterra time]} 的
+ * {@code ok (domains=} marker——engine.time（p.2.26.1四域流速/节流/感知插值）+ api.time
+ * （p.2.26.2 TimeScaleApi）+ p.2.26.3 TimeBudgetScheduler 预算调度跑固定 tick 的确定性驱动
+ * （四域 TimeScale 摘要 + 插值/节流纯函数 + 预算命中数）；MC 逻辑 tick 生命周期接线面仅为文档化接线点不注入。
  * 既有 async 断言逐字保持；sim/world/saveverify/launch/fix 槽纯属新增。
  */
 public final class AsyncE2EProbe {
@@ -168,6 +180,10 @@ public final class AsyncE2EProbe {
     /** scale shell marker prefix emitted by the {@code ScaleRuntime} shell over engine.scale
      * (sample ScaleData + rules td load + modifier drive), gated by subterra.probe.scale (p.2.25.2). */
     private static final String SCALE_MARKER = "[Subterra scale]";
+    /** time shell marker prefix emitted by the {@code TimeRuntime} shell over engine.time
+     * (four-domain TimeScale + TimeScaleApi pure functions + TimeBudgetScheduler budget drive),
+     * gated by subterra.probe.time (p.2.26.4). */
+    private static final String TIME_MARKER = "[Subterra time]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -207,7 +223,8 @@ public final class AsyncE2EProbe {
                 "-Psubterra.probe.ui=probe",
                 "-Psubterra.probe.hub=probe",
                 "-Psubterra.probe.ai=probe",
-                "-Psubterra.probe.scale=probe"));
+                "-Psubterra.probe.scale=probe",
+                "-Psubterra.probe.time=probe"));
         if (tieLib != null) {
             cmd.add("-Psubterra.tie.lib=" + tieLib);
         }
@@ -238,7 +255,8 @@ public final class AsyncE2EProbe {
         // 20 = hub-verb-marker   (HubCommand shared-core verb marker slot, e.g. override ok, p.2.23.3)
         // 21 = ai-shell-ok   (AiRuntime engine.ai sample Brain/Scheduler drive slot, p.2.24.3)
         // 22 = scale-shell-ok   (ScaleRuntime engine.scale data-plane drive slot, p.2.25.2)
-        boolean[] seen = new boolean[23];
+        // 23 = time-shell-ok   (TimeRuntime engine.time/api.time + fixed-tick budget-drive slot, p.2.26.4)
+        boolean[] seen = new boolean[24];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -255,6 +273,7 @@ public final class AsyncE2EProbe {
         int hubMarkerLines = 0;
         int aiMarkerLines = 0;
         int scaleMarkerLines = 0;
+        int timeMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -377,6 +396,12 @@ public final class AsyncE2EProbe {
                 if (line.contains(SCALE_MARKER + " ok (types=")) {
                     seen[22] = true;
                 }
+                if (line.contains(TIME_MARKER)) {
+                    timeMarkerLines++;
+                }
+                if (line.contains(TIME_MARKER + " ok (domains=")) {
+                    seen[23] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -433,9 +458,10 @@ public final class AsyncE2EProbe {
                 + " hubOk=" + seen[19] + " hubVerb=" + seen[20] + " hubMarkerLines=" + hubMarkerLines
                 + " aiOk=" + seen[21] + " aiMarkerLines=" + aiMarkerLines
                 + " scaleOk=" + seen[22] + " scaleMarkerLines=" + scaleMarkerLines
+                + " timeOk=" + seen[23] + " timeMarkerLines=" + timeMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks + anim + ui + hub + ai + scale shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks + anim + ui + hub + ai + scale + time shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
@@ -450,10 +476,11 @@ public final class AsyncE2EProbe {
                     + " [Subterra ui] + " + hubMarkerLines
                     + " [Subterra hub] + " + aiMarkerLines
                     + " [Subterra ai] + " + scaleMarkerLines
-                    + " [Subterra scale] line(s) observed)");
+                    + " [Subterra scale] + " + timeMarkerLines
+                    + " [Subterra time] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub/ai/scale shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub/ai/scale/time shell contract not met");
             System.exit(1);
         }
     }

@@ -246,6 +246,11 @@ neoForge {
             // lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.scale',
                     System.getProperty('subterra.probe.scale', project.findProperty('subterra.probe.scale') ?: '')
+            // p.2.26.4 deterministic E2E time hook: gate the TimeRuntime shell (engine.time/api.time
+            // four-domain TimeScale + TimeScaleApi pure functions + TimeBudgetScheduler fixed-tick budget
+            // drive) at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.time',
+                    System.getProperty('subterra.probe.time', project.findProperty('subterra.probe.time') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

@@ -139,6 +139,15 @@ public class Subterra {
         // lifecycle binding surfaces (data load / drive update / render consume) are documented
         // wiring points in ScaleRuntime, not injected here (no MC entity injection).
         io.toterra.subterra.runtime.scale.ScaleRuntime.bootstrap();
+
+        // Time runtime (p.2.26.4): gated shell over engine.time (p.2.26.1 TimeScale/TimeDomain/
+        // TimeThrottle/TimeInterpolation/TimeScaleDoc) + api.time (p.2.26.2 TimeScaleApi) +
+        // p.2.26.3 TimeBudgetScheduler — deterministic four-domain TimeScale + TimeScaleApi pure
+        // functions + fixed-tick budget drive via the subterra.probe.time ServerStarted gate (default
+        // no-op). The three MC logic-tick lifecycle wiring surfaces (data load / logic-tick budget
+        // drive / perception consume) are documented wiring points in TimeRuntime, not injected here
+        // (no MC logic-tick injection).
+        io.toterra.subterra.runtime.time.TimeRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
