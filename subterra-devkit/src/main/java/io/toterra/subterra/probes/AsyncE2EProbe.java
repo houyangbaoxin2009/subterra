@@ -68,6 +68,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * {@code -Psubterra.probe.ui=probe}): the probe asserts the {@code [Subterra ui]}
  * {@code ok (hud=} marker (deterministic management-view data-plane consumption over
  * engine.ui — hud rows / tooltip book / doc books / mod-list view, p.2.22).
+ * Since p.2.23.3 the same boot also absorbs the hub shell ({@code HubRuntime},
+ * {@code -Psubterra.probe.hub=probe}): the probe asserts the {@code [Subterra hub]}
+ * {@code ok (fields=} marker plus a hub verb marker ({@code override ok}) — deterministic
+ * form-structure + two-tier config-edit + hot-reload consumption over engine.hub
+ * (p.2.23.1/.2), the shared core of the {@code /subterra hub} op config command.
  * Event-driven, timing-free — it is a union gate that asserts
  * the async, sim, world and saveverify shells in one live-server launch, so the 5-boot total is
  * unchanged. All async assertions are kept verbatim; the sim/world/saveverify slots are purely
@@ -102,7 +107,11 @@ import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
  * marker（engine.anim 确定性示例动画状态机驱动，p.2.21.1）。p.2.22.4 起，同一次开服再并入
  * ui 壳（{@code UiRuntime}，{@code -Psubterra.probe.ui=probe}）：探针断言其
  * {@code [Subterra ui]} 的 {@code ok (hud=} marker（engine.ui 管理视图数据面确定性消费——
- * HUD 行 / tooltip 书籍 / 文档书籍 / 模组列表视图，p.2.22）。事件驱动、禁时序——
+ * HUD 行 / tooltip 书籍 / 文档书籍 / 模组列表视图，p.2.22）。p.2.23.3 起，同一次开服再并入
+ * hub 壳（{@code HubRuntime}，{@code -Psubterra.probe.hub=probe}）：探针断言其
+ * {@code [Subterra hub]} 的 {@code ok (fields=} marker 及一条 hub verb marker
+ * （{@code override ok}）——engine.hub 表单结构 + 双层配置编辑 + 热重载确定性消费
+ * （p.2.23.1/.2），即 {@code /subterra hub} op 配置命令的共享核心。事件驱动、禁时序——
  * 它是一次性并断言 async、sim、world、saveverify、launch、fix 六壳的联合门，故 5 次开服总数不变。
  * 既有 async 断言逐字保持；sim/world/saveverify/launch/fix 槽纯属新增。
  */
@@ -142,6 +151,9 @@ public final class AsyncE2EProbe {
     /** ui shell marker prefix emitted by the {@code UiRuntime} shell over engine.ui,
      * gated by subterra.probe.ui (p.2.22.4). */
     private static final String UI_MARKER = "[Subterra ui]";
+    /** hub shell marker prefix emitted by the {@code HubRuntime} shell over engine.hub
+     * (form-structure + config-edit + hot-reload), gated by subterra.probe.hub (p.2.23.3). */
+    private static final String HUB_MARKER = "[Subterra hub]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -178,7 +190,8 @@ public final class AsyncE2EProbe {
                 "-Psubterra.probe.tie=probe",
                 "-Psubterra.probe.render=probe",
                 "-Psubterra.probe.anim=probe",
-                "-Psubterra.probe.ui=probe"));
+                "-Psubterra.probe.ui=probe",
+                "-Psubterra.probe.hub=probe"));
         if (tieLib != null) {
             cmd.add("-Psubterra.tie.lib=" + tieLib);
         }
@@ -205,7 +218,9 @@ public final class AsyncE2EProbe {
         // 16 = render-hooks-ok   (RenderHooks deterministic three-hook wiring slot, p.2.27.2)
         // 17 = anim-shell-ok   (AnimRuntime deterministic anim state-machine drive slot, p.2.21.2)
         // 18 = ui-shell-ok   (UiRuntime engine.ui management-view data-plane consumption slot, p.2.22.4)
-        boolean[] seen = new boolean[19];
+        // 19 = hub-shell-ok   (HubRuntime engine.hub form/config-edit/hot-reload aggregate slot, p.2.23.3)
+        // 20 = hub-verb-marker   (HubCommand shared-core verb marker slot, e.g. override ok, p.2.23.3)
+        boolean[] seen = new boolean[21];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -219,6 +234,7 @@ public final class AsyncE2EProbe {
         int renderMarkerLines = 0;
         int animMarkerLines = 0;
         int uiMarkerLines = 0;
+        int hubMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -320,6 +336,15 @@ public final class AsyncE2EProbe {
                 if (line.contains(UI_MARKER) && line.contains("ok (hud=")) {
                     seen[18] = true;
                 }
+                if (line.contains(HUB_MARKER)) {
+                    hubMarkerLines++;
+                }
+                if (line.contains(HUB_MARKER + " ok (fields=")) {
+                    seen[19] = true;
+                }
+                if (line.contains(HUB_MARKER) && line.contains("override ok")) {
+                    seen[20] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -373,9 +398,10 @@ public final class AsyncE2EProbe {
                 + " hooksOk=" + seen[16]
                 + " animOk=" + seen[17] + " animMarkerLines=" + animMarkerLines
                 + " uiOk=" + seen[18] + " uiMarkerLines=" + uiMarkerLines
+                + " hubOk=" + seen[19] + " hubVerb=" + seen[20] + " hubMarkerLines=" + hubMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
-            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks + anim + ui shells fired on a live server, "
+            System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks + anim + ui + hub shells fired on a live server, "
                     + asyncMarkerLines + " [Subterra async] + " + simMarkerLines
                     + " [Subterra sim] + " + worldMarkerLines
                     + " [Subterra world] + " + saveverifyMarkerLines
@@ -387,10 +413,11 @@ public final class AsyncE2EProbe {
                     + " [Subterra tie] + " + renderMarkerLines
                     + " [Subterra render] + " + animMarkerLines
                     + " [Subterra anim] + " + uiMarkerLines
-                    + " [Subterra ui] line(s) observed)");
+                    + " [Subterra ui] + " + hubMarkerLines
+                    + " [Subterra hub] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub shell contract not met");
             System.exit(1);
         }
     }

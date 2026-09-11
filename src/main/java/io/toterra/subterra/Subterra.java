@@ -116,6 +116,14 @@ public class Subterra {
         // The HUD/tooltip/book GUI consumption surfaces are documented wiring points in
         // UiRuntime, not injected here (player HUD render injection lands with p.2.23).
         io.toterra.subterra.runtime.ui.UiRuntime.bootstrap();
+
+        // Hub runtime (p.2.23.3): gated shell over engine.hub (p.2.23.1 form auto-generation +
+        // p.2.23.2 config-edit / hot-reload facades) — deterministic form-structure + two-tier
+        // write + hot-reload consumption via the subterra.probe.hub ServerStarted gate (default
+        // no-op), plus the /subterra hub op config command (view/set/override over
+        // HubConfigEditor). The player-side config entry wiring surface (p.2.22 runtime.ui panel /
+        // p.2.14 interact) is documented in HubRuntime, not injected here.
+        io.toterra.subterra.runtime.hub.HubRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
