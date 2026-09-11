@@ -241,6 +241,11 @@ neoForge {
             // priority no-op, no-op shell).
             systemProperty 'subterra.probe.ai',
                     System.getProperty('subterra.probe.ai', project.findProperty('subterra.probe.ai') ?: '')
+            // p.2.25.2 deterministic E2E scale hook: gate the ScaleRuntime shell (engine.scale
+            // sample ScaleData + rules td load + modifier drive) at the ServerStartedEvent
+            // lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.scale',
+                    System.getProperty('subterra.probe.scale', project.findProperty('subterra.probe.scale') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

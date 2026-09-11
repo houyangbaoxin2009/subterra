@@ -131,6 +131,14 @@ public class Subterra {
         // binding surfaces (brain load / sensor sample / behavior arbitrate / task execute) are
         // documented wiring points in AiRuntime, not injected here (no player-UI / MC entity injection).
         io.toterra.subterra.runtime.ai.AiRuntime.bootstrap();
+
+        // Scale runtime (p.2.25.2): gated shell over engine.scale (p.2.25.1 Pehkui-Rebuilt core
+        // port — ScaleType/ScaleData/ScaleModifier/ScaledEntityData/ScaleRuleDocument) —
+        // deterministic sample ScaleData + rules td load + modifier registration-order application
+        // via the subterra.probe.scale ServerStarted gate (default no-op). The three MC entity-scale
+        // lifecycle binding surfaces (data load / drive update / render consume) are documented
+        // wiring points in ScaleRuntime, not injected here (no MC entity injection).
+        io.toterra.subterra.runtime.scale.ScaleRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
