@@ -94,5 +94,38 @@
  * 故 LOD 热点以标量 i64 原语下沉，zd 字节直通 {@code LodSection} ABI 明确推迟到未来 tie 工具链扩展而非作赌注。
  * JDK 金样内核（{@code LodPolygonizer.profileTop}、{@code LodMerger.mergeCorner}）与 tie 原语逐字节一致；无
  * DLL 时加速器为确定性 skip，管线仅走 JDK。
+ *
+ * <h3>p.2.28.3：确定性视景管理（距离选择 / 剔除 / 预算调度）</h3>
+ *
+ * <p><b>Deterministic view management.</b> {@link
+ * io.toterra.subterra.engine.render.lod.LodDistanceSelector} maps each chunk coordinate to an
+ * expected {@code LodLevel} from the {@code LodConfigDoc} distance ladder using pure integer
+ * squared-block-distance arithmetic (farther → coarser, same distance → same level, with the
+ * pinned fixed default tier table {@code L1@64..L4@512} as the p.2.28.6 golden target). {@link
+ * io.toterra.subterra.engine.render.lod.LodViewCuller} culls with an all-integer Q8.24
+ * {@link io.toterra.subterra.engine.render.lod.LodViewCuller.ViewFrustum} (six outward planes
+ * against a block-space AABB via the p-vertex test) plus facing-bit backface culling. {@link
+ * io.toterra.subterra.engine.render.lod.LodBudgetScheduler} is a thin adapter over the p.2.8
+ * {@code engine.sim.budget} kernel (per-level = kernel per-simulant, per-region = RegionKey,
+ * per-tick global) driving deterministic fixed key-order over-budget skip with {@code downgradeTo}
+ * hints. {@link io.toterra.subterra.engine.render.lod.ViewPlan} (and its reusable
+ * {@link io.toterra.subterra.engine.render.lod.ViewPlan.ViewPlanner}) is the immutable
+ * deterministic snapshot — player → per-cell level + cull flag + budget batch membership — that
+ * p.2.28.4/.6 consume. Everything is pure JDK, integer/fixed-point, fixed order, no randomness, no
+ * timing, no hash-order: same input gives the same plan.
+ *
+ * <p><b>确定性视景管理。</b>{@link
+ * io.toterra.subterra.engine.render.lod.LodDistanceSelector} 用纯整数方块距离平方算术把每个区块坐标映射为
+ * 期望 {@code LodLevel}（取自 {@code LodConfigDoc} 距离阶梯；越远越粗、同距同级，钉死的固定缺省阈值表
+ * {@code L1@64..L4@512} 为 p.2.28.6 的黄金目标）。{@link
+ * io.toterra.subterra.engine.render.lod.LodViewCuller} 用全整数 Q8.24
+ * {@link io.toterra.subterra.engine.render.lod.LodViewCuller.ViewFrustum}（六个朝外平面对方块空间 AABB
+ * 做 p-vertex 测试）外加按朝向位的背面剔除。{@link
+ * io.toterra.subterra.engine.render.lod.LodBudgetScheduler} 是 p.2.8 {@code engine.sim.budget} 内核的
+ * 薄适配（每级=内核 per-simulant、每区域=RegionKey、每 tick 全局），驱动确定性固定键序超预算跳过并给出
+ * {@code downgradeTo} 提示。{@link io.toterra.subterra.engine.render.lod.ViewPlan}（及其可复用
+ * {@link io.toterra.subterra.engine.render.lod.ViewPlan.ViewPlanner}）是不可变确定性快照——玩家→每单元层级+
+ * 剔除标志+预算批次成员，供 p.2.28.4/.6 消费。全程纯 JDK、整数/定点、固定序、无随机、无时序、无哈希序：
+ * 同输入得同计划。
  */
 package io.toterra.subterra.engine.render.lod;
