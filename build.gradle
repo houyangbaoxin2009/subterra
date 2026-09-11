@@ -226,6 +226,11 @@ neoForge {
             // lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.anim',
                     System.getProperty('subterra.probe.anim', project.findProperty('subterra.probe.anim') ?: '')
+            // p.2.22.4 deterministic E2E ui hook: gate the UiRuntime shell (engine.ui
+            // deterministic management-view data-plane consumption) at the ServerStartedEvent
+            // lifecycle (absent -> priority no-op, no-op shell).
+            systemProperty 'subterra.probe.ui',
+                    System.getProperty('subterra.probe.ui', project.findProperty('subterra.probe.ui') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

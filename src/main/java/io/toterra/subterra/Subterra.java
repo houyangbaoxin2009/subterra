@@ -109,6 +109,13 @@ public class Subterra {
         // lifecycle wiring surfaces (data load / drive update / render consume) are documented
         // wiring points in AnimRuntime, not injected here.
         io.toterra.subterra.runtime.anim.AnimRuntime.bootstrap();
+
+        // Ui runtime (p.2.22.4): gated shell over engine.ui (AppleSkin food-HUD data +
+        // tooltip book + doc book + mod-list view cores) — deterministic management-view
+        // data-plane consumption via the subterra.probe.ui ServerStarted gate (default no-op).
+        // The HUD/tooltip/book GUI consumption surfaces are documented wiring points in
+        // UiRuntime, not injected here (player HUD render injection lands with p.2.23).
+        io.toterra.subterra.runtime.ui.UiRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
