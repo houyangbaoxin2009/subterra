@@ -969,8 +969,24 @@ def uiProbe = tasks.register('runUiProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.UiProbe'
 }
 
+// p.2.23.4: deterministic in-game-mod-hub probe — form auto-generation determinism
+// (HubFormGen fixed field order / toTd-fromTd round-trip / render twice-run byte
+// identity / kind-widget alignment with FormDataGen), config edit + hot reload
+// (HubConfigEditor two-tier resolve + type-violation all-or-nothing + lexicographic
+// render, HubConfigReloader byte-exact change detection + atomic keep-old + re-entrant
+// replay), form-value round-trip (HubFormValues identity + twice-run bytes), and the
+// runtime.hub wiring contract as a load-only static inventory (HubRuntime/HubCommand
+// presence + gate property + marker literals; boot E2E covered by AsyncE2EProbe
+// hubOk/hubVerb). Pure JVM, no MC runtime.
+def hubProbe = tasks.register('runHubProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.23.4: hub probe (form auto-gen determinism / config-edit + hot-reload / form-value round-trip / runtime wiring contract, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.HubProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
-    description = 'Run all 98 acceptance tasks (93 pure-JVM probes + five E2E boot gates)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe, contractProbe, ruleSystemProbe, exportHubProbe, runtimeWiringProbe, sampleBootstrapProbe, flywheelInstancingProbe, renderFidelityProbe, animProbe, uiProbe
+    description = 'Run all 99 acceptance tasks (94 pure-JVM probes + five E2E boot gates)'
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe, contractProbe, ruleSystemProbe, exportHubProbe, runtimeWiringProbe, sampleBootstrapProbe, flywheelInstancingProbe, renderFidelityProbe, animProbe, uiProbe, hubProbe
 }
