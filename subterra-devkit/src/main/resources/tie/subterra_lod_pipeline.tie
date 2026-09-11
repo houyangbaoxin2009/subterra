@@ -1,0 +1,53 @@
+type tie<class>
+// Subterra p.2.28.2 — LOD generation pipeline tie scalar primitives.
+//
+// SYMBOL CONVENTION: namespace::fn -> FFM symbol <namespace>$<fn>
+//   lod::profile_top  -> "lod$profile_top"   lod::merge_corner -> "lod$merge_corner"
+//
+// DLL BOUNDARY (measured, do not re-guess): tiec --shared exports scalars
+//   (i64/f64/bool/trit/char) + string only; private funcs are NOT exported;
+//   custom pointer / byte-buffer FunctionDescriptor pass-through is NOT
+//   supported today. Hence the LOD hot spots sink as pure-i64 scalar primitives,
+//   mirroring the JDK golden kernels (LodPolygonizer.profileTop /
+//   LodMerger.mergeCorner) bit-for-bit (same input -> same output), and keep to
+//   bounded arithmetic that never overflows i64.
+//
+// REBUILD:
+//   tiec subterra_lod_pipeline.tie --shared -o subterra_lod_pipeline.dll
+//   e.g. F:\Projects\tie-repo\dist-release\stage\win\tiec.exe
+//          subterra_lod_pipeline.tie --shared -o subterra_lod_pipeline.dll
+//   (optionally -O2, the default).
+namespace lod {
+// Deterministic per-column top-surface sample: packs
+// (height, colorIndex, brightness) into bits 16-31 / 8-15 / 0-7.
+// Mirror of LodPolygonizer.profileTop.
+pub func profile_top(seed: i64, x: i64, z: i64) -> i64 {
+    var s = (seed & 0x7FFFFFFF) | 1
+    var v = s ^ (((x & 0xFFFF) << 8) | (z & 0xFFFF))
+    v = v ^ (v >> 16)
+    v = v + ((v << 3) + 0x9E3779B9)
+    v = v ^ (v >> 12)
+    v = v & 0x000FFFFF
+    var height = 4 + (v & 0x007F)
+    var color = (v >> 8) & 0x000000FF
+    var bright = (v >> 16) & 0x0000000F
+    return ((height & 0xFFFF) << 16) | ((color & 0xFF) << 8) | (bright & 0xFF)
+}
+// 2x2 corner merge decision: winner = corner with max top height,
+// ties -> first occurrence in pinned order a,b,c,d (x,z lexicographic first).
+// Mirror of LodMerger.mergeCorner.
+pub func merge_corner(a: i64, b: i64, c: i64, d: i64) -> i64 {
+    var best = a
+    var hb = (b >> 16) & 0xFFFF
+    var hc = (c >> 16) & 0xFFFF
+    var hd = (d >> 16) & 0xFFFF
+    if hb > ((best >> 16) & 0xFFFF) { best = b }
+    if hc > ((best >> 16) & 0xFFFF) { best = c }
+    if hd > ((best >> 16) & 0xFFFF) { best = d }
+    return best
+}
+// private function -> must NOT be exported (llvmgen skips dllexport)
+func secret(x: i64) -> i64 {
+    return x * 7
+}
+}
