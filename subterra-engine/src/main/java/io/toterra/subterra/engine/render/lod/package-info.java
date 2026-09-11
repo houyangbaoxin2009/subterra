@@ -127,5 +127,48 @@
  * {@link io.toterra.subterra.engine.render.lod.ViewPlan.ViewPlanner}）是不可变确定性快照——玩家→每单元层级+
  * 剔除标志+预算批次成员，供 p.2.28.4/.6 消费。全程纯 JDK、整数/定点、固定序、无随机、无时序、无哈希序：
  * 同输入得同计划。
+ *
+ * <h3>p.2.28.4：渲染后端（复用 p.2.28.1 实例化基座 + 接缝规则）</h3>
+ *
+ * <p><b>Render backend.</b> {@link
+ * io.toterra.subterra.engine.render.lod.LodRenderBackend} is the LOD mesh render backend for
+ * p.2.28.4, registered into the p.2.27.1 {@link io.toterra.subterra.engine.render.instancing.BackendRegistry}
+ * via {@link io.toterra.subterra.engine.render.lod.LodRenderBackend#registerInto()} (fixed
+ * registration order, duplicate-name rejection and deterministic default selection all inherited
+ * from the registry — none of the instancing classes are modified). It converts a
+ * {@link io.toterra.subterra.engine.render.lod.LodSection}'s column-profile / horizontal-quad data
+ * into a fixed-order instanced data model ({@link
+ * io.toterra.subterra.engine.render.lod.LodRenderBackend.InstantiatedMesh}), consuming the p.2.28.1
+ * {@link io.toterra.subterra.engine.render.lod.LodVertexLayout#COLUMN}/{@link
+ * io.toterra.subterra.engine.render.lod.LodVertexLayout#QUAD} layout specs and the
+ * {@code InstanceFormat} instance-layout paradigm — pure data, no real GL/GPU calls. {@link
+ * io.toterra.subterra.engine.render.lod.LodShaderTemplate} is the clean-room fixed-order shader
+ * (quantized-coordinate decode, color index&rarr;palette index, distance fog, seam {@code stitch}
+ * bit) assembled through the p.2.27.1 {@code ShaderTemplate} parts/substitution mechanism,
+ * byte-identical. {@link
+ * io.toterra.subterra.engine.render.lod.LodSeamRules} pins the crack-free geometry rules — level-0
+ * edge &rarr; full-detail block-grid alignment, adjacent-section shared-edge integer rounding +
+ * {@code stitch} bit, and a monotone per-{@link io.toterra.subterra.engine.render.lod.LodDistanceSelector}
+ * -tier distance-fog strength (0..255) — all integer/fixed-point, same input &rarr; same bytes. These
+ * exact constants are the p.2.28.6 probe golden target. Everything remains pure JDK, fixed order,
+ * zero MC/OpenGL imports.
+ *
+ * <p><b>渲染后端。</b>{@link
+ * io.toterra.subterra.engine.render.lod.LodRenderBackend} 是 p.2.28.4 的 LOD 网格渲染后端，经 {@link
+ * io.toterra.subterra.engine.render.lod.LodRenderBackend#registerInto()} 注册进 p.2.27.1
+ * {@link io.toterra.subterra.engine.render.instancing.BackendRegistry}（固定注册序、同名拒绝与确定性缺省
+ * 选择全部承自注册表——不改任何 instancing 类）。它把 {@link
+ * io.toterra.subterra.engine.render.lod.LodSection} 的列柱剖面/水平 quad 数据转换为固定序实例化数据模型
+ * （{@link io.toterra.subterra.engine.render.lod.LodRenderBackend.InstantiatedMesh}），消费 p.2.28.1
+ * {@link io.toterra.subterra.engine.render.lod.LodVertexLayout#COLUMN}/{@link
+ * io.toterra.subterra.engine.render.lod.LodVertexLayout#QUAD} 布局规格与 {@code InstanceFormat} 实例布局
+ * 范式——纯数据，不做真实 GL/GPU 调用。{@link
+ * io.toterra.subterra.engine.render.lod.LodShaderTemplate} 是 clean-room 固定序着色器（量化坐标解码、颜色
+ * 索引&rarr;调色板索引、距离雾、接缝 {@code stitch} 位），经 p.2.27.1 {@code ShaderTemplate} 部件/占位符替换
+ * 机制拼装、逐字节一致。{@link
+ * io.toterra.subterra.engine.render.lod.LodSeamRules} 钉死无缝几何规则——level-0 边缘&rarr;全细节方块网格
+ * 对齐、相邻 section 共享边缘整数取整 + {@code stitch} 位、按 {@link
+ * io.toterra.subterra.engine.render.lod.LodDistanceSelector} 档位单调的距离雾强度（0..255）——全部整数/定点、
+ * 同输入&rarr;同字节。这些精确常量即 p.2.28.6 探针的黄金目标。全程仍纯 JDK、固定序、零 MC/OpenGL import。
  */
 package io.toterra.subterra.engine.render.lod;
