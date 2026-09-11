@@ -43,6 +43,26 @@
  * （复用 {@code engine.render.VertexLayout.builder()}），分档配置文档由 {@link
  * io.toterra.subterra.engine.render.lod.LodConfigDoc} td 化。
  *
+ * <h3>p.2.28.6（1/2）：api.lod 契约面 + engine 镜像实现</h3>
+ *
+ * <p><b>Contract surface &amp; mirror.</b> The LOD quality-tier ladder, distance-tier model and resolution
+ * facade are pinned as pure-JDK contracts in {@code api.lod}
+ * ({@link io.toterra.subterra.api.lod.LodQualitySpec LodQualitySpec} STANDARD/HIGH/LOW,{@link
+ * io.toterra.subterra.api.lod.LodDistanceSpec LodDistanceSpec},{@link
+ * io.toterra.subterra.api.lod.LodApi LodApi}) and mirrored here by {@link LodApiMirror}: every contract
+ * constant (tier order, {@code maxLevel}=4, default distance table {@code L1@64..L4@512}, 16 blocks per
+ * chunk) is sourced verbatim from {@link LodConfigDoc} / {@link LodLevel} / {@link LodDistanceSelector},
+ * and both sides are same-input-same-output for the p.2.28.6 probe. The dependency iron-law holds: api does
+ * not depend on engine; engine depends only on api.
+ *
+ * <p><b>契约面 + 镜像。</b>LOD 质量档位、距离档模型与解析门面被钉死为 {@code api.lod} 的纯 JDK 契约
+ * （{@link io.toterra.subterra.api.lod.LodQualitySpec LodQualitySpec} STANDARD/HIGH/LOW、{@link
+ * io.toterra.subterra.api.lod.LodDistanceSpec LodDistanceSpec}、{@link
+ * io.toterra.subterra.api.lod.LodApi LodApi}），并在此由 {@link LodApiMirror} 镜像实现：每个契约常量
+ * （档位序、{@code maxLevel}=4、缺省距离表 {@code L1@64..L4@512}、每区块 16 方块）都逐字源自
+ * {@link LodConfigDoc} / {@link LodLevel} / {@link LodDistanceSelector}，两侧同输入同输出以供 p.2.28.6
+ * 探针断言。依赖铁律成立：api 不依赖 engine；engine 仅依赖 api。
+ *
  * <p>clean-room 立场：LOD 为自研实现。其中的通用思想——LOD mip 金字塔、列柱剖面、水平面合并、视锥剔除、
  * 逐级变粗的体素网格化——均属公开的计算机图形学常识。Distant Horizons 模组（LGPL-3.0）仅评估为思想上的
  * 参考：至多参考其公开思想，<em>零</em> 源码包含在内。无 MC、无 NeoForge、无 OpenGL：这里全部为纯 JDK
