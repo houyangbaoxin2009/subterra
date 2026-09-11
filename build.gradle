@@ -251,6 +251,11 @@ neoForge {
             // drive) at the ServerStartedEvent lifecycle (absent -> priority no-op, no-op shell).
             systemProperty 'subterra.probe.time',
                     System.getProperty('subterra.probe.time', project.findProperty('subterra.probe.time') ?: '')
+            // p.2.28.6 deterministic E2E lod hook: gate the LodRuntime shell (engine.render.lod +
+            // api.lod deterministic load verification) at the ServerStartedEvent lifecycle (absent ->
+            // priority no-op, no-op shell).
+            systemProperty 'subterra.probe.lod',
+                    System.getProperty('subterra.probe.lod', project.findProperty('subterra.probe.lod') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

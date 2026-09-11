@@ -103,6 +103,13 @@ public class Subterra {
         // points for p.2.27, not injected here.
         io.toterra.subterra.runtime.render.RenderRuntime.bootstrap();
 
+        // Lod runtime (p.2.28.6 2/2): gated shell over engine.render.lod (p.2.28.1-.5, LOD core)
+        // + api.lod (p.2.28.6 1/2 contract) — deterministic load verification
+        // (api↔mirror / pipeline / cache / tie skip-or-parity / backend) via the
+        // subterra.probe.lod ServerStarted gate (default no-op). The real LOD pass injection is
+        // a post-p.2.28 wiring point, not injected here.
+        io.toterra.subterra.runtime.render.lod.LodRuntime.bootstrap();
+
         // Anim runtime (p.2.21.2): gated shell over engine.anim (GeckoLib 4 pure-JDK keyframe
         // animation core) — deterministic sample animation state-machine drive via the
         // subterra.probe.anim ServerStarted gate (default no-op). The three MC animation

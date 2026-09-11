@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import io.toterra.subterra.Subterra;
 import io.toterra.subterra.engine.render.instancing.BackendRegistry;
 import io.toterra.subterra.engine.render.instancing.RenderBackend;
+import io.toterra.subterra.runtime.render.lod.LodRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
@@ -86,6 +87,10 @@ public final class RenderHooksClient {
      * level-render stage runs the check exactly once. */
     private static volatile boolean done = false;
 
+    /** LOD 注入点一次性守卫（与 {@link #done} 独立，互不干扰原版渲染逻辑）。One-shot guard for the LOD
+     * injection-point hook (independent of {@link #done}, so it never interferes with the vanilla logic). */
+    private static volatile boolean doneLod = false;
+
     private RenderHooksClient() {
     }
 
@@ -98,6 +103,10 @@ public final class RenderHooksClient {
      */
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        // p.2.28.6 (2/2): gated read-only LOD injection-point hook — counts the live presence of the
+        // RenderLevelStageEvent surface + reads the LodRuntime gate state; read-only, never alters the
+        // render output. Real LOD pass injection is a documented post-p.2.28 wiring point, not here.
+        lodInjectionPointHook(event);
         if (done) {
             return;
         }
@@ -136,6 +145,44 @@ public final class RenderHooksClient {
                     RenderRuntime.MARKER, level, blockModel, entity);
         } catch (RuntimeException e) {
             LOGGER.warn("{} hooks client mismatch (error={})", RenderRuntime.MARKER, e.getMessage());
+        }
+    }
+
+    /**
+     * p.2.28.6（2/2）— 门控只读 LOD 注入点钩子：门控 {@code subterra.probe.lod} 非空时，在首个
+     * {@link RenderLevelStageEvent} 上只读计数该注入点在场（level renderer 存在）+ 读取 {@link LodRuntime}
+     * 门控状态，打确定性 marker {@code [Subterra lod] hooks client ok (stageLevel=.., gate=on)}。全程只读、
+     * 不改渲染输出、不注册、不改任何 MC 状态；真实 LOD pass 注入为 p.2.28 后接线点（本处仅计数/读取门控状态，
+     * 不注入）。dedicated server 无客户端渲染对象、不注册本类；E2E（runServer）断言的是服务端
+     * {@link LodRuntime} 的 {@code [Subterra lod] ok} marker，本行是客户端 boot（runClient/单机）的
+     * dev 校验面，文本刻意不含 {@code ok (api=} 等子串，避免 E2E 误匹配。
+     * <p>
+     * p.2.28.6 (2/2) — gated read-only LOD injection-point hook: when the {@code subterra.probe.lod} gate is
+     * non-empty, the first {@link RenderLevelStageEvent} read-only counts that the injection point is present
+     * (level renderer exists) and reads the {@link LodRuntime} gate state, then prints the deterministic
+     * marker {@code [Subterra lod] hooks client ok (stageLevel=.., gate=on)}. Fully read-only — never changes
+     * the render output, registers nothing, mutates no MC state; real LOD pass injection is a post-p.2.28
+     * wiring point (this hook only counts / reads the gate state, it injects nothing). A dedicated server has
+     * no client render objects and never registers this class; the E2E (runServer) asserts the server-side
+     * {@link LodRuntime} {@code [Subterra lod] ok} marker; this line is the client-boot (runClient /
+     * singleplayer) dev-check surface and its text deliberately avoids the {@code ok (api=} substring so the
+     * E2E never false-matches it.
+     */
+    private static void lodInjectionPointHook(RenderLevelStageEvent event) {
+        if (doneLod) {
+            return;
+        }
+        String probe = System.getProperty(LodRuntime.GATE_PROPERTY);
+        if (probe == null || probe.isBlank()) {
+            return;
+        }
+        doneLod = true;
+        try {
+            boolean levelPresent = event != null && event.getLevelRenderer() != null;
+            LOGGER.info("{} hooks client ok (stageLevel={}, gate=on)",
+                    LodRuntime.MARKER, levelPresent ? "present" : "absent");
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} hooks client mismatch (error={})", LodRuntime.MARKER, e.getMessage());
         }
     }
 }

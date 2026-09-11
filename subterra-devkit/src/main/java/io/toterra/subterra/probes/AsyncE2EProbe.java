@@ -184,6 +184,10 @@ public final class AsyncE2EProbe {
      * (four-domain TimeScale + TimeScaleApi pure functions + TimeBudgetScheduler budget drive),
      * gated by subterra.probe.time (p.2.26.4). */
     private static final String TIME_MARKER = "[Subterra time]";
+    /** lod shell marker prefix emitted by the {@code LodRuntime} shell over engine.render.lod
+     * + api.lod (api↔mirror / pipeline / cache / tie skip-or-parity / backend), gated by
+     * subterra.probe.lod (p.2.28.6 2/2). */
+    private static final String LOD_MARKER = "[Subterra lod]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -224,7 +228,8 @@ public final class AsyncE2EProbe {
                 "-Psubterra.probe.hub=probe",
                 "-Psubterra.probe.ai=probe",
                 "-Psubterra.probe.scale=probe",
-                "-Psubterra.probe.time=probe"));
+                "-Psubterra.probe.time=probe",
+                "-Psubterra.probe.lod=probe"));
         if (tieLib != null) {
             cmd.add("-Psubterra.tie.lib=" + tieLib);
         }
@@ -256,7 +261,8 @@ public final class AsyncE2EProbe {
         // 21 = ai-shell-ok   (AiRuntime engine.ai sample Brain/Scheduler drive slot, p.2.24.3)
         // 22 = scale-shell-ok   (ScaleRuntime engine.scale data-plane drive slot, p.2.25.2)
         // 23 = time-shell-ok   (TimeRuntime engine.time/api.time + fixed-tick budget-drive slot, p.2.26.4)
-        boolean[] seen = new boolean[24];
+        // 24 = lod-shell-ok   (LodRuntime engine.render.lod + api.lod load slot, p.2.28.6 2/2)
+        boolean[] seen = new boolean[25];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -274,6 +280,7 @@ public final class AsyncE2EProbe {
         int aiMarkerLines = 0;
         int scaleMarkerLines = 0;
         int timeMarkerLines = 0;
+        int lodMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -402,6 +409,12 @@ public final class AsyncE2EProbe {
                 if (line.contains(TIME_MARKER + " ok (domains=")) {
                     seen[23] = true;
                 }
+                if (line.contains(LOD_MARKER)) {
+                    lodMarkerLines++;
+                }
+                if (line.contains(LOD_MARKER + " ok (api=")) {
+                    seen[24] = true;
+                }
                 if (line.contains(FATAL_MARKER) || line.contains(BUILD_FAILED_MARKER)) {
                     fatal = true;
                 }
@@ -459,6 +472,7 @@ public final class AsyncE2EProbe {
                 + " aiOk=" + seen[21] + " aiMarkerLines=" + aiMarkerLines
                 + " scaleOk=" + seen[22] + " scaleMarkerLines=" + scaleMarkerLines
                 + " timeOk=" + seen[23] + " timeMarkerLines=" + timeMarkerLines
+                + " lodOk=" + seen[24] + " lodMarkerLines=" + lodMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
             System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks + anim + ui + hub + ai + scale + time shells fired on a live server, "
@@ -477,10 +491,11 @@ public final class AsyncE2EProbe {
                     + " [Subterra hub] + " + aiMarkerLines
                     + " [Subterra ai] + " + scaleMarkerLines
                     + " [Subterra scale] + " + timeMarkerLines
-                    + " [Subterra time] line(s) observed)");
+                    + " [Subterra time] + " + lodMarkerLines
+                    + " [Subterra lod] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub/ai/scale/time shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub/ai/scale/time/lod shell contract not met");
             System.exit(1);
         }
     }
