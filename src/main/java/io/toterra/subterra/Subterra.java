@@ -124,6 +124,13 @@ public class Subterra {
         // HubConfigEditor). The player-side config entry wiring surface (p.2.22 runtime.ui panel /
         // p.2.14 interact) is documented in HubRuntime, not injected here.
         io.toterra.subterra.runtime.hub.HubRuntime.bootstrap();
+
+        // Ai runtime (p.2.24.3): gated shell over engine.ai (p.2.24.1 Brain orchestration core +
+        // p.2.24.2 BehaviorPriority/BrainScheduler/AiRandom) — deterministic sample Brain/Scheduler
+        // drive via the subterra.probe.ai ServerStarted gate (default no-op). The four MC entity-Brain
+        // binding surfaces (brain load / sensor sample / behavior arbitrate / task execute) are
+        // documented wiring points in AiRuntime, not injected here (no player-UI / MC entity injection).
+        io.toterra.subterra.runtime.ai.AiRuntime.bootstrap();
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
