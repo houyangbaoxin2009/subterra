@@ -268,7 +268,7 @@ public final class LodRuntime {
                 throw new IllegalStateException("cache tamper not rejected");
             }
             byte[] versioned = Files.readAllBytes(file);
-            versioned[4] ^= 0x7F; // bump the pinned format version byte
+            versioned[7] ^= 0x7F; // bump the zd v2 header version byte[7] (d1) -> VERSION_MISMATCH
             Files.write(file, versioned);
             if (cache.load(key).status() != CacheStatus.VERSION_MISMATCH) {
                 throw new IllegalStateException("cache version mismatch not detected");

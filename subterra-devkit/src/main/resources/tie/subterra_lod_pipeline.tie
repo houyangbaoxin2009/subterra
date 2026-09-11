@@ -12,6 +12,16 @@ type tie<class>
 //   LodMerger.mergeCorner) bit-for-bit (same input -> same output), and keep to
 //   bounded arithmetic that never overflows i64.
 //
+// ZD DATA-CARRIER INTERCHANGE (follow-up, p.2.28): byte-level exchange is NOT
+//   stuck on the DLL pointer boundary. Although the in-process FFM boundary
+//   stays scalar/string, zd bytes flow through the DATA layer: tiec
+//   --compress-data <in.data.tie> -o <out.zd> (td -> zd, tie-main driver.tie)
+//   on the toolchain side, plus the Java-side engine.zd (ZdDocWriter/ZdVolume,
+//   the framework's "zdjava") reading/writing the same zd v2 document. Runtime
+//   in-process DLL calls still sink as scalar primitives (the FFM fact is
+//   unchanged); byte-wise interchange is a data-carrier (tink) shape, hooked
+//   up later.
+//
 // REBUILD:
 //   tiec subterra_lod_pipeline.tie --shared -o subterra_lod_pipeline.dll
 //   e.g. F:\Projects\tie-repo\dist-release\stage\win\tiec.exe

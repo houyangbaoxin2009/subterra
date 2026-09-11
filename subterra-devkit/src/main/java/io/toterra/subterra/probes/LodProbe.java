@@ -471,8 +471,10 @@ public final class LodProbe {
             // restore
             cache.save(key, section);
             // version mismatch
+            // p.2.28 follow-up: the file is now a standard zd v2 carrier, so byte[4] belongs to the zd
+            // header magic; the pin-format-version is exposed as the zd header version byte[7] (d1).
             byte[] v = Files.readAllBytes(file);
-            v[4] = (byte) (v[4] ^ 0x7F);
+            v[7] = (byte) (v[7] ^ 0x7F);
             Files.write(file, v);
             check("cache: 版本不符确定性拒绝 VERSION_MISMATCH",
                     cache.load(key).status() == CacheStatus.VERSION_MISMATCH);

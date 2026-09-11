@@ -231,5 +231,30 @@
  * 命中为 p.2.28.6 运行时跳过区块重生成。每个条目标记为
  * {@linkplain io.toterra.subterra.engine.render.lod.LodCache#REGENERABLE 可再生}（p.2.9 世界包
  * 可包含/可排除、p.2.18 可导出）——此处仅声明，导出本身为后续子项。
+ *
+ * <h3>p.2.28 follow-up：LodCache → 标准 zd v2 载体 + zd 数据载体交换可行</h3>
+ *
+ * <p><b>Follow-up conclusion.</b> The measured tiec DLL export boundary (p.2.28.2) is unchanged —
+ * in-process {@code FunctionDescriptor} pass-through is scalar/string only (an FFM fact). But byte-level
+ * exchange is <b>not</b> deferred to the pointer layer: it happens at the <b>data-carrier</b> layer. tiec
+ * has {@code --compress-data <in.data.tie> -o <out.zd>} (td&rarr;zd, tie-main {@code driver.tie}), and the
+ * Java side already has <b>engine.zd</b> — {@code ZdDocWriter}/{@code ZdVolume} (this framework's
+ * "zdjava") — which reads/writes the same zd v2 document. Accordingly {@link
+ * io.toterra.subterra.engine.render.lod.LodCache} (p.2.28.5) was upgraded from its bespoke {@code "LODC"}
+ * binary format to a <b>standard zd v2 carrier</b>: the cache file is now a genuine zd v2 document (10-byte
+ * {@code engine.zd} header + a fixed-order six-field wire2 {@code TdTable}), while its public API and the
+ * {@code CacheStatus}/{@code CacheResult} semantics (four deterministic rejection classes, tsha1f
+ * fast/strong dual-tier) are unchanged. Runtime in-process DLL calls still sink as scalar primitives; the
+ * byte-wise interchange is a data-carrier (tink) shape, hooked up later.
+ *
+ * <p><b>跟进结论。</b>实测 tiec DLL 导出边界（p.2.28.2）不变——进程内 {@code FunctionDescriptor}
+ * 直传仅标量/string（FFM 事实）。但字节级交换并不依赖指针层：它发生在<b>数据载体层</b>。tiec 具备
+ * {@code --compress-data <in.data.tie> -o <out.zd>}（td&rarr;zd，tie-main {@code driver.tie}），而 Java 侧
+ * 已有 <b>engine.zd</b>——{@code ZdDocWriter}/{@code ZdVolume}（本框架的「zdjava」）——读写同一份 zd v2
+ * 文档。据此 {@link io.toterra.subterra.engine.render.lod.LodCache}（p.2.28.5）已从自定 {@code "LODC"}
+ * 二进制格式升级为<b>标准 zd v2 载体</b>：缓存文件现为一份货真价实的 zd v2 文档（10 字节
+ * {@code engine.zd} 头 + 固定序六字段 wire2 {@code TdTable}），而公开 API 与
+ * {@code CacheStatus}/{@code CacheResult} 语义（四类确定性拒绝、tsha1f 快/强双档）不变。运行时 DLL 进程内
+ * 调用仍走标量原语；字节级交换是数据载体（tink）形态，后续再接。
  */
 package io.toterra.subterra.engine.render.lod;
