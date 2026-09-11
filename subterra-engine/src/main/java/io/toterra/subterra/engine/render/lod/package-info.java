@@ -165,10 +165,51 @@
  * 范式——纯数据，不做真实 GL/GPU 调用。{@link
  * io.toterra.subterra.engine.render.lod.LodShaderTemplate} 是 clean-room 固定序着色器（量化坐标解码、颜色
  * 索引&rarr;调色板索引、距离雾、接缝 {@code stitch} 位），经 p.2.27.1 {@code ShaderTemplate} 部件/占位符替换
- * 机制拼装、逐字节一致。{@link
+ * 逐字节一致。{@link
  * io.toterra.subterra.engine.render.lod.LodSeamRules} 钉死无缝几何规则——level-0 边缘&rarr;全细节方块网格
  * 对齐、相邻 section 共享边缘整数取整 + {@code stitch} 位、按 {@link
  * io.toterra.subterra.engine.render.lod.LodDistanceSelector} 档位单调的距离雾强度（0..255）——全部整数/定点、
  * 同输入&rarr;同字节。这些精确常量即 p.2.28.6 探针的黄金目标。全程仍纯 JDK、固定序、零 MC/OpenGL import。
+ *
+ * <h3>p.2.28.5：engine.render.lod 持久化（LodCache）</h3>
+ *
+ * <p><b>On-disk persistence.</b> {@link
+ * io.toterra.subterra.engine.render.lod.LodCache} is the deterministic, tamper-evident,
+ * pure-JDK on-disk cache over the pinned {@link
+ * io.toterra.subterra.engine.render.lod.LodSection#toBytes()} payload, keyed by the fixed
+ * {@link io.toterra.subterra.engine.render.lod.LodCacheKey} (level + chunk coordinates &rarr;
+ * one fixed file name, no timestamps/randomness). The file is a fixed layout &mdash; magic
+ * {@code "LODC"} + format-version byte + verify-scheme byte + BE payload length + pinned
+ * payload + strong (n=48) + fast (n=8) tsha1f digest (semantic alignment with the p.2.3
+ * {@code engine.zd} generic zd v2 carrier &mdash; fixed header + versioned payload +
+ * integrity; the bytes here are written directly, not as a TdTable tree). Every access
+ * returns a fixed {@link io.toterra.subterra.engine.render.lod.CacheStatus} /
+ * {@link io.toterra.subterra.engine.render.lod.CacheResult}: missing file &rarr;
+ * {@code MISS}; bad magic / truncation / malformed section / fast-or-strong checksum
+ * mismatch (single-byte tamper) &rarr; {@code CORRUPT}; parsed magic but unexpected pinned
+ * format version &rarr; {@code VERSION_MISMATCH}; I/O failure &rarr; {@code IO_ERROR}. The
+ * fast/strong digests honor {@code engine.network.integrity.Tsha1f} and the p.2.10
+ * {@code ChunkVerifier} both-tiers semantics (not a copied implementation). {@code save} =
+ * write + validate re-read; {@code load}/{@code hit} deterministically skip (never throw)
+ * on a damaged entry, so a cache hit skips section regeneration for the p.2.28.6 runtime.
+ * Every entry is marked {@linkplain io.toterra.subterra.engine.render.lod.LodCache#REGENERABLE
+ * regenerable} (p.2.9 world-pack includable/excludable, p.2.18 exportable) — declared here,
+ * export itself is a later sub-item.
+ *
+ * <p><b>磁盘持久化。</b>{@link io.toterra.subterra.engine.render.lod.LodCache} 是对钉死
+ * {@link io.toterra.subterra.engine.render.lod.LodSection#toBytes()} 载荷的确定性、防篡改、纯 JDK
+ * 磁盘缓存，以固定 {@link io.toterra.subterra.engine.render.lod.LodCacheKey} 为键（level + 区块坐标
+ * &rarr; 一个固定文件名，无时间戳/随机）。文件为固定布局 &mdash; 魔数 {@code "LODC"} + 格式版本字节 +
+ * 校验方案字节 + 大端载荷长 + 钉死载荷 + 强档（n=48）+ 快档（n=8）tsha1f 摘要（与 p.2.3
+ * {@code engine.zd} 通用 zd v2 载体语义对齐 &mdash; 固定头 + 版本化载荷 + 完整性；此处字节直写而非
+ * TdTable 树）。每次访问返回固定 {@link io.toterra.subterra.engine.render.lod.CacheStatus} /
+ * {@link io.toterra.subterra.engine.render.lod.CacheResult}：缺文件 &rarr; {@code MISS}；坏魔数 /
+ * 截断 / 畸形 section / 快或强档校验不符（单字节篡改）&rarr; {@code CORRUPT}；魔数解析通过但钉死格式
+ * 版本不符 &rarr; {@code VERSION_MISMATCH}；I/O 失败 &rarr; {@code IO_ERROR}。快/强档摘要承接
+ * {@code engine.network.integrity.Tsha1f} 与 p.2.10 {@code ChunkVerifier} 双档语义（非复制实现）。
+ * {@code save} = 写入 + 校验重读；{@code load}/{@code hit} 对受损条目确定性跳过（决不抛异常），故缓存
+ * 命中为 p.2.28.6 运行时跳过区块重生成。每个条目标记为
+ * {@linkplain io.toterra.subterra.engine.render.lod.LodCache#REGENERABLE 可再生}（p.2.9 世界包
+ * 可包含/可排除、p.2.18 可导出）——此处仅声明，导出本身为后续子项。
  */
 package io.toterra.subterra.engine.render.lod;
