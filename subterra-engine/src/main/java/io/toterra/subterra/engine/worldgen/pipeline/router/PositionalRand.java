@@ -190,6 +190,31 @@ public final class PositionalRand {
         return mixStafford13(mlo ^ mhi);
     }
 
+    /**
+     * The full 128-bit {@code XoroshiroRandomSource} state for {@code (worldSeed,
+     * label)} exactly as vanilla {@code RandomState}/{@code Noises.instantiate}
+     * derives it in 1.21.1: {@code ofMaster(worldSeed).fromHashOf(label)}. This
+     * state is used <em>as-is</em> (no {@code mixStafford13}, no single-long
+     * fold, no seed upgrade) and is the exact {@code RandomSource} handed to
+     * {@code NormalNoise.create}: the caller should seed a
+     * {@link io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom}
+     * with {@code state.seedLo()} / {@code state.seedHi()} via the 128-bit
+     * constructor.
+     * <p>
+     * This supersedes {@link #deriveLong(long, String)}, which collapsed the
+     * 128-bit state to a single long with {@code mixStafford13} (NOT how 1.21.1
+     * seeds a noise field) and therefore produced a stream misaligned with the
+     * vanilla per-octave {@code forkPositional() + fromHashOf("octave_"+n)}
+     * chain.
+     *
+     * @param worldSeed master world seed.
+     * @param label     vanilla noise {@code ResourceLocation}, e.g.
+     *                  {@code "minecraft:temperature"}.
+     */
+    public static PositionalRand derive(long worldSeed, String label) {
+        return ofMaster(worldSeed).fromHashOf(label);
+    }
+
     /** MD5 of {@code label} (UTF-8) split into two big-endian longs. */
     public static long[] md5Pair(String label) {
         byte[] h = md5Bytes(label);

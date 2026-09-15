@@ -2,6 +2,7 @@ package io.toterra.subterra.engine.worldgen.pipeline.noise.perlin;
 
 import io.toterra.subterra.engine.worldgen.pipeline.noise.LegacyRandom;
 import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
+import io.toterra.subterra.engine.worldgen.pipeline.router.PositionalRand;
 
 /**
  * The octave-Perlin-noise family carried by an amplitude list over a lattice of
@@ -128,8 +129,43 @@ public final class PerlinNoise {
     }
 
     /**
+     * Builds octaves from a SHARED stream using the vanilla 1.21.1 non-legacy
+     * {@code PerlinNoise.create(RandomSource, int, DoubleList)} construction
+     * (the path {@code NormalNoise.create(RandomSource, ...)} uses in 1.21.1): the
+     * stream is {@code forkPositional()}ed (draws exactly <em>two</em>
+     * {@code nextLong()} for the {@code (seedLo, seedHi)} positional base), and each
+     * enabled octave {@code k} (non-zero amplitude) builds its {@link ImprovedNoise}
+     * lattice from {@code base.fromHashOf("octave_" + (firstOctave + k))}.
+     * Zero-amplitude octaves are simply skipped (each octave is independently
+     * hashed, so the shared stream is advanced only by the one fork, exactly as
+     * vanilla). Consuming the same {@code stream} twice reproduces the
+     * decorrelated {@code first}/{@code second} NormalNoise layers via two forks.
+     *
+     * @param stream      the shared {@code XoroshiroRandomSource} stream to fork from.
+     * @param firstOctave the octave of amplitude index 0.
+     * @param amplitudes  one amplitude per octave.
+     * @throws IllegalArgumentException if {@code amplitudes} is null/empty or all zero.
+     */
+    public static PerlinNoise createForked(XoroRandom stream, int firstOctave, double[] amplitudes) {
+        if (amplitudes == null || amplitudes.length == 0) {
+            throw new IllegalArgumentException("Need some octaves!");
+        }
+        long baseLo = stream.nextLong();
+        long baseHi = stream.nextLong();
+        PositionalRand base = new PositionalRand(baseLo, baseHi);
+        ImprovedNoise[] levels = new ImprovedNoise[amplitudes.length];
+        for (int k = 0; k < amplitudes.length; k++) {
+            if (amplitudes[k] != 0.0) {
+                PositionalRand oct = base.fromHashOf("octave_" + (firstOctave + k));
+                levels[k] = new ImprovedNoise(new XoroRandom(oct.seedLo(), oct.seedHi()));
+            }
+        }
+        return new PerlinNoise(firstOctave, amplitudes, levels);
+    }
+
+    /**
      * Builds an octave-Perlin field consuming a SHARED stream (p.1.8.29B) — the
-     * vanilla non-legacy {@code PerlinNoise(RandomSource, ...)} construction used
+     * legacy {@code PerlinNoise(RandomSource, ...)} construction used
      * by {@code createLegacyForBlendedNoise}: the first lattice is drawn from
      * {@code stream} at amplitude index {@code -firstOctave}, then octaves
      * {@code -firstOctave-1 .. 0} are consumed in descending order (a non-zero

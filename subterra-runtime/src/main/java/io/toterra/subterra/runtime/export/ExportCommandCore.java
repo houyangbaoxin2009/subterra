@@ -22,9 +22,17 @@ import io.toterra.subterra.runtime.datapack.DatapackRegistrar;
 import io.toterra.subterra.runtime.datapack.DatapackRuntime;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.synchronization.ArgumentTypeInfo;
+import net.minecraft.commands.synchronization.ArgumentTypeInfos;
+import net.minecraft.commands.synchronization.SingletonArgumentInfo;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
 import org.slf4j.Logger;
+
+import io.toterra.subterra.Subterra;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -104,6 +112,37 @@ public final class ExportCommandCore {
 
     /** 缺省导出目录。Default export directory. */
     private static final String DEFAULT_DIR = "subterra-export";
+
+    /**
+     * p.2.19.5 follow-up — 注册 {@link ExportFormArgumentType} 到命令参数类型注册表：
+     * 自定义 {@code ArgumentType} 必须经 {@code Registries.COMMAND_ARGUMENT_TYPE}（网络同步表）
+     * 用 {@link ArgumentTypeInfos#registerByClass} 登记，否则服务端在发送命令树给玩家
+     * （{@code Commands.sendCommands} → {@code ClientboundCommandsPacket}）时会抛
+     * {@code IllegalArgumentException: Unrecognized argument type}：进世界时
+     * {@code placeNewPlayer} 触发该路径 → 玩家被踢「无效的玩家数据」；开局域网时
+     * {@code IntegratedServer.publishServer} 触发同路径 → 客户端崩溃。注册后才不会崩。
+     * <p>
+     * p.2.19.5 follow-up — registers {@link ExportFormArgumentType} into the command-argument-type
+     * registry: custom {@code ArgumentType}s must be registered via
+     * {@code Registries.COMMAND_ARGUMENT_TYPE} (the network-sync table) with
+     * {@link ArgumentTypeInfos#registerByClass}, otherwise the server crashes while serializing
+     * the command tree to players ({@code Commands.sendCommands} → {@code ClientboundCommandsPacket}):
+     * {@code placeNewPlayer} on join kicks the player with「无效的玩家数据」, and
+     * {@code IntegratedServer.publishServer} on open-to-LAN crashes the client through the same
+     * path. Registering fixes both.
+     */
+    private static final String ARG_EXPORT_FORM = "export_form";
+
+    /** Registers the ExportFormArgumentType into the command-argument-type registry. */
+    public static void registerArgumentType(IEventBus modEventBus) {
+        DeferredRegister<ArgumentTypeInfo<?, ?>> args = DeferredRegister.create(
+                Registries.COMMAND_ARGUMENT_TYPE, Subterra.MODID);
+        // NeoForge 同款：registerByClass + SingletonArgumentInfo.contextFree（无状态）
+        args.register(ARG_EXPORT_FORM, () -> ArgumentTypeInfos.registerByClass(
+                ExportFormArgumentType.class,
+                SingletonArgumentInfo.contextFree(ExportFormArgumentType::new)));
+        args.register(modEventBus);
+    }
 
     // ---------- hard-coded deterministic sample sources (p.2.18.5) ----------
 

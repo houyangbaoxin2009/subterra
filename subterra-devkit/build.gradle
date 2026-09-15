@@ -386,6 +386,15 @@ def datapackProbe = tasks.register('runDatapackProbe', JavaExec) {
     jvmArgs += ['--enable-native-access=ALL-UNNAMED']
 }
 
+// p.2.2 "td = JSON datapack plus": noise_settings first closed loop — the td
+// datum + JSON equivalence exporter (plus-key strip) + baseline-json parity. Pure JVM.
+def noiseSettingsTdProbe = tasks.register('runNoiseSettingsTdProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.2: run the noise_settings td/JSON equivalence deterministic probe (canonical td round-trip + baseline JSON parity + plus strip, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.NoiseSettingsTdProbe'
+}
+
 // p.2.2 block 2: E2E gate — boots the dev server with the seed td datapack
 // staged under run/datapacks and asserts the registration chain (tags / lang /
 // recipes into the live RecipeManager / tie functions called) from the log.
@@ -1040,8 +1049,79 @@ def lodProbe = tasks.register('runLodProbe', JavaExec) {
     jvmArgs += ['--enable-native-access=ALL-UNNAMED']
 }
 
+// p.2.29: MC worldgen assembly completion — api.worldgen assembly contract vs engine mirror
+// (density offset/scale + surface palette + ore density deterministic parse/render/apply/reject; pure JVM).
+def assemblyProbe = tasks.register('runAssemblyProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.29: worldgen assembly probe (api contract vs engine mirror bit-identical, deterministic parse/render/apply + rejection, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.AssemblyProbe'
+}
+
+// p.2.33 api contract completion (api-complete): one JavaExec probe per mirror contract, all pure JVM.
+def datapackApiProbe = tasks.register('runDatapackApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.1: api.datapack DatapackApi vs engine DatapackApiMirror probe (td datapack consumption contract, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.DatapackApiProbe'
+}
+def scaleApiProbe = tasks.register('runScaleApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.2: api.scale ScaleApi vs engine ScaleApiMirror probe (9-dim fixed order + td rule doc, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.ScaleApiProbe'
+}
+def animApiProbe = tasks.register('runAnimApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.3: api.anim AnimationApi vs engine AnimationApiMirror probe (channel order + sampler determinism, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.AnimApiProbe'
+}
+def aiApiProbe = tasks.register('runAiApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.4: api.ai AiApi vs engine AiApiMirror probe (Brain orchestration order + budget semantics + AiRandom, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.AiApiProbe'
+}
+def uiApiProbe = tasks.register('runUiApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.5: api.ui UiApi vs engine UiApiMirror probe (food/saturation + tooltip + book pages, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.UiApiProbe'
+}
+def simApiProbe = tasks.register('runSimApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.6: api.sim SimApi vs engine SimApiMirror probe (budget caps + spatial + deterministic advance, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SimApiProbe'
+}
+def interactApiProbe = tasks.register('runInteractApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.7: api.interact InteractApi vs engine InteractApiMirror probe (interact kinds + rule engine + zero-HUD surface, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.InteractApiProbe'
+}
+def pcgApiProbe = tasks.register('runPcgApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.8: api.pcg PcgApi vs engine PcgApiMirror probe (seed derive + fork + same-seed picks, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.PcgApiProbe'
+}
+def saveApiProbe = tasks.register('runSaveApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.9: api.save SaveApi vs engine SaveApiMirror probe (six-slot doc form + Ledger naming + round-trip, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SaveApiProbe'
+}
+def worldApiProbe = tasks.register('runWorldApiProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.33.10: api.world WorldApi vs engine WorldApiMirror probe (world-pack section order + round-trip + traversal guard, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.WorldApiProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
-    description = 'Run all 102 acceptance tasks (97 pure-JVM probes + five E2E boot gates)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe, contractProbe, ruleSystemProbe, exportHubProbe, runtimeWiringProbe, sampleBootstrapProbe, flywheelInstancingProbe, renderFidelityProbe, animProbe, uiProbe, hubProbe, aiProbe, scaleProbe, timeProbe, lodProbe
+    description = 'Run all 114 acceptance tasks (109 pure-JVM probes + five E2E boot gates)'
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe, contractProbe, ruleSystemProbe, exportHubProbe, runtimeWiringProbe, sampleBootstrapProbe, flywheelInstancingProbe, renderFidelityProbe, animProbe, uiProbe, hubProbe, aiProbe, scaleProbe, timeProbe, lodProbe, noiseSettingsTdProbe, assemblyProbe, datapackApiProbe, scaleApiProbe, animApiProbe, aiApiProbe, uiApiProbe, simApiProbe, interactApiProbe, pcgApiProbe, saveApiProbe, worldApiProbe
 }

@@ -1,12 +1,16 @@
 package io.toterra.subterra.engine.datapack;
 
 /**
- * p.2.2 datapack entry kinds — the td datapack speaks seven entry kinds
+ * p.2.2 datapack entry kinds — the td datapack speaks seven base entry kinds
  * (mirrors ROAD p.2.2: functions / recipes / loot tables / worldgen /
- * structures / tags / localization). Each maps to a directory segment under
- * {@code data/<namespace>/<kind>/<path>.td}. Schema-free by design: the
- * payload travels as a raw td table and is interpreted where it is consumed.
- * Pure JDK; no JSON anywhere.
+ * structures / tags / localization) plus {@link #NOISE_SETTINGS}, the first
+ * line of the "td = JSON datapack plus" superset refactor. Each base kind maps
+ * to a directory segment under {@code data/<namespace>/<kind>/<path>.td};
+ * noise settings live under the worldgen data-dir segment
+ * {@code worldgen/noise_settings/} and use a fresh {@code noise_settings}
+ * directory to sit alongside the vanilla JSON files but carry the {@code .td}
+ * extension. Schema-free by design: the payload travels as a raw td table and
+ * is interpreted where it is consumed. Pure JDK; no JSON at the core.
  */
 public enum EntryKind {
 
@@ -16,7 +20,9 @@ public enum EntryKind {
     WORLDGEN("worldgen"),
     STRUCTURE("structure"),
     TAG("tag"),
-    LANG("lang");
+    LANG("lang"),
+    /** worldgen noise-settings datum — {@code data/<ns>/worldgen/noise_settings/<path>.td}. */
+    NOISE_SETTINGS("noise_settings");
 
     private final String dir;
 

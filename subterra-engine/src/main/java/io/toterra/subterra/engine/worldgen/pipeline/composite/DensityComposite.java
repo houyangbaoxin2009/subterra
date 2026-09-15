@@ -3,6 +3,7 @@ package io.toterra.subterra.engine.worldgen.pipeline.composite;
 import java.util.Objects;
 
 import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
 import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.NormalNoise;
 import io.toterra.subterra.engine.worldgen.pipeline.router.BlendedNoise;
 import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
@@ -23,9 +24,10 @@ import io.toterra.subterra.engine.worldgen.pipeline.router.PositionalRand;
  *   depthNoJag = depth                                     // initial uses NO jaggedness
  *   initial = overworldSlide( clamp(4*qn(depthNoJag*factor) - 0.703125, -64, 64), y )
  *   cheese  = 4*qn((depth + jaggedness*halfNeg(jagged)) * factor) + base3d
- *   final   = min( overworldSlide( rangeChoice(cheese, -1e6, 1.5625,
- *                                                min(cheese, 5*entrances),
- *                                                caveFamily(cheese)) ),
+ *   final   = min( overworldSlide(
+ *                  rangeChoice(cheese, -1e6, 1.5625,
+ *                               min(cheese, 5*entrances),
+ *                               caveFamily(cheese)) ),
  *                   noodle )
  * </pre>
  *
@@ -101,6 +103,18 @@ public final class DensityComposite {
         Density continents = router.continents();
         Density erosion = router.erosion();
         Density ridges = router.ridges();
+        // p.1.8.33 perf: the three shifted climate leaves are y-independent (2-D) yet the
+        // overworld sampler walks its 4x4x8 cell corners with x innermost, so the same
+        // (x,z) column and its three shifted leaves are re-evaluated at EVERY corner that
+        // shares the column (the single-slot spline caches below are evicted on nearly
+        // every corner). A bounded per-thread (x,z) table collapses each leaf to ONE
+        // evaluation per column across all the spline arms — pure dedup, bit-identical
+        // (these leaves were previously uncached, so returning their true value is a no-op
+        // for the numeric result, including at the block coordinate (0,0); {@link
+        // CachedDensity#cached2d(Density, int)} uses an explicit used-marker for that).
+        Density continentsC = CachedDensity.cached2d(continents, 64);
+        Density erosionC = CachedDensity.cached2d(erosion, 64);
+        Density ridgesC = CachedDensity.cached2d(ridges, 64);
 
         // --- climate coordinate splines (p.1.8.27A): faithful 3-axis continents×erosion×ridge ---
         // blend_alpha = 1 (no old-chunk blending), so offset collapses to
@@ -115,12 +129,18 @@ public final class DensityComposite {
         // p.1.8.32 perf: the three 2-D climate splines are re-sampled at the SAME (x,z)
         // corner by many arms of the tree (depth/initial/cheese/cave); per-thread single-slot
         // 2-D caches collapse those repeats (pure dedup, bit-identical values).
+        // p.1.8.34: these three 2-D climate spline arms MUST use the used[]-guarded
+        // cached2d(Density,int) — never the zero-init single-slot cached2d(Density),
+        // whose first lookup of the block coordinate (x,z)=(0,0) (pack key 0) would
+        // return the initial 0.0 instead of the real value, corrupting the offset/factor
+        // terms of depth/initial/final exactly at the origin. Same (x,z) dedup, correct
+        // (0,0), bit-identical everywhere else.
         Density offsetDensity = CachedDensity.cached2d((x, y, z) -> OFFSET_BASE
-                + ClimateSpline.OFFSET.eval(co(continents, x, z), co(erosion, x, z), co(ridges, x, z)));
+                + ClimateSpline.OFFSET.eval(co(continentsC, x, z), co(erosionC, x, z), co(ridgesC, x, z)), 64);
         Density factorDensity = CachedDensity.cached2d((x, y, z) -> ClimateSpline.FACTOR.eval(
-                co(continents, x, z), co(erosion, x, z), co(ridges, x, z)));
+                co(continentsC, x, z), co(erosionC, x, z), co(ridgesC, x, z)), 64);
         Density jaggednessFactor = CachedDensity.cached2d((x, y, z) -> ClimateSpline.JAGGEDNESS.eval(
-                co(continents, x, z), co(erosion, x, z), co(ridges, x, z)));
+                co(continentsC, x, z), co(erosionC, x, z), co(ridgesC, x, z)), 64);
 
         // --- jagged / base3d noise leaves (over the seed) ---
         // jagged uses its faithful 1.21.1 registration (-16, [1×16], p.1.8.28); base_3d_noise
@@ -161,7 +181,14 @@ public final class DensityComposite {
         Density finalCheese = rangeChoice(slopedCheese, -1.0e6, 1.5625,
                 min(slopedCheese, mul(constant(5.0), entrances)), caveFamily);
         Density noodle = NoodleFn.overworld(seed);
-        Density finalDensity = min(SlideFn.overworld(finalCheese), noodle);
+        // Vanilla overworld.json final_density wraps the cheese slide in
+        // `min(squeeze(0.64 * slide(rangeChoice(...))), noodle)`. The outer 0.64 scale +
+        // squeeze keep the final magnitude inside vanilla's realistic surface range
+        // (~[-0.46, 0.46]); without it the raw cheese evaluates up to +1.5, producing
+        // over-wide solid columns (the "far lands"-style block walls seen in-game).
+        Density slideFinal = SlideFn.overworld(finalCheese);
+        Density finalDensity = min((x, y, z) -> JaggednessFn.squeeze(FINAL_SCALE * slideFinal.eval(x, y, z)),
+                noodle);
 
         String td = "[ seed = " + seed + ", minY = " + minY + ", maxY = " + maxY + " ]";
         return new Overworld(depth, initialDensity, finalDensity, td);
@@ -178,6 +205,8 @@ public final class DensityComposite {
     /** Verified {@code sloped_cheese} factor and the cheese range-choice cut-off. */
     public static final double CHEESE_SCALE = 4.0;
     public static final double CHEESE_RANGE_MIN = -1.0e6;
+    /** Verified overworld final-density outer scale ({@code mul(0.64, …)} in overworld.json). */
+    public static final double FINAL_SCALE = 0.64;
     public static final double CHEESE_RANGE_MAX = 1.5625;
 
     /** Rebuilds an {@link Overworld} from a {@code td()} snippet (default block range). */
@@ -253,7 +282,8 @@ public final class DensityComposite {
      * with the label's {@link NoiseRouter.NoiseReg} registration. */
     private static Density noise2d(long seed, String label, double xzScale) {
         NoiseRouter.NoiseReg reg = NoiseRouter.registration(label);
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(seed, label),
+        PositionalRand state = PositionalRand.derive(seed, label);
+        NormalNoise n = NormalNoise.create(new XoroRandom(state.seedLo(), state.seedHi()),
                 reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> n.getValue(x * xzScale, 0.0, z * xzScale);
     }

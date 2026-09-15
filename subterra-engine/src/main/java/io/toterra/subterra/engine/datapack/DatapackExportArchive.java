@@ -130,6 +130,7 @@ public final class DatapackExportArchive {
             case RECIPE -> RecipeDatum.read(e.payload()).write();
             case TAG -> TagDatum.read(e.payload()).write();
             case LANG -> LangDatum.read(e.payload()).write();
+            case NOISE_SETTINGS -> NoiseSettingsDatum.read(e.payload()).write();
             default -> e.payload(); // pass-through, schema validated at rebuild time
         };
     }

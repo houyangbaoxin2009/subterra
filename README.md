@@ -1,3 +1,7 @@
+<p align="center">
+    <img src="docs/subterra-logo.jpg" alt="Subterra" width="60%" />
+</p>
+
 # Subterra
 
 Subterra — 全栈开发框架模组（NeoForge 21.1.x / Minecraft 1.21.1），Toterra 系列的基础底座。单独安装时世界与 vanilla 一致，只增加优化与解耦原版核心机制的 API；使用框架 API 的模组可完全替换世界生成、动画、AI、HUD 与配置体系。

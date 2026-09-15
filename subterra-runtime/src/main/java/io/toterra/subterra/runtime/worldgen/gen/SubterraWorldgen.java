@@ -121,6 +121,23 @@ public final class SubterraWorldgen {
     public static void onServerStarting(ServerStartingEvent event) {
         MinecraftServer server = event.getServer();
         captureSeed(server);
+        // p.2.29.1 boot-time rules → density snapshot (deterministic: read once from the boot props;
+        // defaults 0.0/1.0 = identity = the default preset stays vanilla-equivalent; the hot-reload
+        // wiring point into RuleStore is documented in runtime-wiring.md).
+        double bootOffset;
+        double bootScale;
+        try {
+            bootOffset = Double.parseDouble(System.getProperty("subterra.worldgen.density_offset", "0.0"));
+            bootScale = Double.parseDouble(System.getProperty("subterra.worldgen.density_scale", "1.0"));
+        } catch (NumberFormatException e) {
+            Subterra.LOGGER.error("Subterra worldgen: invalid assembly boot prop; using defaults");
+            bootOffset = 0.0;
+            bootScale = 1.0;
+        }
+        SubterraDensity.setAssembly(bootOffset, bootScale);
+        if (System.getProperty("subterra.probe.assembly") != null) {
+            Subterra.LOGGER.info("[Subterra assembly] boot density offset={} scale={} (snapshot)", bootOffset, bootScale);
+        }
         var registryAccess = server.registryAccess();
         List<ResourceLocation> worldPresets = registryAccess
                 .registryOrThrow(Registries.WORLD_PRESET).keySet().stream()

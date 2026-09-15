@@ -25,6 +25,10 @@ public class SubterraClient {
         // SuffixArray so creative-inventory / name searches match readings.
         // Client-only (SearchTree is a client class).
         io.toterra.subterra.runtime.optim.client.search.ReadingSearch.bootstrap(container);
+
+        // Enter-to-chat: pressing bare Enter with no screen open (same gate as
+        // vanilla T) opens the chat input. Client-only.
+        io.toterra.subterra.runtime.client.input.EnterToChat.bootstrap();
     }
 
     @SubscribeEvent

@@ -1,6 +1,7 @@
 package io.toterra.subterra.engine.worldgen.pipeline.noise.simplex;
 
 import io.toterra.subterra.engine.worldgen.pipeline.noise.NoiseSalt;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
 import io.toterra.subterra.engine.worldgen.pipeline.noise.perlin.PerlinNoise;
 
 /**
@@ -71,12 +72,51 @@ public final class NormalNoise {
         return new NormalNoise(masterSeed, firstOctave, requireValid(amplitudes));
     }
 
+    /**
+     * Builds a normal-noise field from a SHARED {@code XoroshiroRandomSource}
+     * stream, reproducing vanilla 1.21.1's
+     * {@code NormalNoise.create(RandomSource, NoiseParameters)} exactly: both the
+     * {@code first} and {@code second} {@link PerlinNoise} layers consume the same
+     * stream via {@code forkPositional()} {@code + fromHashOf("octave_"+n)} (the
+     * vanilla non-legacy octave seeding), so the two layers are decorrelated by
+     * their two distinct forks — bit-identical to how {@code RandomState}'s
+     * {@code Noises.instantiate} feeds
+     * {@code fromHashOf(label)}-derived state into {@code NormalNoise}.
+     *
+     * @param stream      the vanilla-derived {@code XoroshiroRandomSource} state
+     *                    (e.g. {@code new XoroRandom(seedLo, seedHi)} from
+     *                    {@code PositionalRand.derive(worldSeed, label)}); consumed
+     *                    by exactly four {@code nextLong()} calls total.
+     * @param firstOctave octave anchor forwarded to both Perlin layers.
+     * @param amplitudes  one amplitude per octave; must be non-empty, finite and
+     *                    contain at least one non-zero entry.
+     */
+    public static NormalNoise create(XoroRandom stream, int firstOctave, double... amplitudes) {
+        return new NormalNoise(stream, firstOctave, requireValid(amplitudes));
+    }
+
     private NormalNoise(long masterSeed, int firstOctave, double[] amplitudes) {
         this.masterSeed = masterSeed;
         this.firstOctave = firstOctave;
         this.amplitudes = amplitudes;
         this.first = PerlinNoise.create(NoiseSalt.mix(masterSeed, FIRST_LAYER_SALT), firstOctave, amplitudes);
         this.second = PerlinNoise.create(NoiseSalt.mix(masterSeed, SECOND_LAYER_SALT), firstOctave, amplitudes);
+        this.valueFactor = valueFactor(amplitudes);
+        this.maxValue = (this.first.maxValue() + this.second.maxValue()) * this.valueFactor;
+    }
+
+    private NormalNoise(XoroRandom stream, int firstOctave, double[] amplitudes) {
+        this.masterSeed = stream.seedLo() ^ stream.seedHi();
+        this.firstOctave = firstOctave;
+        this.amplitudes = amplitudes;
+        this.first = PerlinNoise.createForked(stream, firstOctave, amplitudes);
+        this.second = PerlinNoise.createForked(stream, firstOctave, amplitudes);
+        this.valueFactor = valueFactor(amplitudes);
+        this.maxValue = (this.first.maxValue() + this.second.maxValue()) * this.valueFactor;
+    }
+
+    /** Vanilla {@code (1/6) / expectedDeviation(maxIndex - minIndex)}. */
+    private static double valueFactor(double[] amplitudes) {
         int minIndex = Integer.MAX_VALUE;
         int maxIndex = Integer.MIN_VALUE;
         for (int i = 0; i < amplitudes.length; i++) {
@@ -89,8 +129,7 @@ public final class NormalNoise {
             minIndex = maxIndex = 0;
         }
         double expectedDeviation = 0.1 * (1.0 + 1.0 / (double) (maxIndex - minIndex + 1));
-        this.valueFactor = (1.0 / 6.0) / expectedDeviation;
-        this.maxValue = (first.maxValue() + second.maxValue()) * valueFactor;
+        return (1.0 / 6.0) / expectedDeviation;
     }
 
     /** The master seed this instance was built from. */

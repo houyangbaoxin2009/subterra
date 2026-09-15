@@ -73,7 +73,13 @@ public final class DatapackProbe {
             check("条目总数 10", dp.entries().size() == 10);
             List<String> ids = new ArrayList<>(dp.entries().keySet());
             check("id 确定性排序", ids.equals(ids.stream().sorted().toList()));
-            check("七类齐全", presentKinds(dp).equals(Set.of(EntryKind.values())));
+            // Seed pack carries exactly the seven base kinds (no noise_settings entry).
+            // Compared against the explicit set rather than EntryKind.values() so the
+            // seed pack stays truthful when a new kind (e.g. NOISE_SETTINGS) is added.
+            check("七类齐全", presentKinds(dp).equals(Set.of(
+                    EntryKind.FUNCTION, EntryKind.RECIPE, EntryKind.LOOT_TABLE,
+                    EntryKind.WORLDGEN, EntryKind.STRUCTURE, EntryKind.TAG, EntryKind.LANG)));
+            check("NOISE_SETTINGS 目录段", EntryKind.NOISE_SETTINGS.dir().equals("noise_settings"));
 
             // 2. kind census via byKind
             check("function ×2", dp.byKind(EntryKind.FUNCTION).size() == 2);

@@ -12,8 +12,8 @@
   "disable_mob_generation": false,
   "legacy_random_source": false,
   "noise": {
-    "height": 384,
-    "min_y": -64,
+    "height": 720,
+    "min_y": -128,
     "size_horizontal": 1,
     "size_vertical": 2
   },
@@ -28,8 +28,11 @@
     "depth": "minecraft:overworld/depth",
     "erosion": "minecraft:overworld/erosion",
     "final_density": {
-      "type": "subterra:density",
-      "kind": "overworld_final"
+      "type": "minecraft:interpolated",
+      "argument": {
+        "type": "subterra:density",
+        "kind": "overworld_final"
+      }
     },
     "fluid_level_floodedness": {
       "type": "minecraft:noise",
@@ -51,9 +54,9 @@
         "argument1": {
           "type": "minecraft:y_clamped_gradient",
           "from_value": 0.0,
-          "from_y": -64,
+          "from_y": -128,
           "to_value": 1.0,
-          "to_y": -40
+          "to_y": -104
         },
         "argument2": {
           "type": "minecraft:add",
@@ -66,9 +69,9 @@
               "argument1": {
                 "type": "minecraft:y_clamped_gradient",
                 "from_value": 1.0,
-                "from_y": 240,
+                "from_y": 512,
                 "to_value": 0.0,
-                "to_y": 256
+                "to_y": 528
               },
               "argument2": {
                 "type": "minecraft:add",
@@ -197,7 +200,7 @@
     }
   },
   "ore_veins_enabled": true,
-  "sea_level": 63,
+  "sea_level": 128,
   "spawn_target": [
     {
       "continentalness": [
@@ -2385,11 +2388,11 @@
         "if_true": {
           "type": "minecraft:vertical_gradient",
           "false_at_and_above": {
-            "absolute": 8
+            "absolute": -56
           },
           "random_name": "minecraft:deepslate",
           "true_at_and_below": {
-            "absolute": 0
+            "absolute": -64
           }
         },
         "then_run": {

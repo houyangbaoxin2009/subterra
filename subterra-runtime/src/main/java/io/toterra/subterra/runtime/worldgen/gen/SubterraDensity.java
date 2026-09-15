@@ -10,6 +10,8 @@ import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.DensityFunction;
 
 import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.tie.TiePoiResidency;
+import io.toterra.subterra.engine.worldgen.tie.TieTerrainDensityBridge;
 
 /**
  * Subterra's vanllia-compatible {@link DensityFunction} leaf (p.1.8.21),
@@ -62,7 +64,7 @@ public final class SubterraDensity implements DensityFunction {
      */
     public enum Kind {
         /** The p.1.8.14 composite overworld {@code finalDensity}. */
-        OVERWORLD_FINAL("overworld_final", -64, 320),
+        OVERWORLD_FINAL("overworld_final", -128, 592),
         ;
 
         private final String id;
@@ -126,6 +128,12 @@ public final class SubterraDensity implements DensityFunction {
 
     private final Kind kind;
 
+    // ---- tie 桥（性能改造）：DLL 可用时替代 compute 的纯 Java 求值；否则走下方 Java 树回退 ----
+    private static volatile TieTerrainDensityBridge tieBridge;
+    private static final Object TIE_BRIDGE_LOCK = new Object();
+    /** 一次装载失败后置真，避免每 chunk 重复尝试 load()（静默降级）。 */
+    private static volatile boolean tieBridgeFailed = false;
+
     // ---- lazily seeded router cache (keyed by the world seed) ----
     private volatile long cachedSeed = Long.MIN_VALUE;
     private volatile NoiseRouter cachedRouter;
@@ -135,6 +143,34 @@ public final class SubterraDensity implements DensityFunction {
     // ---- p.1.8.32 perf counters (opt-in via system property subterra.perfCount=1) ----
     private static final boolean PERF = Boolean.parseBoolean(
             System.getProperty("subterra.perfCount", "false"));
+
+    // ---- p.2.29.1 boot-time assembly snapshot (rules → density; identity by default = vanilla-equivalent) ----
+    private static volatile double assemblyOffset = 0.0;
+    private static volatile double assemblyScale = 1.0;
+
+    /**
+     * Sets the boot-time density assembly snapshot ({@code value*scale+offset}); defaults {@code 0.0}/{@code 1.0}
+     * mean identity (zero behaviour change on the default preset). Deterministic: captured once at server start
+     * ( {@link SubterraWorldgen#onServerStarting}); the hot-reload wiring point is documented in runtime-wiring.md.
+     * / 设置启动期密度装配快照（{@code value*scale+offset}）；缺省 {@code 0.0}/{@code 1.0} 为恒等（缺省预设零
+     * 行为变化）。确定性：服务器启动时一次性捕获；热重载接线点见 runtime-wiring.md。
+     */
+    public static void setAssembly(double offset, double scale) {
+        if (!Double.isFinite(offset) || Math.abs(offset) > 128.0) {
+            throw new IllegalArgumentException("density offset must be finite within ±128, got " + offset);
+        }
+        if (!Double.isFinite(scale) || scale < 0.0 || scale > 4.0) {
+            throw new IllegalArgumentException("density scale must be finite in [0, 4], got " + scale);
+        }
+        assemblyOffset = offset;
+        assemblyScale = scale;
+    }
+
+    /** Applies the assembly snapshot to a raw density value (identity on defaults). /
+     *  对原始密度值应用装配快照（缺省为恒等）。 */
+    private static double applyAssembly(double v) {
+        return v * assemblyScale + assemblyOffset;
+    }
     /** Total compute() hot-path calls since the last reset. */
     private static volatile long perfComputeCalls;
     /** Total samples filled (fillArray elements). */
@@ -172,13 +208,31 @@ public final class SubterraDensity implements DensityFunction {
         // ServerAboutToStart), never touches ServerLifecycleHooks here, never drifts between
         // threads, and logs loudly once if the fallback constant is ever used.
         long seed = SubterraWorldgen.worldSeed();
+            TieTerrainDensityBridge bridge = tieBridgeForCompute();
+            if (bridge != null) {
+                // Wave B（修正）：y 分块 + POI 分级调度仅作为"内存驻留/缓存"策略存在，
+                // 不改变密度函数的数值。MC 要求每个 (x,y,z) 都返回有效密度——任何点
+                // 被替换成占位空气都会让表面搜索塌方成断层/混合（此前回归）。
+                // 因此热路径始终返回 tie 真值；POI 侧的低精度先验 LOD 后续以平滑
+                // 过渡接入（f\ 边界保持连续），不在本层切值。
+                long bx = context.blockX();
+                long by = context.blockY();
+                long bz = context.blockZ();
+                double v = bridge.density(bx, by, bz, seed);
+                if (PERF) {
+                    perfComputeCalls++;
+                    perfDistinctCells++;
+                }
+                return applyAssembly(v);
+            }
+        // 回退：纯 Java 的 p.1.8.14 复合主世界路由器（DLL 缺失/失败时与原先逐位一致）。
         double v = routerFor(seed).finalDensity()
                 .eval((double) context.blockX(), (double) context.blockY(), (double) context.blockZ());
         if (PERF) {
             perfComputeCalls++;
             perfDistinctCells++;
         }
-        return v;
+        return applyAssembly(v);
     }
 
     @Override
@@ -218,6 +272,39 @@ public final class SubterraDensity implements DensityFunction {
     @Override
     public KeyDispatchDataCodec<? extends DensityFunction> codec() {
         return CODEC;
+    }
+
+    /**
+     * Returns the ready tie {@link TieTerrainDensityBridge}, or {@code null} if it could not be
+     * loaded (DLL missing/failed). Single-flight lazy init (volatile double-check); a failure is
+     * cached in {@link #tieBridgeFailed} so no per-chunk retry happens. Never throws.
+     */
+    private static TieTerrainDensityBridge tieBridgeForCompute() {
+        TieTerrainDensityBridge current = tieBridge;
+        if (current != null) {
+            return current.available() ? current : null;
+        }
+        if (tieBridgeFailed) {
+            return null;
+        }
+        synchronized (TIE_BRIDGE_LOCK) {
+            current = tieBridge;
+            if (current != null) {
+                return current.available() ? current : null;
+            }
+            if (tieBridgeFailed) {
+                return null;
+            }
+            current = TieTerrainDensityBridge.load();
+            if (current == null) {
+                tieBridgeFailed = true; // 静默降级：后续次数的 compute 直接走 Java 树，不再尝试装载
+            } else {
+                tieBridge = current;
+                // Wave B：把就绪桥绑定进 POI 调度器（供 block_active / y_to_block 判别）。
+                TiePoiResidency.instance().bind(current);
+            }
+            return current;
+        }
     }
 
     /** Returns the seeded overworld router for {@code seed}, cached (single-flight). */

@@ -1,6 +1,7 @@
 package io.toterra.subterra.engine.worldgen.pipeline.composite;
 
 import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
 import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.NormalNoise;
 import io.toterra.subterra.engine.worldgen.pipeline.router.PositionalRand;
 
@@ -294,6 +295,7 @@ public final class CaveFamilyFn {
 
     /** A {@link NormalNoise} leaf from a derived per-label seed (single/standard octave). */
     private static NormalNoise noise(long seed, String label, int firstOctave, double[] amps) {
-        return NormalNoise.create(PositionalRand.deriveLong(seed, label), firstOctave, amps);
+        PositionalRand state = PositionalRand.derive(seed, label);
+        return NormalNoise.create(new XoroRandom(state.seedLo(), state.seedHi()), firstOctave, amps);
     }
 }

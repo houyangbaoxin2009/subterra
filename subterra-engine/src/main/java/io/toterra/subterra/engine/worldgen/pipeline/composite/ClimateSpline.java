@@ -53,18 +53,30 @@ public final class ClimateSpline {
      * may be plain scalars or further nested ridge splines. Immutable. */
     static final class Node {
         final boolean folded; // coordinate axis: true = ridges_folded, false = raw ridges
-        final double[] loc;   // strictly increasing knot coordinates; null ⇒ scalar node
-        final double[] val;   // knot values (entry unused when sub[k] != null)
-        final double[] der;   // knot derivatives
+        final float[] loc;    // strictly increasing knot coordinates (float32, as MC); null ⇒ scalar node
+        final float[] val;    // knot values (float32; entry unused when sub[k] != null)
+        final float[] der;    // knot derivatives (float32)
         final Node[] sub;     // knot sub-nodes; null entry ⇒ scalar value val[k]
 
         Node(boolean folded, double[] loc, double[] val, double[] der, Node[] sub) {
             this.folded = folded;
-            this.loc = loc;
-            this.val = val;
-            this.der = der;
+            this.loc = toF32(loc);
+            this.val = toF32(val);
+            this.der = toF32(der);
             this.sub = sub;
         }
+    }
+
+    /** {@code null}-safe cast of a knot table to intel float32 ({@code CubicSpline` float nodes). */
+    private static float[] toF32(double[] a) {
+        if (a == null) {
+            return null;
+        }
+        float[] r = new float[a.length];
+        for (int i = 0; i < a.length; i++) {
+            r[i] = (float) a[i];
+        }
+        return r;
     }
 
     // ------------------------------------------------------------------
@@ -299,9 +311,12 @@ public final class ClimateSpline {
     //  evaluator
     // ==================================================================
 
-    private final double[] c;     // continents knot coordinates
+    private final double[] c;     // continents knot coordinates (kept for the validation / metadata)
     private final double[][] e;   // e[i] = erosion knots for continents knot i
     private final Node[][] n;     // n[i][j] = ridge node at (c[i], e[i][j])
+    // float32 mirrors of the axis knots, used by the bit-exact float evaluator below.
+    private final float[] cF;
+    private final float[][] eF;
 
     /**
      * @param cLevels strictly increasing continents knots.
@@ -345,9 +360,12 @@ public final class ClimateSpline {
         this.c = cLevels.clone();
         this.e = new double[eLevels.length][];
         this.n = new Node[nodes.length][];
+        this.cF = toF32(cLevels);
+        this.eF = new float[eLevels.length][];
         for (int i = 0; i < eLevels.length; i++) {
             this.e[i] = eLevels[i].clone();
             this.n[i] = nodes[i].clone();
+            this.eF[i] = toF32(eLevels[i]);
         }
     }
 
@@ -360,85 +378,105 @@ public final class ClimateSpline {
      *                   (raw ridge; the folded coordinate is derived internally).
      */
     public double eval(double continents, double erosion, double ridge) {
-        double folded = 1.0 - 3.0 * Math.abs(Math.abs(ridge) - 2.0 / 3.0);
-        double[] cl = c;
-        int lastC = cl.length - 1;
-        if (continents < cl[0]) {
-            return erosionEval(0, erosion, ridge, folded);
-        }
-        if (continents >= cl[lastC]) {
-            return erosionEval(lastC, erosion, ridge, folded);
-        }
-        int ic = greatestIndexAtOrBelow(cl, continents);
-        double v0 = erosionEval(ic, erosion, ridge, folded);
-        double v1 = erosionEval(ic + 1, erosion, ridge, folded);
-        double h = cl[ic + 1] - cl[ic];
-        return hermite0(v0, v1, (continents - cl[ic]) / h);
+        float cc = (float) continents;
+        float ee = (float) erosion;
+        // ridges_folded is a separate double Mapped density function; the spline shows it
+        // down to float32 when it becomes a CubicSpline coordinate (net.minecraft.util.CubicSpline
+        // evaluates entirely in float, then DensityFunctions$Spline.compute f2d-promotes the result).
+        float folded = (float) (1.0 - 3.0 * Math.abs(Math.abs(ridge) - 2.0 / 3.0));
+        float rr = (float) ridge;
+        return (double) continentsEval(cc, ee, rr, folded);
     }
 
-    /** Evaluates the erosion spline of continents knot {@code ci} (zero-slope Hermite). */
-    private double erosionEval(int ci, double erosion, double ridge, double folded) {
-        double[] el = e[ci];
+    /** Continuum axis (continents): a float CubicSpline$Multipoint over {@code cc}. */
+    private float continentsEval(float cc, float ee, float rr, float folded) {
+        float[] cl = cF;
+        int lastC = cl.length - 1;
+        int ic = greatestIndexAtOrBelow(cl, cc);
+        if (ic < 0) {
+            return lineExtend(cc, cl[0], erosionEval(0, ee, rr, folded), 0.0f);
+        }
+        if (ic >= lastC) {
+            return lineExtend(cc, cl[lastC], erosionEval(lastC, ee, rr, folded), 0.0f);
+        }
+        float v0 = erosionEval(ic, ee, rr, folded);
+        float v1 = erosionEval(ic + 1, ee, rr, folded);
+        // continents/erosion axes have all-zero knot derivatives in every vanilla spline,
+        // so the Multipoint correction passes d0=d1=0 (bit-identical float algebra).
+        return multipointRound(cc, ic, cl, v0, v1, 0.0f, 0.0f);
+    }
+
+    /** Evaluates the erosion spline of continents knot {@code ci} (also a float Multipoint). */
+    private float erosionEval(int ci, float ee, float rr, float folded) {
+        float[] el = eF[ci];
         Node[] row = n[ci];
         int lastE = el.length - 1;
-        if (erosion < el[0]) {
-            return nodeEval(row[0], ridge, folded);
+        int ie = greatestIndexAtOrBelow(el, ee);
+        if (ie < 0) {
+            return lineExtend(ee, el[0], nodeEval(row[0], rr, folded), 0.0f);
         }
-        if (erosion >= el[lastE]) {
-            return nodeEval(row[lastE], ridge, folded);
+        if (ie >= lastE) {
+            return lineExtend(ee, el[lastE], nodeEval(row[lastE], rr, folded), 0.0f);
         }
-        int ie = greatestIndexAtOrBelow(el, erosion);
-        double v0 = nodeEval(row[ie], ridge, folded);
-        double v1 = nodeEval(row[ie + 1], ridge, folded);
-        double h = el[ie + 1] - el[ie];
-        return hermite0(v0, v1, (erosion - el[ie]) / h);
+        float v0 = nodeEval(row[ie], rr, folded);
+        float v1 = nodeEval(row[ie + 1], rr, folded);
+        return multipointRound(ee, ie, el, v0, v1, 0.0f, 0.0f);
     }
 
-    /** Evaluates a ridge node (1-D cubic Hermite, linear extension at end slopes). */
-    private static double nodeEval(Node node, double ridge, double folded) {
-        double[] loc = node.loc;
+    /**
+     * Evaluates a ridge node: a float CubicSpline (the innermost axis with the real knot
+     * derivatives), identical to MC's {@code CubicSpline$Multipoint.apply}.
+     */
+    private static float nodeEval(Node node, float ridge, float folded) {
+        float[] loc = node.loc;
         if (loc == null) {
             return node.val[0];
         }
-        double x = node.folded ? folded : ridge;
+        float x = node.folded ? folded : ridge;
         int last = loc.length - 1;
-        if (x < loc[0]) {
-            double v = knotValue(node, 0, ridge, folded);
-            double d = node.der[0];
-            return d == 0.0 ? v : v + d * (x - loc[0]);
-        }
-        if (x >= loc[last]) {
-            double v = knotValue(node, last, ridge, folded);
-            double d = node.der[last];
-            return d == 0.0 ? v : v + d * (x - loc[last]);
-        }
         int k = greatestIndexAtOrBelow(loc, x);
-        double delta = loc[k + 1] - loc[k];
-        double t = (x - loc[k]) / delta;
-        double v0 = knotValue(node, k, ridge, folded);
-        double v1 = knotValue(node, k + 1, ridge, folded);
-        double d0 = node.der[k] * delta - (v1 - v0);
-        double d1 = -node.der[k + 1] * delta + (v1 - v0);
-        return v0 + (v1 - v0) * t + t * (1.0 - t) * (d0 + (d1 - d0) * t);
+        if (k < 0) {
+            return lineExtend(x, loc[0], knotValue(node, 0, ridge, folded), node.der[0]);
+        }
+        if (k >= last) {
+            return lineExtend(x, loc[last], knotValue(node, last, ridge, folded), node.der[last]);
+        }
+        float v0 = knotValue(node, k, ridge, folded);
+        float v1 = knotValue(node, k + 1, ridge, folded);
+        return multipointRound(x, k, loc, v0, v1, node.der[k], node.der[k + 1]);
     }
 
     /** The value at ridge knot {@code k}: a nested node when present, else the scalar. */
-    private static double knotValue(Node node, int k, double ridge, double folded) {
+    private static float knotValue(Node node, int k, float ridge, float folded) {
         if (node.sub != null && node.sub[k] != null) {
             return nodeEval(node.sub[k], ridge, folded);
         }
         return node.val[k];
     }
 
-    /** Zero-slope cubic Hermite: {@code h0*v0 + h1*v1} with {@code h0 = 2t^3-3t^2+1}. */
-    private static double hermite0(double v0, double v1, double t) {
-        double t2 = t * t;
-        double t3 = t2 * t;
-        return (2.0 * t3 - 3.0 * t2 + 1.0) * v0 + (-2.0 * t3 + 3.0 * t2) * v1;
+    /** Two-sample Multipoint Hermite, exactly {@code CubicSpline$Multipoint.apply} in float32:
+     * {@code lerp(t0,v0,v1) + t*(1-t)*lerp(t, f14, f15)} with {@code f14=d0*Δ-(v1-v0)},
+     * {@code f15=(v1-v0)-d1*Δ} (zero derivative ⇒ pure float lerp). All ops float; bit-faithful. */
+    private static float multipointRound(float x, int k, float[] loc, float v0, float v1, float d0, float d1) {
+        float a = loc[k];
+        float b = loc[k + 1];
+        float delta = b - a;
+        float t = (x - a) / delta;
+        float f14 = d0 * delta - (v1 - v0);
+        float f15 = -d1 * delta + (v1 - v0);
+        float base = v0 + (v1 - v0) * t;
+        float h = f14 + (f15 - f14) * t;
+        return base + t * (1.0f - t) * h;
     }
 
-    /** Rightmost index {@code i} with {@code loc[i] <= v}. */
-    private static int greatestIndexAtOrBelow(double[] loc, double v) {
+    /** Linear extension outside the knot range, matching MC {@code CubicSpline$Multipoint.linearExtend}:
+     * flat (the value) when the endpoint slope is 0, else {@code value + der*(x-location)}. */
+    private static float lineExtend(float x, float location, float value, float der) {
+        return der == 0.0f ? value : value + der * (x - location);
+    }
+
+    /** Rightmost index {@code i} with {@code loc[i] <= v} (float bisection, as {@code Mth.binarySearch}). */
+    private static int greatestIndexAtOrBelow(float[] loc, float v) {
         int lo = 0;
         int hi = loc.length - 1;
         int ans = -1;

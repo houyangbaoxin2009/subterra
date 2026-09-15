@@ -139,6 +139,10 @@ neoForge {
             // may run, and lets the boot gate identify (and reap) its own game by port.
             programArgument '--port'
             programArgument '25599'
+            // p.1.8.18 authoritative same-seed compare: forward the compareSeed drive property
+            // so a dev server can auto-run the vanilla-vs-mirror field compare at ServerStarted.
+            systemProperty 'subterra.compareSeed',
+                    System.getProperty('subterra.compareSeed', project.findProperty('subterra.compareSeed') ?: '')
             // World profiler headless acceptance: forward the drive properties to the
             // game JVM (absent by default -> zero impact) so the runServer acceptance
             // driver (WorldProfileAcceptanceProbe) reaches the hook via -D as well as env.

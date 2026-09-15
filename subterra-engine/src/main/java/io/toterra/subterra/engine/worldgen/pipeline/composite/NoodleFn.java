@@ -1,6 +1,7 @@
 package io.toterra.subterra.engine.worldgen.pipeline.composite;
 
 import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
 import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.NormalNoise;
 import io.toterra.subterra.engine.worldgen.pipeline.router.PositionalRand;
 
@@ -72,20 +73,23 @@ public final class NoodleFn {
     public static final int RIDGE_FIRST_OCTAVE = -7;
     private static final double[] SINGLE_AMPLITUDE = {1.0};
 
+    /** A {@link NormalNoise} leaf from the vanilla-derived 128-bit {@code fromHashOf}
+     * state of {@code (seed, label)}. */
+    private static NormalNoise noise(long seed, String label, int firstOctave, double[] amps) {
+        PositionalRand state = PositionalRand.derive(seed, label);
+        return NormalNoise.create(new XoroRandom(state.seedLo(), state.seedHi()), firstOctave, amps);
+    }
+
     /**
      * The overworld noodle-cave {@link Density} for a world seed: {@code +64.0} where the
      * mask is solid (or outside the y-window), else the ridge-based carve. Deterministic,
      * finite, allocation-free per evaluation.
      */
     public static Density overworld(long seed) {
-        NormalNoise mask = NormalNoise.create(PositionalRand.deriveLong(seed, "minecraft:noodle"),
-                NOODLE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
-        NormalNoise thickness = NormalNoise.create(PositionalRand.deriveLong(seed, "minecraft:noodle_thickness"),
-                NOODLE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
-        NormalNoise ridgeA = NormalNoise.create(PositionalRand.deriveLong(seed, "minecraft:noodle_ridge_a"),
-                RIDGE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
-        NormalNoise ridgeB = NormalNoise.create(PositionalRand.deriveLong(seed, "minecraft:noodle_ridge_b"),
-                RIDGE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
+        NormalNoise mask = noise(seed, "minecraft:noodle", NOODLE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
+        NormalNoise thickness = noise(seed, "minecraft:noodle_thickness", NOODLE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
+        NormalNoise ridgeA = noise(seed, "minecraft:noodle_ridge_a", RIDGE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
+        NormalNoise ridgeB = noise(seed, "minecraft:noodle_ridge_b", RIDGE_FIRST_OCTAVE, SINGLE_AMPLITUDE);
         return (x, y, z) -> {
             if (y < Y_MIN || y >= Y_MAX) {
                 return SOLID;

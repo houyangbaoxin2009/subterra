@@ -10,6 +10,7 @@ import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.SimplexNoise;
 import io.toterra.subterra.engine.worldgen.pipeline.composite.ShiftedNoiseFn;
 import io.toterra.subterra.engine.worldgen.pipeline.composite.SlideFn;
 import io.toterra.subterra.engine.worldgen.pipeline.density.Density;
+import io.toterra.subterra.engine.worldgen.pipeline.noise.XoroRandom;
 import io.toterra.subterra.engine.worldgen.pipeline.noise.simplex.NormalNoise;
 
 /**
@@ -406,14 +407,27 @@ public final class NoiseRouter {
                 SPREAD_XZ_SCALE, SPREAD_Y_SCALE);
         Density lava = noise(worldSeed, "minecraft:aquifer_lava", 1.0, 1.0, 1.0);
 
-        // --- vein fields (real labels + the vanilla single-amplitude registrations) ---
-        Density veininess = noise(worldSeed, "minecraft:ore_veininess", 1.0, 1.0, 1.0);
-        Density veinA = noise(worldSeed, "minecraft:ore_vein_a", 1.0, 1.0, 1.0);
-        Density veinB = noise(worldSeed, "minecraft:ore_vein_b", 1.0, 1.0, 1.0);
+        // --- vein fields (real labels + the vanilla single-amplitude registrations, p.1.8.34) ---
+        // Faithful 1.21.1 transcriptions of overworld.json's noise_router (verified against the
+        // shipped data): each vein leaf is `interpolated(range_choice(input=y, min=-60, max=51,
+        // when_in=noise(label, xz_scale, y_scale), when_out=0))`. Interpolation is the identity
+        // at the single block sample (yi co-located), so only the y-window + per-field scales remain.
+        //   vein_toggle = in-window  noise(ore_veininess, xz 1.5, y 1.5), else 0
+        //   vein_ridged = -0.07999999821186066 + max(|rcA|, |rcB|), rcA/B = in-window
+        //                 noise(ore_vein_a/b, xz 4, y 4), else 0
+        //   vein_gap    = noise(ore_gap, xz 1, y 1)  (unwindowed, already aligned)
+        Density veininess15 = noise(worldSeed, "minecraft:ore_veininess", 1.0, 1.5, 1.5);
+        Density veinA4 = noise(worldSeed, "minecraft:ore_vein_a", 1.0, 4.0, 4.0);
+        Density veinB4 = noise(worldSeed, "minecraft:ore_vein_b", 1.0, 4.0, 4.0);
         Density gap = noise(worldSeed, "minecraft:ore_gap", 1.0, 1.0, 1.0);
 
-        Density veinToggle = veininess;
-        Density veinRidged = (x, y, z) -> Math.abs(veinA.eval(x, y, z)) + Math.abs(veinB.eval(x, y, z));
+        Density veinToggle = (x, y, z) -> (y < -60.0 || y >= 51.0) ? 0.0 : veininess15.eval(x, y, z);
+        // each inner arm is its own windowed range_choice: rcA/rcB = y in [-60,51) ? noise : 0
+        Density veinRidged = (x, y, z) -> {
+            double rcA = (y < -60.0 || y >= 51.0) ? 0.0 : veinA4.eval(x, y, z);
+            double rcB = (y < -60.0 || y >= 51.0) ? 0.0 : veinB4.eval(x, y, z);
+            return -0.07999999821186066 + Math.max(Math.abs(rcA), Math.abs(rcB));
+        };
         Density veinGap = gap;
 
         // --- composite fields: REDUCED stand-ins (p.1.8.12), replaced below (p.1.8.14) ---
@@ -592,7 +606,8 @@ public final class NoiseRouter {
      * {@code (xzScale, yScale, xzScale)}. */
     private static Density noise(long worldSeed, String label, double amplitude, double xzScale, double yScale) {
         NoiseReg reg = registration(label);
-        NormalNoise n = NormalNoise.create(PositionalRand.deriveLong(worldSeed, label),
+        PositionalRand state = PositionalRand.derive(worldSeed, label);
+        NormalNoise n = NormalNoise.create(new XoroRandom(state.seedLo(), state.seedHi()),
                 reg.firstOctave(), reg.amplitudes());
         return (x, y, z) -> amplitude * n.getValue(x * xzScale, y * yScale, z * xzScale);
     }

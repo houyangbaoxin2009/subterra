@@ -191,9 +191,16 @@ public final class CompositeProbe {
         }
         check("composite deterministic across two fresh assemblies", compDeterministic);
 
-        // The router now installs the composite (slide-floored/ceiled) fields.
-        check("composite final slides to 0.1171875 below floor", f1.eval(100.0, -100.0, 50.0) == 0.1171875);
-        check("composite final slides to -0.078125 above ceiling", f1.eval(100.0, 300.0, 50.0) == -0.078125);
+        // The router now installs the composite (slide-floored/ceiled) fields. The final
+        // density carries the faithful overworld.json outer wrapper `squeeze(0.64 * slide)`
+        // (interpolated/blend_density are single-point identities without old-chunk blending),
+        // so below the floor / above the ceiling the terminal value is squeeze(0.64 * slideTerm)
+        // instead of the bare slide term; the initial density has no such wrapper and stays at
+        // the raw slide terminals. squeeze(x) = clamp(x,-1,1)/2 - clamp(x,-1,1)^3/24.
+        check("composite final slides to squeeze(0.64*0.1171875) below floor",
+                f1.eval(100.0, -100.0, 50.0) == JaggednessFn.squeeze(0.64 * 0.1171875));
+        check("composite final slides to squeeze(0.64*-0.078125) above ceiling",
+                f1.eval(100.0, 300.0, 50.0) == JaggednessFn.squeeze(0.64 * -0.078125));
         check("composite initial slides to 0.1171875 below floor", i1.eval(100.0, -100.0, 50.0) == 0.1171875);
         check("composite initial slides to -0.078125 above ceiling", i1.eval(100.0, 300.0, 50.0) == -0.078125);
 

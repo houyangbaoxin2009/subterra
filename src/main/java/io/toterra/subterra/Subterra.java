@@ -96,6 +96,11 @@ public class Subterra {
         // export gate sees the loaded registrar (same LOWEST priority fires in registration order).
         io.toterra.subterra.runtime.export.ExportRuntime.bootstrap();
 
+        // p.2.19.5 follow-up: register the custom /subterra export form ArgumentType into the
+        // command-argument-type registry (mod event bus). Without this the server crashes while
+        // sending the command tree to a player (join kick「无效的玩家数据」/ open-to-LAN crash).
+        io.toterra.subterra.runtime.export.ExportCommandCore.registerArgumentType(modEventBus);
+
         // Render runtime (p.2.27.1.2): gated shell over engine.render.instancing (Flywheel 1.0.6
         // pure-JDK port) — deterministic load verification via the subterra.probe.render
         // ServerStarted gate (default no-op). The three MC render hooks
