@@ -54,6 +54,7 @@ public final class SurfaceSeamProbe {
             resolveDeterminismAndOrder();
             rejectionSurface();
             apiConsistency();
+            hotReloadWiring();
             wiringInventory();
         } catch (Exception e) {
             failures++;
@@ -157,6 +158,19 @@ public final class SurfaceSeamProbe {
     }
 
     // ---------- (5) runtime seam wiring inventory (load-only, never initialize) ----------
+
+    /** p.2.29.2.1: the runtime shells carry the hot-reload re-snapshot wiring. */
+    private static void hotReloadWiring() {
+        check("hot-reload: SubterraSurfaceRules registers a rule-mutation listener",
+                classBytesContain("io.toterra.subterra.runtime.worldgen.gen.SubterraSurfaceRules",
+                        "addRuleMutationListener"));
+        check("hot-reload: re-snapshot marker 'palette re-snapshot:' present in runtime bytes",
+                classBytesContain("io.toterra.subterra.runtime.worldgen.gen.SubterraSurfaceRules",
+                        "palette re-snapshot:"));
+        check("hot-reload: command path fires the mutation listeners",
+                classBytesContain("io.toterra.subterra.runtime.rules.RuntimeRuleCommand",
+                        "fireRuleMutation"));
+    }
 
     private static void wiringInventory() {
         check("wiring: SubterraSurfaceRules present (load-only)", classExists(SURFACE_RUNTIME));

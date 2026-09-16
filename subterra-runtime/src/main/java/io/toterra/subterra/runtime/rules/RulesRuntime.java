@@ -70,6 +70,27 @@ public final class RulesRuntime {
 
     private static RuleStore store;
 
+    /**
+     * p.2.29.2.1 规则变更监听（CopyOnWrite，fire 顺序 = 注册序）：活跃存储上的
+     * set/override 成功落档后触发，供规则消费面做热重载再快照（如表面 palette）。
+     * / The p.2.29.2.1 rule-mutation listeners (CopyOnWrite, fired in registration order):
+     * triggered after a successful set/override lands on the ACTIVE store, so rule consumers
+     * can hot-reload re-snapshot (e.g. the surface palette).
+     */
+    private static final List<Runnable> RULE_MUTATION_LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** 注册规则变更监听。 / Registers a rule-mutation listener. */
+    public static void addRuleMutationListener(Runnable listener) {
+        RULE_MUTATION_LISTENERS.add(java.util.Objects.requireNonNull(listener));
+    }
+
+    /** 触发规则变更监听（仅活跃存储的命令成功路径调用）。 / Fires the listeners (the active-store command success path only). */
+    public static void fireRuleMutation() {
+        for (Runnable listener : RULE_MUTATION_LISTENERS) {
+            listener.run();
+        }
+    }
+
     private RulesRuntime() {
     }
 

@@ -118,6 +118,12 @@ public final class RuntimeRuleCommand {
         } else {
             ctx.getSource().sendFailure(Component.literal(feedback.toString()));
         }
+        // p.2.29.2.1: a successful set/override on the ACTIVE store is a rule mutation -> fire
+        // the hot-reload listeners (surface palette re-snapshot etc.). The startup probe hook
+        // passes a fresh non-active store, so it never fires.
+        if (ok && (verb.equals("set") || verb.equals("override")) && store == RulesRuntime.activeStore()) {
+            RulesRuntime.fireRuleMutation();
+        }
         return ok ? 1 : 0;
     }
 

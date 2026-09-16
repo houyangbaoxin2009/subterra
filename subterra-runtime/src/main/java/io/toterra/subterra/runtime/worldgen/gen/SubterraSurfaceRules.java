@@ -129,6 +129,10 @@ public final class SubterraSurfaceRules {
      * @param modEventBus the mod event bus (for {@link RegisterEvent}); never null.
      */
     public static void bootstrap(IEventBus modEventBus) {
+        // p.2.29.2.1: hot-reload re-snapshot - a successful /subterra rule set|override on the
+        // active store re-runs the effective-palette resolution and atomically re-installs it.
+        io.toterra.subterra.runtime.rules.RulesRuntime.addRuleMutationListener(
+                SubterraSurfaceRules::onRulesMutated);
         modEventBus.addListener(SubterraSurfaceRules::registerRuleSourceType);
         NeoForge.EVENT_BUS.register(SubterraSurfaceRules.class);
     }
@@ -153,6 +157,25 @@ public final class SubterraSurfaceRules {
         ruleSourceTypeRegistered = true;
         Subterra.LOGGER.info("{} registered rule-source type {} in Registries.MATERIAL_RULE "
                 + "(real chunk-gen surface path; default palette vanilla = identity)", MARKER, TYPE_ID);
+    }
+
+    /**
+     * p.2.29.2.1 热重载再快照：活跃存储 set/override 成功后重跑有效 palette 解析
+     * （RuleStore &gt; boot props &gt; vanilla 的固定优先级）并原子替换快照；确定性
+     * （同规则同解析），revision 语义由快照整体替换保证（读方只见新旧两态）。
+     *
+     * <p>The p.2.29.2.1 hot-reload re-snapshot: after a successful set/override on the
+     * active store, re-runs the effective-palette resolution (the fixed RuleStore &gt;
+     * boot-props &gt; vanilla precedence) and atomically re-installs the snapshot;
+     * deterministic (same rules → same resolution), with the whole-snapshot swap giving
+     * readers only the old or the new state.
+     */
+    public static void onRulesMutated() {
+        SurfacePaletteResolution.Resolved effective = resolveEffective();
+        install(effective);
+        Subterra.LOGGER.info("{} palette re-snapshot: palette={} remap={} mode={}",
+                MARKER, effective.palette(), effective.mapping().size(),
+                effective.identity() ? "identity" : "remap");
     }
 
     /** Resolution step 1 — snapshots the effective surface palette once the server is up (after the
