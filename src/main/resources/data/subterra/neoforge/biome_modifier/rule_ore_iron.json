@@ -1,6 +1,6 @@
 {
   "type": "neoforge:add_features",
-  "biomes": "#minecraft:is_overworld",
+  "biomes": "#subterra:feature_mount_biomes",
   "features": "subterra:rule_ore_iron",
   "step": "underground_ores"
 }

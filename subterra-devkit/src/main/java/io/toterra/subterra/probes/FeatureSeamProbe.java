@@ -37,6 +37,7 @@ public final class FeatureSeamProbe {
 
     private static final String CFG_RESOURCE = "/data/subterra/worldgen/configured_feature/rule_ore_iron.json";
     private static final String PLACED_RESOURCE = "/data/subterra/worldgen/placed_feature/rule_ore_iron.json";
+    private static final String TAG_RESOURCE = "/data/subterra/tags/worldgen/biome/feature_mount_biomes.json";
     private static final String MODIFIER_RESOURCE =
             "/data/subterra/neoforge/biome_modifier/rule_ore_iron.json";
 
@@ -212,6 +213,11 @@ public final class FeatureSeamProbe {
         check("wiring: biome_modifier mounts subterra:rule_ore_iron via neoforge:add_features",
                 resourceContains(MODIFIER_RESOURCE, "neoforge:add_features")
                         && resourceContains(MODIFIER_RESOURCE, "subterra:rule_ore_iron"));
+        check("p.2.29.3.2: modifier targets the empty-by-default mount tag",
+                resourceContains(MODIFIER_RESOURCE, "#subterra:feature_mount_biomes")
+                        && !resourceContains(MODIFIER_RESOURCE, "#minecraft:is_overworld"));
+        check("p.2.29.3.2: mount tag ships empty (default zero-increment)",
+                resourceContains(TAG_RESOURCE, "\"values\": []"));
     }
 
     // ---------- helpers (load-only) ----------

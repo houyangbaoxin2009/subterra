@@ -30,7 +30,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  *   <li>{@code data/subterra/worldgen/placed_feature/rule_ore_iron.json}（引用 {@code subterra:rule_vein}
  *       + 标准 {@code in_square} / {@code height_range} / {@code biome} 放置器）；</li>
  *   <li>{@code data/subterra/neoforge/biome_modifier/rule_ore_iron.json}（{@code neoforge:add_features}
- *       在主世界地下矿脉步挂载该 placed feature）。</li>
+ *       挂载该 placed feature——<b>挂载目标为缺省空白 tag {@code #subterra:feature_mount_biomes}</b>
+ *       （p.2.29.3.2 挂载面缺省零增量：tag 空 → 不改任何生物群系；服务端数据包填 tag 即启用挂载）。</li>
  * </ul>
  * 缺省：规则计划缺省关闭 ⇒ 已挂载的 placed feature 产出零原点、零方块 ⇒ 默认预设零行为变化。
  *
