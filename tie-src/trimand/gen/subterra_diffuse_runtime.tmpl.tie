@@ -1,0 +1,199 @@
+// scripts/subterra_diffuse_runtime.tmpl.tie —— DLL 运行时段模板（gen-subterra-runtime.tie 注入权重/调度字面量后生成）
+// 不要手改生成产物（subterra_diffuse_runtime.gen.tie）；改本模板 + 重跑生成。
+
+// ---- 缓存（全局表，惰性初始化；命名空间内不允许 var，故置于顶层） ----
+var g_cache: table<f64>;
+var g_cinit: i64 = 0
+
+namespace stdens {
+
+// ---- 扩散引导运行时常量族 ----
+const DG_TILE: i64 = 512
+const DG_CELL: i64 = 32
+const DG_GRID: i64 = 16
+const DG_GRID2: i64 = 256
+const DG_NCACHE: i64 = 9
+const DG_REC: i64 = 769
+const DG_NPAR: i64 = 1083
+
+// 权重字面量（由生成器注入，f32 十进制，1083 项；容量档 1280）
+func materialize_weights(w: ref array<f32, 1280>) {
+//@@WEIGHTS@@
+}
+
+// 调度字面量（余弦 10 步 ᾱ，由生成器注入，10 项）
+func materialize_acp(a: ref array<f64, 1280>) {
+//@@ACP@@
+}
+
+// 初始化缓存（幂等；入口函数也做检查，首次调用即建表）
+pub func diff_init() -> i64 {
+    if g_cinit == 0 {
+        g_cache = table_new_f64()
+        var i: i64 = 0
+        while i < DG_NCACHE * DG_REC {
+            table_push(g_cache, 0.0)
+            i = i + 1
+        }
+        g_cinit = 1
+    }
+    return len(g_cache)
+}
+
+func ensure_cache() {
+    if g_cinit == 0 {
+        diff_init()
+    }
+}
+
+// 53 位 tile 键（f64 精确表示）
+func tile_key(tx: i64, tz: i64, seed: i64) -> f64 {
+    var h = rfwd.hash3(tx, tz, seed)
+    if h < 0 {
+        h = 0 - h
+    }
+    return as_f64(h >> 11)
+}
+
+func slot_of(key: f64) -> i64 {
+    var s = as_i64(key) % DG_NCACHE
+    if s < 0 {
+        s = 0 - s
+    }
+    return s
+}
+
+// 计算并写入某 tile 的场（确定性；缓存槽按 key 逐出；3 场 768 槽）
+func tile_sample(tx: i64, tz: i64, seed: i64) {
+    var w: array<f32, 1280> = array_init(0.0)
+    materialize_weights(w)
+    var a: array<f64, 1280> = array_init(0.0)
+    materialize_acp(a)
+    var field: array<f32, 1280> = array_init(0.0)
+    rfwd.sample_tile(tx * DG_TILE, tz * DG_TILE, seed, a, w, field)
+    var key = tile_key(tx, tz, seed)
+    var base = slot_of(key) * DG_REC
+    g_cache[base] = key
+    var k: i64 = 0
+    while k < DG_GRID2 * 3 {
+        g_cache[base + 1 + k] = as_f64(field[k])
+        k = k + 1
+    }
+}
+
+func ensure_tile(tx: i64, tz: i64, seed: i64) {
+    ensure_cache()
+    var key = tile_key(tx, tz, seed)
+    var base = slot_of(key) * DG_REC
+    if g_cache[base] != key {
+        tile_sample(tx, tz, seed)
+    }
+}
+
+// 向下取整除法（负坐标 tile 归属正确）
+func floor_div(v: i64, d: i64) -> i64 {
+    var q = v / d
+    if v < 0 && v % d != 0 {
+        q = q - 1
+    }
+    return q
+}
+
+// 单单元场值（ch=0 elev / ch=1 mtn）
+func cell_field(tx: i64, tz: i64, seed: i64, ix: i64, iz: i64, ch: i64) -> f64 {
+    ensure_tile(tx, tz, seed)
+    var key = tile_key(tx, tz, seed)
+    var base = slot_of(key) * DG_REC
+    return g_cache[base + 1 + ch * DG_GRID2 + ix * DG_GRID + iz]
+}
+
+// 双线性 + 边缘向连续草图淡化（跨 tile 无缝）
+func coarse_field(x: i64, z: i64, seed: i64, ch: i64) -> f64 {
+    var tx = floor_div(x, DG_TILE)
+    var tz = floor_div(z, DG_TILE)
+    var lx = x - tx * DG_TILE
+    var lz = z - tz * DG_TILE
+    var cxf: f64 = as_f64(lx) / as_f64(DG_CELL)
+    var czf: f64 = as_f64(lz) / as_f64(DG_CELL)
+    var ix = as_i64(cxf)
+    var iz = as_i64(czf)
+    if ix > DG_GRID - 1 {
+        ix = DG_GRID - 1
+    }
+    if iz > DG_GRID - 1 {
+        iz = DG_GRID - 1
+    }
+    var fx: f64 = cxf - as_f64(ix)
+    var fz: f64 = czf - as_f64(iz)
+    if fx > 1.0 {
+        fx = 1.0
+    }
+    if fz > 1.0 {
+        fz = 1.0
+    }
+    var ix1 = ix + 1
+    var iz1 = iz + 1
+    if ix1 > DG_GRID - 1 {
+        ix1 = DG_GRID - 1
+    }
+    if iz1 > DG_GRID - 1 {
+        iz1 = DG_GRID - 1
+    }
+    var v00 = cell_field(tx, tz, seed, ix, iz, ch)
+    var v10 = cell_field(tx, tz, seed, ix1, iz, ch)
+    var v01 = cell_field(tx, tz, seed, ix, iz1, ch)
+    var v11 = cell_field(tx, tz, seed, ix1, iz1, ch)
+    var a = v00 + (v10 - v00) * fx
+    var b = v01 + (v11 - v01) * fx
+    var v = a + (b - a) * fz
+    // 边缘淡化：距 tile 边界 < 1.5 单元 → 向连续草图混合（C0 无缝）
+    var dl: f64 = cxf
+    var dr: f64 = as_f64(DG_GRID) - cxf
+    var db: f64 = czf
+    var dt: f64 = as_f64(DG_GRID) - czf
+    var m: f64 = dl
+    if dr < m {
+        m = dr
+    }
+    if db < m {
+        m = db
+    }
+    if dt < m {
+        m = dt
+    }
+    var edge: f64 = 1.0
+    if m < 1.5 {
+        var t2: f64 = m / 1.5
+        edge = t2 * t2 * (3.0 - 2.0 * t2)
+    }
+    if edge < 1.0 {
+        var sk: f64 = 0.0
+        if ch == 2 {
+            // mtn 通道向山带草图淡化
+            sk = rfwd.mountain(x, z, seed)
+        } else if ch == 1 {
+            // elev 通道向大陆草图淡化
+            sk = rfwd.continent(x, z, seed)
+        } else {
+            // climate 通道向大陆草图淡化（气候以海陆为参照骨架）
+            sk = rfwd.continent(x, z, seed)
+        }
+        v = v * edge + sk * (1.0 - edge)
+    }
+    return v
+}
+
+// ---- 导出查询（FFM 标量 ABI；ch0=climate ch1=elev ch2=mtn） ----
+pub func coarse_climate(x: i64, z: i64, seed: i64) -> f64 {
+    return coarse_field(x, z, seed, 0)
+}
+
+pub func coarse_elev(x: i64, z: i64, seed: i64) -> f64 {
+    return coarse_field(x, z, seed, 1)
+}
+
+pub func coarse_mountain(x: i64, z: i64, seed: i64) -> f64 {
+    return coarse_field(x, z, seed, 2)
+}
+
+}

@@ -1,0 +1,376 @@
+type tie<class>
+// 微型条件扩散 UNet（namespace du）
+// ============================================================
+// 用途：微型扩散定调器的去噪网络（predict-x0，v2 三定调）。输入 5ch×16×16=1280
+// （条件 2ch + 加噪目标 3ch：climate/elev/mtn），输出 3ch×16×16=768 预测目标场。
+//
+// 架构：
+//   in(5,16,16)
+//     → conv1(5→4,k3,s1,p1) [+tvec] → GN(g=2) → ReLU          e1 4×16×16
+//     → conv2(4→4,k3,s2,p1)          → GN(g=2) → ReLU          e2 4×8×8
+//     → convb(4→8,k3,s1,p1)          → GN(g=2) → ReLU [+tv%4]  b  8×8×8
+//     → convT(8→4,k3,s2,p1) [+skip e1]                         d2 4×16×16
+//     → conv_out(4→3,k3,s1,p1)                                  out 3×16×16
+//
+// 权重管理：全部参数存于单一 flat array<f32,1280>（布局偏移见下，NPAR=1083≤1280），
+// forward/backward 内部按偏移切片成局部视图调 std/nn 各层（规避 struct 不可 ref 的
+// ABI 限制与崩溃风险）；serde 单数组导出/回读；DLL 端字面量生成同布局。
+//
+// 时间条件：t → 4 维 sin/cos 嵌入 → 4×4 线性 → 每通道常数偏置加在 e1 输入；
+// bottle 用 tv[ch%4] 广播（零参数）。backward 重算前向激活（显存换简洁，模型极小）。
+// 容量档位：全链 1280（5ch 输入 = 2 条件 + 3 目标，与 tlib 库 <CAP> 显式 <1280> 实例化对齐）。
+// EN: tiny conditioned diffusion UNet, 3-output (climate/elev/mtn); single flat weight buffer.
+import "/ext/nn.tie";
+
+namespace du {
+
+// ---- 权重布局（flat 偏移；g=gamma, b=beta；NPAR=1083≤1280） ----
+const OFF_WC1: i64 = 0      // 180  conv1 5*4*9
+const OFF_BC1: i64 = 180    // 4
+const OFF_WC2: i64 = 184    // 144  conv2 4*4*9
+const OFF_BC2: i64 = 328    // 4
+const OFF_WCB: i64 = 332    // 288  convb 4*8*9
+const OFF_BCB: i64 = 620    // 8
+const OFF_WCT: i64 = 628    // 288  convT 8*4*9
+const OFF_BCT: i64 = 916    // 4
+const OFF_WCO: i64 = 920    // 108  conv_out 4*3*9
+const OFF_BCO: i64 = 1028   // 3
+const OFF_WTE: i64 = 1031   // 16   4×4 t-线性
+const OFF_BTE: i64 = 1047   // 4
+const OFF_G1G: i64 = 1051   // 4    GN(e1) gamma
+const OFF_G1B: i64 = 1055   // 4
+const OFF_G2G: i64 = 1059   // 4    GN(e2)
+const OFF_G2B: i64 = 1063   // 4
+const OFF_GBG: i64 = 1067   // 8    GN(bottle)
+const OFF_GBB: i64 = 1075   // 8
+const NPAR: i64 = 1083
+
+// 超参常量（v2 三定调）
+const CIN: i64 = 5           // 输入 5ch（2 条件 + 3 目标）
+const COUT: i64 = 3          // 输出 3ch（climate/elev/mtn）
+const G1: i64 = 16           // 网格 16×16
+const G2: i64 = 256
+const H8: i64 = 8            // 8×8 瓶颈
+const EPS: f64 = 0.00001
+
+// 布局 getter（探针/训练器经函数读取；跨命名空间不能直接取 const）
+pub func npar() -> i64 { return NPAR }
+pub func off_wc1() -> i64 { return OFF_WC1 }
+pub func off_bc1() -> i64 { return OFF_BC1 }
+pub func off_wc2() -> i64 { return OFF_WC2 }
+pub func off_wcb() -> i64 { return OFF_WCB }
+pub func off_wct() -> i64 { return OFF_WCT }
+pub func off_wco() -> i64 { return OFF_WCO }
+pub func off_wte() -> i64 { return OFF_WTE }
+pub func off_g1g() -> i64 { return OFF_G1G }
+pub func off_gbb() -> i64 { return OFF_GBB }
+
+// ---- 通用切片/回贴（flat ↔ 局部视图） ----
+pub func slice(src: ref array<f32, 1280>, dst: ref array<f32, 1280>, off: i64, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        dst[i] = src[off + i]
+        i = i + 1
+    }
+}
+
+pub func paste(src: ref array<f32, 1280>, off: i64, n: i64, dst: ref array<f32, 1280>) {
+    var i: i64 = 0
+    while i < n {
+        dst[off + i] = src[i]
+        i = i + 1
+    }
+}
+
+// 时间嵌入：4 维 sin/cos（k0=0.1, k1=0.01）
+pub func t_embed(t: i64, e: ref array<f32, 1280>) {
+    var a0: f64 = as_f64(t) * 0.1
+    var a1: f64 = as_f64(t) * 0.01
+    e[0] = as_f32(sin(a0))
+    e[1] = as_f32(cos(a0))
+    e[2] = as_f32(sin(a1))
+    e[3] = as_f32(cos(a1))
+}
+
+// 逐通道 tvec：tv[ch] = Σ_i Wte[ch*4+i]·e[i] + bte[ch]
+pub func t_vec(p: ref array<f32, 1280>, e: ref array<f32, 1280>, tv: ref array<f32, 1280>) {
+    var ch: i64 = 0
+    while ch < 4 {
+        var acc: f64 = as_f64(p[OFF_BTE + ch])
+        var i: i64 = 0
+        while i < 4 {
+            acc = acc + as_f64(p[OFF_WTE + ch * 4 + i]) * as_f64(e[i])
+            i = i + 1
+        }
+        tv[ch] = as_f32(acc)
+        ch = ch + 1
+    }
+}
+
+// 就地 ReLU（n 元素）
+pub func relu_inplace(a: ref array<f32, 1280>, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        if as_f64(a[i]) < 0.0 {
+            a[i] = 0.0
+        }
+        i = i + 1
+    }
+}
+
+// 就地 +：dst = dst + tv[ch]（对 [ch][hw] 切片加通道常数）
+pub func add_tv_inplace(dst: ref array<f32, 1280>, tv: ref array<f32, 1280>, nch: i64, hw: i64, modch: bool) {
+    var ch: i64 = 0
+    while ch < nch {
+        var tc: f64 = as_f64(tv[ch % 4])
+        if !modch {
+            tc = as_f64(tv[ch])
+        }
+        var k: i64 = 0
+        while k < hw {
+            var idx = ch * hw + k
+            dst[idx] = as_f32(as_f64(dst[idx]) + tc)
+            k = k + 1
+        }
+        ch = ch + 1
+    }
+}
+
+// 就地 +：dst = dst + src（逐元素，n 元素）
+pub func add_inplace(dst: ref array<f32, 1280>, src: ref array<f32, 1280>, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        dst[i] = as_f32(as_f64(dst[i]) + as_f64(src[i]))
+        i = i + 1
+    }
+}
+
+// ---- 带切片的层封装（内部 slice 权重后调 std/nn；容量档位显式 <1280>） ----
+pub func conv_fwd(yo: ref array<f32, 1280>, xi: ref array<f32, 1280>, cin: i64, hin: i64, win: i64,
+                  p: ref array<f32, 1280>, woff: i64, boff: i64, cout: i64, kk: i64, stride: i64, pad: i64) {
+    var w: array<f32, 1280> = array_init(0.0)
+    var b: array<f32, 1280> = array_init(0.0)
+    slice(p, w, woff, cout * cin * kk * kk)
+    slice(p, b, boff, cout)
+    nn.conv2d_forward<1280>(yo, xi, cin, hin, win, w, cout, kk, stride, pad, b)
+}
+
+pub func convt_fwd(yo: ref array<f32, 1280>, xi: ref array<f32, 1280>, cin: i64, hin: i64, win: i64,
+                   p: ref array<f32, 1280>, woff: i64, boff: i64, cout: i64, kk: i64, stride: i64, pad: i64) {
+    var w: array<f32, 1280> = array_init(0.0)
+    var b: array<f32, 1280> = array_init(0.0)
+    slice(p, w, woff, cout * cin * kk * kk)
+    slice(p, b, boff, cout)
+    nn.conv2d_t_forward<1280>(yo, xi, cin, hin, win, w, cout, kk, stride, pad, b)
+}
+
+pub func gn_fwd(yo: ref array<f32, 1280>, xi: ref array<f32, 1280>, n: i64, c: i64, hw: i64, g: i64,
+                p: ref array<f32, 1280>, goff: i64, boff: i64) {
+    var ga: array<f32, 1280> = array_init(0.0)
+    var be: array<f32, 1280> = array_init(0.0)
+    slice(p, ga, goff, c)
+    slice(p, be, boff, c)
+    nn.groupnorm_forward<1280>(yo, xi, n, c, hw, g, ga, be, EPS)
+}
+
+// ---- 带切片的层反向封装（内部 slice 权重后调 std/nn，规避裸代码块） ----
+pub func conv_bwd(gxi: ref array<f32, 1280>, gwo: ref array<f32, 1280>, gbo: ref array<f32, 1280>,
+                  gyi: ref array<f32, 1280>, xi: ref array<f32, 1280>, cin: i64, hin: i64, win: i64,
+                  p: ref array<f32, 1280>, woff: i64, cout: i64, kk: i64, stride: i64, pad: i64) {
+    var w: array<f32, 1280> = array_init(0.0)
+    slice(p, w, woff, cout * cin * kk * kk)
+    nn.conv2d_backward<1280>(gxi, gwo, gbo, gyi, xi, cin, hin, win, w, cout, kk, stride, pad)
+}
+
+pub func convt_bwd(gxi: ref array<f32, 1280>, gwo: ref array<f32, 1280>, gbo: ref array<f32, 1280>,
+                   gyi: ref array<f32, 1280>, xi: ref array<f32, 1280>, cin: i64, hin: i64, win: i64,
+                   p: ref array<f32, 1280>, woff: i64, cout: i64, kk: i64, stride: i64, pad: i64) {
+    var w: array<f32, 1280> = array_init(0.0)
+    slice(p, w, woff, cout * cin * kk * kk)
+    nn.conv2d_t_backward<1280>(gxi, gwo, gbo, gyi, xi, cin, hin, win, w, cout, kk, stride, pad)
+}
+
+pub func gn_bwd(gxi: ref array<f32, 1280>, ggama: ref array<f32, 1280>, gbeta: ref array<f32, 1280>,
+                gyi: ref array<f32, 1280>, xi: ref array<f32, 1280>, n: i64, c: i64, hw: i64, g: i64,
+                p: ref array<f32, 1280>, goff: i64) {
+    var ga: array<f32, 1280> = array_init(0.0)
+    slice(p, ga, goff, c)
+    nn.groupnorm_backward<1280>(gxi, ggama, gbeta, gyi, xi, n, c, hw, g, ga, EPS)
+}
+
+// 就地 ReLU 梯度掩码（激活<=0 处梯度清零）
+pub func relu_mask_inplace(g: ref array<f32, 1280>, a: ref array<f32, 1280>, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        if as_f64(a[i]) <= 0.0 {
+            g[i] = 0.0
+        }
+        i = i + 1
+    }
+}
+
+// ---- 前向（重算激活；输出 3ch×16×16=768 预测目标场） ----
+pub func forward(in5: ref array<f32, 1280>, p: ref array<f32, 1280>, t: i64, out3: ref array<f32, 1280>) {
+    var emb: array<f32, 1280> = array_init(0.0)
+    var tv: array<f32, 1280> = array_init(0.0)
+    t_embed(t, emb)
+    t_vec(p, emb, tv)
+    var c1: array<f32, 1280> = array_init(0.0)
+    var e1: array<f32, 1280> = array_init(0.0)
+    conv_fwd(c1, in5, CIN, G1, G1, p, OFF_WC1, OFF_BC1, 4, 3, 1, 1)
+    add_tv_inplace(c1, tv, 4, G2, false)
+    gn_fwd(e1, c1, 1, 4, G2, 2, p, OFF_G1G, OFF_G1B)
+    relu_inplace(e1, 1024)
+    var c2: array<f32, 1280> = array_init(0.0)
+    var e2: array<f32, 1280> = array_init(0.0)
+    conv_fwd(c2, e1, 4, G1, G1, p, OFF_WC2, OFF_BC2, 4, 3, 2, 1)
+    gn_fwd(e2, c2, 1, 4, 64, 2, p, OFF_G2G, OFF_G2B)
+    relu_inplace(e2, 256)
+    var cb: array<f32, 1280> = array_init(0.0)
+    var b: array<f32, 1280> = array_init(0.0)
+    conv_fwd(cb, e2, 4, H8, H8, p, OFF_WCB, OFF_BCB, 8, 3, 1, 1)
+    gn_fwd(b, cb, 1, 8, 64, 2, p, OFF_GBG, OFF_GBB)
+    add_tv_inplace(b, tv, 8, 64, true)     // bottle 用 tv[ch%4]
+    relu_inplace(b, 512)
+    var d2: array<f32, 1280> = array_init(0.0)
+    convt_fwd(d2, b, 8, H8, H8, p, OFF_WCT, OFF_BCT, 4, 3, 2, 1)
+    add_inplace(d2, e1, 1024)              // skip：d2 += e1
+    conv_fwd(out3, d2, 4, G1, G1, p, OFF_WCO, OFF_BCO, COUT, 3, 1, 1)
+}
+
+// ---- 反向（重算前向激活；g_p=flat 梯度；g_in 可选，传零数组即可） ----
+// gy：输出梯度（768，3ch×16×16）；g_p 需预先清零（本函数只累加/回贴本链）。
+pub func backward(g_in: ref array<f32, 1280>, g_p: ref array<f32, 1280>, gy: ref array<f32, 1280>,
+                  in5: ref array<f32, 1280>, p: ref array<f32, 1280>, t: i64) {
+    var emb: array<f32, 1280> = array_init(0.0)
+    var tv: array<f32, 1280> = array_init(0.0)
+    t_embed(t, emb)
+    t_vec(p, emb, tv)
+    // 重算激活
+    var c1: array<f32, 1280> = array_init(0.0)
+    var e1: array<f32, 1280> = array_init(0.0)
+    conv_fwd(c1, in5, CIN, G1, G1, p, OFF_WC1, OFF_BC1, 4, 3, 1, 1)
+    add_tv_inplace(c1, tv, 4, G2, false)
+    gn_fwd(e1, c1, 1, 4, G2, 2, p, OFF_G1G, OFF_G1B)
+    relu_inplace(e1, 1024)
+    var c2: array<f32, 1280> = array_init(0.0)
+    var e2: array<f32, 1280> = array_init(0.0)
+    conv_fwd(c2, e1, 4, G1, G1, p, OFF_WC2, OFF_BC2, 4, 3, 2, 1)
+    gn_fwd(e2, c2, 1, 4, 64, 2, p, OFF_G2G, OFF_G2B)
+    relu_inplace(e2, 256)
+    var cb: array<f32, 1280> = array_init(0.0)
+    var b: array<f32, 1280> = array_init(0.0)
+    conv_fwd(cb, e2, 4, H8, H8, p, OFF_WCB, OFF_BCB, 8, 3, 1, 1)
+    gn_fwd(b, cb, 1, 8, 64, 2, p, OFF_GBG, OFF_GBB)
+    add_tv_inplace(b, tv, 8, 64, true)
+    relu_inplace(b, 512)
+    var d2: array<f32, 1280> = array_init(0.0)
+    convt_fwd(d2, b, 8, H8, H8, p, OFF_WCT, OFF_BCT, 4, 3, 2, 1)
+    add_inplace(d2, e1, 1024)
+
+    // 1) conv_out 反向（gy 3ch → g_d2, gWco, gbco）
+    var g_d2: array<f32, 1280> = array_init(0.0)
+    var gW: array<f32, 1280> = array_init(0.0)
+    var gb: array<f32, 1280> = array_init(0.0)
+    conv_bwd(g_d2, gW, gb, gy, d2, 4, G1, G1, p, OFF_WCO, COUT, 3, 1, 1)
+    paste(gW, OFF_WCO, 108, g_p)
+    paste(gb, OFF_BCO, 3, g_p)
+    // 2) d2 = convT(b)+e1：梯度同时流回 g_convT 与 g_e1_skip
+    var g_convT: array<f32, 1280> = array_init(0.0)
+    var g_e1_skip: array<f32, 1280> = array_init(0.0)
+    var cp: i64 = 0
+    while cp < 1024 {
+        g_convT[cp] = g_d2[cp]
+        g_e1_skip[cp] = g_d2[cp]
+        cp = cp + 1
+    }
+    // 3) convT 反向（g_convT → g_b, gWct, gbct）
+    var g_b: array<f32, 1280> = array_init(0.0)
+    var gWct: array<f32, 1280> = array_init(0.0)
+    var gbct: array<f32, 1280> = array_init(0.0)
+    convt_bwd(g_b, gWct, gbct, g_convT, b, 8, H8, H8, p, OFF_WCT, 4, 3, 2, 1)
+    paste(gWct, OFF_WCT, 288, g_p)
+    paste(gbct, OFF_BCT, 4, g_p)
+    // 4) b = ReLU(GN(cb)+tv%4)：ReLU 掩码 → GN 反向 → tv 梯度
+    relu_mask_inplace(g_b, b, 512)
+    var g_cb: array<f32, 1280> = array_init(0.0)
+    var gGbg: array<f32, 1280> = array_init(0.0)
+    var gBbb: array<f32, 1280> = array_init(0.0)
+    gn_bwd(g_cb, gGbg, gBbb, g_b, cb, 1, 8, 64, 2, p, OFF_GBG)
+    paste(gGbg, OFF_GBG, 8, g_p)
+    paste(gBbb, OFF_GBB, 8, g_p)
+    // tv 梯度：Σ 各 slice（bottle 用 tv[ch%4] → 折入 ch%4）
+    var gtv: array<f32, 1280> = array_init(0.0)
+    var bch: i64 = 0
+    while bch < 8 {
+        var tcv: f64 = 0.0
+        var k: i64 = 0
+        while k < 64 {
+            tcv = tcv + as_f64(g_b[bch * 64 + k])
+            k = k + 1
+        }
+        gtv[bch % 4] = as_f32(as_f64(gtv[bch % 4]) + tcv)
+        bch = bch + 1
+    }
+    // 5) convb 反向（g_cb → g_e2, gWcb, gbcb）
+    var g_e2: array<f32, 1280> = array_init(0.0)
+    var gWcb: array<f32, 1280> = array_init(0.0)
+    var gbcb: array<f32, 1280> = array_init(0.0)
+    conv_bwd(g_e2, gWcb, gbcb, g_cb, e2, 4, H8, H8, p, OFF_WCB, 8, 3, 1, 1)
+    paste(gWcb, OFF_WCB, 288, g_p)
+    paste(gbcb, OFF_BCB, 8, g_p)
+    // 6) e2 = ReLU(GN(c2))：掩码 → GN 反向 → conv2 反向
+    relu_mask_inplace(g_e2, e2, 256)
+    var g_c2: array<f32, 1280> = array_init(0.0)
+    var gG2g: array<f32, 1280> = array_init(0.0)
+    var gG2b: array<f32, 1280> = array_init(0.0)
+    gn_bwd(g_c2, gG2g, gG2b, g_e2, c2, 1, 4, 64, 2, p, OFF_G2G)
+    paste(gG2g, OFF_G2G, 4, g_p)
+    paste(gG2b, OFF_G2B, 4, g_p)
+    var g_e1: array<f32, 1280> = array_init(0.0)
+    var gWc2: array<f32, 1280> = array_init(0.0)
+    var gbc2: array<f32, 1280> = array_init(0.0)
+    conv_bwd(g_e1, gWc2, gbc2, g_c2, e1, 4, G1, G1, p, OFF_WC2, 4, 3, 2, 1)
+    paste(gWc2, OFF_WC2, 144, g_p)
+    paste(gbc2, OFF_BC2, 4, g_p)
+    // 7) e1 = ReLU(GN(c1)+tvec)：g_e1 汇入 skip → 掩码 → GN 反向 → tvec 梯度 → conv1 反向
+    add_inplace(g_e1, g_e1_skip, 1024)
+    relu_mask_inplace(g_e1, e1, 1024)
+    var g_c1: array<f32, 1280> = array_init(0.0)
+    var gG1g: array<f32, 1280> = array_init(0.0)
+    var gG1b: array<f32, 1280> = array_init(0.0)
+    gn_bwd(g_c1, gG1g, gG1b, g_e1, c1, 1, 4, G2, 2, p, OFF_G1G)
+    paste(gG1g, OFF_G1G, 4, g_p)
+    paste(gG1b, OFF_G1B, 4, g_p)
+    // tvec 梯度（对 c1 各 slice 求和，再加 bottle 的 gtv 折入）
+    var tch: i64 = 0
+    while tch < 4 {
+        var tc2: f64 = 0.0
+        var k2: i64 = 0
+        while k2 < G2 {
+            tc2 = tc2 + as_f64(g_c1[tch * G2 + k2])
+            k2 = k2 + 1
+        }
+        gtv[tch] = as_f32(as_f64(gtv[tch]) + tc2)
+        tch = tch + 1
+    }
+    // g_te：Wte[ch*4+i] += gtv[ch]·e[i]；bte[ch] += gtv[ch]
+    var tch2: i64 = 0
+    while tch2 < 4 {
+        g_p[OFF_BTE + tch2] = as_f32(as_f64(g_p[OFF_BTE + tch2]) + as_f64(gtv[tch2]))
+        var i2: i64 = 0
+        while i2 < 4 {
+            g_p[OFF_WTE + tch2 * 4 + i2] = as_f32(as_f64(g_p[OFF_WTE + tch2 * 4 + i2]) + as_f64(gtv[tch2]) * as_f64(emb[i2]))
+            i2 = i2 + 1
+        }
+        tch2 = tch2 + 1
+    }
+    // 8) conv1 反向（g_c1 → g_in, gWc1, gbc1）；CIN=5 → g_in 5×256=1280
+    var gWc1: array<f32, 1280> = array_init(0.0)
+    var gbc1: array<f32, 1280> = array_init(0.0)
+    conv_bwd(g_in, gWc1, gbc1, g_c1, in5, CIN, G1, G1, p, OFF_WC1, 4, 3, 1, 1)
+    paste(gWc1, OFF_WC1, 180, g_p)
+    paste(gbc1, OFF_BC1, 4, g_p)
+}
+
+}

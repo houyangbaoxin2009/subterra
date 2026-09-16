@@ -1,0 +1,6 @@
+# tiec / javac build artifacts / tiec 与 javac 构建产物（不入库）
+*.exe
+*.class
+*.exp
+*.lib
+trimand-classes/

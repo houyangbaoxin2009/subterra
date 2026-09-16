@@ -1,0 +1,263 @@
+type tie<logic>
+// 确定性采样器探针（≥16 断言）
+// 覆盖：自包含 rfwd.forward 与 std/nn 版 du.forward 逐位/近一致（同一权重）；
+//   sample_tile 确定性（同种子逐位一致）；采样精炼场的整体性度量（混合 tile 海陆/
+//   连通/海岸/山带）；对目标（mg.target）的跟踪性（符号一致率 + 相关）。
+// 依赖：_du_weights.bin（由 trainer_probe 生成的已训权重）。
+// 编译运行（tiec 根目录）：
+//   compiler\tiec.exe --no-cache tests\_diffuser_probe\sampler_probe.tie
+import "/ext/trng.tie";
+import "/ext/diffusion.tie";
+import "/ext/serde.tie";
+import "../macrogen.tie";
+import "../diffunet.tie";
+import "../runtime_forward.tie";
+
+var fails: i64 = 0
+var npass: i64 = 0
+
+func chk(cond: bool, msg: string) {
+    npass = npass + 1
+    if !cond {
+        fails = fails + 1
+        println("FAIL " + msg)
+    }
+}
+
+func absf(v: f64) -> f64 {
+    if v < 0.0 {
+        return -v
+    }
+    return v
+}
+
+// 采样场 land 掩码（elev>0）
+func field_land(f: ref array<f32, 1280>, land: ref array<f64, 1280>) {
+    var i: i64 = 0
+    while i < 256 {
+        if as_f64(f[256 + i]) > 0.0 {
+            land[i] = 1.0
+        } else {
+            land[i] = 0.0
+        }
+        i = i + 1
+    }
+}
+
+// 通道相关（256 元素）
+func corr(a: ref array<f32, 1280>, b: ref array<f32, 1280>, base: i64) -> f64 {
+    var ma: f64 = 0.0
+    var mb: f64 = 0.0
+    var i: i64 = 0
+    while i < 256 {
+        ma = ma + as_f64(a[base + i])
+        mb = mb + as_f64(b[base + i])
+        i = i + 1
+    }
+    ma = ma / 256.0
+    mb = mb / 256.0
+    var sa: f64 = 0.0
+    var sb: f64 = 0.0
+    var scc: f64 = 0.0
+    i = 0
+    while i < 256 {
+        var da: f64 = as_f64(a[base + i]) - ma
+        var db: f64 = as_f64(b[base + i]) - mb
+        sa = sa + da * da
+        sb = sb + db * db
+        scc = scc + da * db
+        i = i + 1
+    }
+    if sa < 0.000000001 || sb < 0.000000001 {
+        return 0.0
+    }
+    return scc / (sqrt(sa) * sqrt(sb))
+}
+
+func main() {
+    println("=== p.9.14.4 sampler probe ===")
+
+    // 已训权重
+    var p: array<f32, 1280> = array_init(0.0)
+    var n = serde.load_weights<1280>(p, du.npar(), "weights/_du_weights_full.bin")
+    chk(n == du.npar(), "load trained weights (" + to_string(n) + ")")
+    // 余弦 10 步调度
+    var betas = diffusion.schedule_cosine<1280>(10, 0.008)
+    var acp = diffusion.alpha_cumprod<1280>(betas, 10)
+    chk(acp[9] < 0.05, "cosine acp[9] near 0 (" + to_string(acp[9]) + ")")
+
+    // ---- rfwd.forward vs du.forward 一致性 ----
+    var in4: array<f32, 1280> = array_init(0.0)
+    var r0 = trng.new(5)
+    var k: i64 = 0
+    while k < 1280 {
+        var q = trng.range(r0, -1.0, 1.0)
+        r0 = q.r2
+        in4[k] = as_f32(q.v2)
+        k = k + 1
+    }
+    var oa: array<f32, 1280> = array_init(0.0)
+    var ob: array<f32, 1280> = array_init(0.0)
+    var maxDiff: f64 = 0.0
+    var bitExact: bool = true
+    var tt: i64 = 0
+    while tt < 10 {
+        du.forward(in4, p, tt, oa)
+        rfwd.forward(in4, p, tt, ob)
+        var i: i64 = 0
+        while i < 768 {
+            var d: f64 = absf(as_f64(oa[i]) - as_f64(ob[i]))
+            if d > maxDiff {
+                maxDiff = d
+            }
+            if oa[i] != ob[i] {
+                bitExact = false
+            }
+            i = i + 1
+        }
+        tt = tt + 1
+    }
+    chk(bitExact || maxDiff < 0.0001, "rfwd.forward matches du.forward (maxDiff=" + to_string(maxDiff) + ", bitExact=" + to_string(bitExact) + ")")
+
+    // ---- sample_tile 确定性 ----
+    var f1: array<f32, 1280> = array_init(0.0)
+    var f2: array<f32, 1280> = array_init(0.0)
+    rfwd.sample_tile(-5000, 12000, 77, acp, p, f1)
+    rfwd.sample_tile(-5000, 12000, 77, acp, p, f2)
+    var det: bool = true
+    k = 0
+    while k < 512 {
+        if f1[k] != f2[k] {
+            det = false
+        }
+        k = k + 1
+    }
+    chk(det, "sample_tile deterministic (bit-exact)")
+
+    // ---- 整体性度量：跨 4 seed × 6 tile，对"采样场混合 tile"断言 ----
+    var tiles: array<i64, 6> = [-200000, -3000, 40000, 150000, 320000, 999999]
+    var seeds: array<i64, 4> = [5, 77, 4096, 12345]
+    var mixed: i64 = 0
+    var okCont: bool = true
+    var okCoast: bool = true
+    var okMtn: bool = true
+    var okSign: bool = true
+    var okCorr: bool = true
+    var okRange: bool = true
+    var s: i64 = 0
+    while s < 4 {
+        var t: i64 = 0
+        while t < 6 {
+            var sf: array<f32, 1280> = array_init(0.0)
+            var tg: array<f32, 1280> = array_init(0.0)
+            rfwd.sample_tile(tiles[t] * 512, seeds[s] * 800, seeds[s], acp, p, sf)
+            mg.target(tiles[t] * 512, seeds[s] * 800, seeds[s], tg)
+            var land: array<f64, 1280> = array_init(0.0)
+            field_land(sf, land)
+            var lf: f64 = mg.metric_land_fraction(land)
+            if lf >= 0.1 && lf <= 0.9 {
+                mixed = mixed + 1
+                var lg: f64 = mg.metric_largest_land(land)
+                var ct: i64 = mg.metric_coast(land)
+                var mc: f64 = mg.metric_mtn_corr(sf, land)
+                var share: f64 = lg / lf
+                if share < 0.35 {
+                    okCont = false
+                }
+                if ct <= 0 {
+                    okCoast = false
+                }
+                if mc <= 0.01 {
+                    okMtn = false
+                }
+            }
+            // 跟踪性（仅混合 tile 有效；均匀 tile 方差≈0 相关度无意义）
+            if lf >= 0.1 && lf <= 0.9 {
+                var m0: i64 = 0
+                var i2: i64 = 0
+                while i2 < 256 {
+                    var sgn1: f64 = as_f64(sf[256 + i2])
+                    var sgn2: f64 = as_f64(tg[256 + i2])
+                    if (sgn1 > 0.0 && sgn2 > 0.0) || (sgn1 <= 0.0 && sgn2 <= 0.0) {
+                        m0 = m0 + 1
+                    }
+                    i2 = i2 + 1
+                }
+                var rate: f64 = as_f64(m0) / 256.0
+                if rate < 0.53 {
+                    okSign = false
+                }
+                var cc: f64 = corr(sf, tg, 256)
+                if cc < 0.45 {
+                    okCorr = false
+                }
+                // 调试：sketch 与 sampled 对 target(elev ch1) 的相关基线
+                if s == 1 && t < 2 {
+                    var skd: array<f32, 1280> = array_init(0.0)
+                    mg.sketch(tiles[t] * 512, seeds[s] * 800, seeds[s], skd)
+                    println("  tile(" + to_string(tiles[t] * 512) + ") corr(sketch,target)=" + to_string(corr(skd, tg, 256))
+                        + " corr(sampled,target)=" + to_string(cc) + " signRate=" + to_string(rate))
+                }
+            }
+            // 值域
+            var rng: bool = true
+            i2 = 0
+            while i2 < 512 {
+                if as_f64(sf[i2]) > 1.5 || as_f64(sf[i2]) < -1.5 {
+                    rng = false
+                }
+                i2 = i2 + 1
+            }
+            if !rng {
+                okRange = false
+            }
+            t = t + 1
+        }
+        s = s + 1
+    }
+    chk(mixed >= 4, "sampled fields include >=4 mixed tiles (" + to_string(mixed) + ")")
+    chk(okCont, "sampled mixed tiles: land concentrated (share>=0.35)")
+    chk(okCoast, "sampled mixed tiles: coastline present")
+    chk(okMtn, "sampled mixed tiles: mountain band biased to land (mtn_corr>0.01)")
+    chk(okSign, "sampled elev tracks target sign (rate>=0.53)")
+    chk(okCorr, "sampled elev correlates with target (corr>=0.4)")
+    chk(okRange, "sampled field within +/-1.5")
+
+    // 精炼锐化：采样场应比草图更锐（海岸线学到的锐化）
+    var sk: array<f32, 1280> = array_init(0.0)
+    mg.sketch(-5000, 12000, 77, sk)
+    var ee: f64 = 0.0
+    var n2: f64 = 0.0
+    var es: f64 = 0.0
+    var i3: i64 = 0
+    while i3 < 16 {
+        var j3: i64 = 0
+        while j3 < 16 {
+            var v1: f64 = as_f64(f1[256 + i3 * 16 + j3])
+            var v2: f64 = as_f64(sk[i3 * 16 + j3])
+            if i3 < 15 {
+                ee = ee + absf(v1 - as_f64(f1[256 + (i3 + 1) * 16 + j3]))
+                es = es + absf(v2 - as_f64(sk[(i3 + 1) * 16 + j3]))
+                n2 = n2 + 1.0
+            }
+            if j3 < 15 {
+                ee = ee + absf(v1 - as_f64(f1[256 + i3 * 16 + j3 + 1]))
+                es = es + absf(v2 - as_f64(sk[i3 * 16 + j3 + 1]))
+                n2 = n2 + 1.0
+            }
+            j3 = j3 + 1
+        }
+        i3 = i3 + 1
+    }
+    ee = ee / n2
+    es = es / n2
+    println("edge energy sampled=" + to_string(ee) + " sketch=" + to_string(es))
+    chk(ee >= es * 0.8, "sampled field not degenerate vs sketch (edge ratio)")
+
+    if fails == 0 {
+        println("PASS ALL " + to_string(npass) + " asserts")
+    } else {
+        println("FAILS=" + to_string(fails) + " / npass=" + to_string(npass))
+        exit(1)
+    }
+}

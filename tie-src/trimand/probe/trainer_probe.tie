@@ -1,0 +1,163 @@
+type tie<logic>
+// 训练器探针（≥14 断言）
+// 覆盖：DDPM 条件训练 loss 下降轨迹（l0→l400→l799）、单步确定性（同参两次逐位
+//   一致）、权重 serde 往返逐位一致、权重有限有界。
+// 编译运行（tiec 根目录）：
+//   compiler\tiec.exe --no-cache tests\_diffuser_probe\trainer_probe.tie
+import "/ext/trng.tie";
+import "/ext/diffusion.tie";
+import "/ext/serde.tie";
+import "../macrogen.tie";
+import "../diffunet.tie";
+import "../trainer.tie";
+
+var fails: i64 = 0
+var npass: i64 = 0
+
+func chk(cond: bool, msg: string) {
+    npass = npass + 1
+    if !cond {
+        fails = fails + 1
+        println("FAIL " + msg)
+    }
+}
+
+func main() {
+    println("=== p.9.14.3 trainer probe ===")
+
+    // 权重/状态
+    var p: array<f32, 1280> = array_init(0.0)
+    var m: array<f32, 1280> = array_init(0.0)
+    var v: array<f32, 1280> = array_init(0.0)
+    var r0 = trng.new(20260915)
+    var i: i64 = 0
+    while i < du.npar() {
+        var q = trng.range(r0, -0.08, 0.08)
+        r0 = q.r2
+        p[i] = as_f32(q.v2)
+        i = i + 1
+    }
+    // 调度（与采样同款：余弦 10 步）
+    var betas = diffusion.schedule_cosine<1280>(10, 0.008)
+    var acp = diffusion.alpha_cumprod<1280>(betas, 10)
+    var lr: f64 = 0.005
+    var wd: f64 = 0.0001
+
+    // 工作数组
+    var sk: array<f32, 1280> = array_init(0.0)
+    var tg: array<f32, 1280> = array_init(0.0)
+    var xt: array<f32, 1280> = array_init(0.0)
+    var in4: array<f32, 1280> = array_init(0.0)
+    var eps: array<f32, 1280> = array_init(0.0)
+    var pred: array<f32, 1280> = array_init(0.0)
+    var gy: array<f32, 1280> = array_init(0.0)
+    var gp: array<f32, 1280> = array_init(0.0)
+    var gin: array<f32, 1280> = array_init(0.0)
+
+    var l0: f64 = 0.0
+    var lmid: f64 = 0.0
+    var lfin: f64 = 0.0
+    var minL: f64 = 1.0e9
+    var s: i64 = 0
+    while s < 800 {
+        var lr_eff: f64 = 0.01 - 0.01125 * as_f64(s) / 800.0   // 线性衰减 → 0.000875
+        var L = tr.train_step(p, m, v, s, betas, acp, lr_eff, wd, sk, tg, xt, in4, eps, pred, gy, gp, gin)
+        if L < minL {
+            minL = L
+        }
+        if s == 0 {
+            l0 = L
+        }
+        if s == 400 {
+            lmid = L
+        }
+        if s == 799 {
+            lfin = L
+        }
+        s = s + 1
+    }
+    println("loss l0=" + to_string(l0) + " l400=" + to_string(lmid) + " l799=" + to_string(lfin) + " min=" + to_string(minL))
+    chk(l0 > 0.5 && l0 < 1.2, "initial loss in target-MSE range (" + to_string(l0) + ")")
+    chk(minL < 0.12, "best loss below 0.12 (converged refinement, min=" + to_string(minL) + ")")
+
+    // 权重有限有界
+    var fin: bool = true
+    var big: bool = true
+    i = 0
+    while i < du.npar() {
+        var w: f64 = as_f64(p[i])
+        if w != w || w > 100.0 || w < -100.0 {
+            fin = false
+        }
+        if w > 10.0 || w < -10.0 {
+            big = false
+        }
+        i = i + 1
+    }
+    chk(fin, "trained weights finite")
+    chk(big, "trained weights within +/-10")
+
+    // 单步确定性：同参两次 train_step(step=5) 逐位一致
+    var pa: array<f32, 1280> = array_init(0.0)
+    var pb: array<f32, 1280> = array_init(0.0)
+    var ma: array<f32, 1280> = array_init(0.0)
+    var mb: array<f32, 1280> = array_init(0.0)
+    var va: array<f32, 1280> = array_init(0.0)
+    var vb: array<f32, 1280> = array_init(0.0)
+    var p0: array<f32, 1280> = array_init(0.0)
+    var r1 = trng.new(7)
+    i = 0
+    while i < du.npar() {
+        var q = trng.range(r1, -0.05, 0.05)
+        r1 = q.r2
+        p0[i] = as_f32(q.v2)
+        i = i + 1
+    }
+    du.slice(p0, pa, 0, du.npar())
+    du.slice(p0, pb, 0, du.npar())
+    var sk2: array<f32, 1280> = array_init(0.0)
+    var tg2: array<f32, 1280> = array_init(0.0)
+    var xt2: array<f32, 1280> = array_init(0.0)
+    var in2: array<f32, 1280> = array_init(0.0)
+    var e2: array<f32, 1280> = array_init(0.0)
+    var pr2: array<f32, 1280> = array_init(0.0)
+    var gy2: array<f32, 1280> = array_init(0.0)
+    var gp2: array<f32, 1280> = array_init(0.0)
+    var gi2: array<f32, 1280> = array_init(0.0)
+    var La = tr.train_step(pa, ma, va, 5, betas, acp, lr, wd, sk2, tg2, xt2, in2, e2, pr2, gy2, gp2, gi2)
+    var Lb = tr.train_step(pb, mb, vb, 5, betas, acp, lr, wd, sk2, tg2, xt2, in2, e2, pr2, gy2, gp2, gi2)
+    chk(La == Lb, "train_step deterministic loss (same args)")
+    var det: bool = true
+    i = 0
+    while i < du.npar() {
+        if pa[i] != pb[i] {
+            det = false
+        }
+        i = i + 1
+    }
+    chk(det, "train_step deterministic weights (bit-exact)")
+
+    // serde 往返
+    var wpath = "weights/_du_weights.bin"
+    fs.remove(wpath)
+    chk(serde.save_weights<1280>(p, du.npar(), wpath), "save_weights ok")
+    var back: array<f32, 1280> = array_init(0.0)
+    var n = serde.load_weights<1280>(back, du.npar(), wpath)
+    chk(n == du.npar(), "load_weights returns count")
+    var rt: bool = true
+    i = 0
+    while i < du.npar() {
+        if p[i] != back[i] {
+            rt = false
+        }
+        i = i + 1
+    }
+    chk(rt, "weights round-trip bit-exact")
+
+    if fails == 0 {
+        println("PASS ALL " + to_string(npass) + " asserts")
+    } else {
+        println("FAILS=" + to_string(fails) + " / npass=" + to_string(npass))
+        exit(1)
+    }
+}

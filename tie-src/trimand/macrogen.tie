@@ -1,0 +1,377 @@
+type tie<class>
+// 宏观先验数据集生成器（namespace mg）
+// ============================================================
+// 用途：为微型扩散定调器生成「条件草图 → 理想化目标」训练对，以及整体性度量工具。
+// 与 Subterra 地形核心（_tmp/subterra-tie-core/subterra_density.tie）的
+// hash3/unorm/no2/continent/mountain **逐位同源**（复制同源，保证运行时条件分布一致）。
+//
+// 布局：16×16 网格（GRID×GRID=256 单元，单元=CELL=32 方块），双通道打包：
+//   sketch out[0..255]=c_cont(∈[-1,1])  out[256..511]=c_mtn(∈[-1,1])
+//   target out[0..255]=elev(∈[-1,1])    out[256..511]=mtn(∈[-1,1]，由 [0,1] 山带强度×2-1)
+//
+// 理想化目标（地质变换，确保每个样本全局连贯）：
+//   elev = sign(c)·|c|^2.5（海岸幂律锐化）+ 陆上 ridged 细节，钳 [-1,1]
+//   mtn  = 山带强度 = belt(海岸距离带)·landMask·ridged，其中 belt 为高斯带
+// 整体性度量（探针/验收复用）：海陆比例、最大 4-连通大陆占比、海岸相邻对、
+//   山带-海岸相关（陆上山带均值 vs 海上山带均值）。
+// EN: coarse-sketch → idealized-target macro map generator + coherence metrics.
+
+namespace mg {
+
+// ---- 与 Subterra 核心同源的噪声族（复制同源，勿改数值） ----
+const CELL: i64 = 32
+const GRID: i64 = 16
+const GRID2: i64 = 256
+
+func hash3(x: i64, y: i64, z: i64) -> i64 {
+    var h: i64 = x * 374761393 + y * 668265263 + z * 1446675953
+    h = h ^ (h >> 13)
+    h = h * 1274126177
+    h = h ^ (h >> 16)
+    return h
+}
+
+func unorm(h: i64) -> f64 {
+    var a: i64 = h
+    if a < 0 {
+        a = 0 - a
+    }
+    var f: f64 = as_f64(a >> 11) * 2.220446049250313e-16
+    return f * 2.0 - 1.0
+}
+
+func no2(cx: f64, cz: f64, seed: i64) -> f64 {
+    var ix: i64 = as_i64(cx)
+    var iz: i64 = as_i64(cz)
+    var fx: f64 = cx - as_f64(ix)
+    var fz: f64 = cz - as_f64(iz)
+    var a: f64 = unorm(hash3(ix + seed, 0, iz))
+    var b: f64 = unorm(hash3(ix + seed + 1, 0, iz))
+    var c: f64 = unorm(hash3(ix + seed, 0, iz + 1))
+    var d: f64 = unorm(hash3(ix + seed + 1, 0, iz + 1))
+    var sx: f64 = fx * fx * (3.0 - 2.0 * fx)
+    var sz: f64 = fz * fz * (3.0 - 2.0 * fz)
+    var e: f64 = a + (b - a) * sx
+    var f: f64 = c + (d - c) * sx
+    return e + (f - e) * sz
+}
+
+func clampf(v: f64, lo: f64, hi: f64) -> f64 {
+    if v < lo { return lo }
+    if v > hi { return hi }
+    return v
+}
+
+func absf(a: f64) -> f64 {
+    if a < 0.0 { return 0.0 - a }
+    return a
+}
+
+// 大陆场（与 Subterra continent 逐位同源）
+pub func continent(x: i64, z: i64, seed: i64) -> f64 {
+    var fx: f64 = as_f64(x)
+    var fz: f64 = as_f64(z)
+    var c0: f64 = no2(fx * 0.0028 + 101.7, fz * 0.0028, seed)
+    var c1: f64 = no2(fx * 0.0068 + 55.3, fz * 0.0068, seed)
+    var c2: f64 = no2(fx * 0.014 + 7.9, fz * 0.014, seed)
+    return (c0 + 0.55 * c1 + 0.28 * c2) * 0.546
+}
+
+// 山骨强度场（与 Subterra mountain 逐位同源）
+pub func mountain(x: i64, z: i64, seed: i64) -> f64 {
+    var fx: f64 = as_f64(x)
+    var fz: f64 = as_f64(z)
+    var m0: f64 = no2(fx * 0.015 + 33.1, fz * 0.015, seed)
+    var m1: f64 = no2(fx * 0.030 + 199.9, fz * 0.030, seed)
+    return (m0 + 0.55 * m1) * 0.646
+}
+
+// 高崎脊线细节场（陆上微观山脊强度 [0,1]）
+func ridge_detail(x: i64, z: i64, seed: i64) -> f64 {
+    var fx: f64 = as_f64(x)
+    var fz: f64 = as_f64(z)
+    var r0: f64 = no2(fx * 0.045 + 71.5, fz * 0.045, seed)
+    var r1: f64 = no2(fx * 0.090 + 313.9, fz * 0.090, seed)
+    var r: f64 = (r0 + 0.5 * r1) * 0.667
+    if r < 0.0 { r = 0.0 - r }
+    return r   // |·| → [0,1]
+}
+
+// 海岸对比：cubic smoothstep，|c|<0.22 区间内从 0 陡升到 1（海岸线锐化）
+func coast_contrast(ac: f64) -> f64 {
+    var t: f64 = ac / 0.22
+    if t < 0.0 { t = 0.0 }
+    if t > 1.0 { t = 1.0 }
+    return t * t * (3.0 - 2.0 * t)
+}
+
+// 山带双高斯带：近海岸带(d≈0.75) + 内陆带(d≈0.30)，覆盖真实造山分布
+func mtn_belt(d: f64) -> f64 {
+    var dd1: f64 = d - 0.30
+    var dd2: f64 = d - 0.75
+    return 0.5 * exp(-(dd1 * dd1) / (0.30 * 0.30)) + 0.5 * exp(-(dd2 * dd2) / (0.20 * 0.20))
+}
+
+// 只保留最大 4-连通大陆：把非最大分量的陆单元从 elev/mtn 通道清零（去碎片）
+// out 为 target 双通道打包；land 为当前陆掩码（可写）。
+func keep_largest_land(out: ref array<f32, 1280>, land: ref array<f64, 1280>) {
+    var label: array<f64, 1280> = array_init(-1.0)
+    var q: array<f64, 1280> = array_init(0.0)
+    var bestId: f64 = -1.0
+    var bestSz: f64 = 0.0
+    var comp: i64 = 0
+    var s: i64 = 0
+    while s < GRID2 {
+        if land[s] > 0.5 && label[s] < 0.0 {
+            var head: i64 = 0
+            var tail: i64 = 0
+            var cnt: f64 = 0.0
+            q[tail] = as_f64(s)
+            tail = tail + 1
+            label[s] = as_f64(comp)
+            while head < tail {
+                var cur = as_i64(q[head])
+                head = head + 1
+                cnt = cnt + 1.0
+                var ci = cur / GRID
+                var cj = cur % GRID
+                if ci > 0 && land[cur - GRID] > 0.5 && label[cur - GRID] < 0.0 {
+                    label[cur - GRID] = as_f64(comp)
+                    q[tail] = as_f64(cur - GRID)
+                    tail = tail + 1
+                }
+                if ci < GRID - 1 && land[cur + GRID] > 0.5 && label[cur + GRID] < 0.0 {
+                    label[cur + GRID] = as_f64(comp)
+                    q[tail] = as_f64(cur + GRID)
+                    tail = tail + 1
+                }
+                if cj > 0 && land[cur - 1] > 0.5 && label[cur - 1] < 0.0 {
+                    label[cur - 1] = as_f64(comp)
+                    q[tail] = as_f64(cur - 1)
+                    tail = tail + 1
+                }
+                if cj < GRID - 1 && land[cur + 1] > 0.5 && label[cur + 1] < 0.0 {
+                    label[cur + 1] = as_f64(comp)
+                    q[tail] = as_f64(cur + 1)
+                    tail = tail + 1
+                }
+            }
+            if cnt > bestSz {
+                bestSz = cnt
+                bestId = as_f64(comp)
+            }
+            comp = comp + 1
+        }
+        s = s + 1
+    }
+    // 非最大分量清零 elev(ch1)/mtn(ch2)，并把 land 置 0（同步掩码）。
+    // climate(ch0) 全场定义，不清零（气候场跨海陆连续传播）。
+    var k: i64 = 0
+    while k < GRID2 {
+        if label[k] != bestId {
+            out[GRID2 + k] = 0.0 - absf(as_f64(out[GRID2 + k]))   // 保留为海洋（负向钳幅）
+            out[2 * GRID2 + k] = -1.0
+            land[k] = 0.0
+        }
+        k = k + 1
+    }
+}
+
+// ---- 条件草图（双通道打包，512 槽） ----
+// out[0..255]=c_cont ∈ [-1,1]，out[256..511]=c_mtn ∈ [-1,1]
+// EN: coarse conditioning sketch (2ch packed 512 slots).
+pub func sketch(x: i64, z: i64, seed: i64, out: ref array<f32, 1280>) {
+    var i: i64 = 0
+    while i < GRID {
+        var j: i64 = 0
+        while j < GRID {
+            var bx = x + i * CELL + CELL / 2
+            var bz = z + j * CELL + CELL / 2
+            var c = continent(bx, bz, seed)
+            var m = mountain(bx, bz, seed)
+            out[i * GRID + j] = as_f32(c)
+            out[GRID2 + i * GRID + j] = as_f32(m)
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
+// ---- 理想化目标（三通道打包，768 槽） ----
+// out[0..255]=climate ∈ [-1,1]（湿润-干旱定调，供水文组合派生）
+// out[256..511]=elev ∈ [-1,1]（海拔/海陆定调）
+// out[512..767]=mtn ∈ [-1,1]（山带强度 [0,1]×2-1 定调）
+// 海岸用 coast_contrast 锐化（0 交叉陡升），海底/内陆保留细节；山带用原始 |c|
+// 距离带（belt 高斯带 × softland × ridged），与锐化后的 elev 解耦。
+// 气候场：低频湿润基调 mo（同族 no2 双频）受海拔/山带调制——高海拔偏干冷、
+// 山带背风更干、离海近（softland 高）偏湿润；海上亦定义（沿线可连片传播）。
+// EN: idealized coherent 3-channel target (climate/elev/mtn, packed 768).
+pub func target(x: i64, z: i64, seed: i64, out: ref array<f32, 1280>) {
+    var i: i64 = 0
+    while i < GRID {
+        var j: i64 = 0
+        while j < GRID {
+            var bx = x + i * CELL + CELL / 2
+            var bz = z + j * CELL + CELL / 2
+            var c = continent(bx, bz, seed)
+            var r = ridge_detail(bx, bz, seed)
+            var ac: f64 = absf(c)
+            var cs: f64 = coast_contrast(ac)
+            var e: f64 = cs
+            if c < 0.0 {
+                e = 0.0 - e
+            }
+            var land: f64 = 0.0
+            if e > 0.0 {
+                land = 1.0
+            }
+            var softland: f64 = clampf((e + 0.12) / 0.24, 0.0, 1.0)
+            softland = softland * softland * (3.0 - 2.0 * softland)
+            // 地形细节：海底/内陆均有一点，陆上更强
+            e = e + 0.04 * (r - 0.5) + 0.05 * softland * (r - 0.5)
+            e = clampf(e, -1.0, 1.0)
+            // mtn：山带 = 双高斯带(原始 |c| 距离带)·softland·ridged
+            var d: f64 = 1.0 - ac
+            var m01: f64 = mtn_belt(d) * softland * r
+            if m01 > 1.0 { m01 = 1.0 }
+            // climate：低频湿润基调 + 海拔/山带/离海调制（确定性派生，学习友好）
+            var clim0 = no2(as_f64(bx) * 0.0032 + 417.7, as_f64(bz) * 0.0032, seed)
+            var clim1 = no2(as_f64(bx) * 0.0071 + 58.3, as_f64(bz) * 0.0071, seed)
+            var mo: f64 = (clim0 + 0.5 * clim1) * 0.667
+            var clim: f64 = clampf(mo * 0.8 - 0.22 * e + 0.30 * softland - 0.35 * m01, -1.0, 1.0)
+            out[i * GRID + j] = as_f32(clim)
+            out[GRID2 + i * GRID + j] = as_f32(e)
+            out[2 * GRID2 + i * GRID + j] = as_f32(m01 * 2.0 - 1.0)
+            j = j + 1
+        }
+        i = i + 1
+    }
+    // 只保留最大连通大陆（去碎片，训练"整体性"）
+    var landm: array<f64, 1280> = array_init(0.0)
+    land_map(out, landm)
+    keep_largest_land(out, landm)
+}
+
+// ---- 整体性度量（供探针/验收复用） ----
+
+// 陆地掩码（elev>0 → 1；elev 在目标 ch1），写入 land[0..255]
+pub func land_map(t: ref array<f32, 1280>, land: ref array<f64, 1280>) {
+    var i: i64 = 0
+    while i < GRID2 {
+        if as_f64(t[GRID2 + i]) > 0.0 {
+            land[i] = 1.0
+        } else {
+            land[i] = 0.0
+        }
+        i = i + 1
+    }
+}
+
+// 海陆比例：陆地单元占比 ∈ [0,1]
+pub func metric_land_fraction(land: ref array<f64, 1280>) -> f64 {
+    var c: f64 = 0.0
+    var i: i64 = 0
+    while i < GRID2 {
+        c = c + land[i]
+        i = i + 1
+    }
+    return c / 256.0
+}
+
+// 最大 4-连通大陆占比：BFS（队列用定长数组双指针），返回最大联通陆地/256
+pub func metric_largest_land(land: ref array<f64, 1280>) -> f64 {
+    var vis: array<f64, 1280> = array_init(0.0)
+    var q: array<f64, 1280> = array_init(0.0)
+    var best: f64 = 0.0
+    var s: i64 = 0
+    while s < GRID2 {
+        if land[s] > 0.5 && vis[s] == 0.0 {
+            var head: i64 = 0
+            var tail: i64 = 0
+            var cnt: f64 = 0.0
+            q[tail] = as_f64(s)
+            tail = tail + 1
+            vis[s] = 1.0
+            while head < tail {
+                var cur = as_i64(q[head])
+                head = head + 1
+                cnt = cnt + 1.0
+                var ci = cur / GRID
+                var cj = cur % GRID
+                // 4-邻居
+                if ci > 0 && land[cur - GRID] > 0.5 && vis[cur - GRID] == 0.0 {
+                    vis[cur - GRID] = 1.0
+                    q[tail] = as_f64(cur - GRID)
+                    tail = tail + 1
+                }
+                if ci < GRID - 1 && land[cur + GRID] > 0.5 && vis[cur + GRID] == 0.0 {
+                    vis[cur + GRID] = 1.0
+                    q[tail] = as_f64(cur + GRID)
+                    tail = tail + 1
+                }
+                if cj > 0 && land[cur - 1] > 0.5 && vis[cur - 1] == 0.0 {
+                    vis[cur - 1] = 1.0
+                    q[tail] = as_f64(cur - 1)
+                    tail = tail + 1
+                }
+                if cj < GRID - 1 && land[cur + 1] > 0.5 && vis[cur + 1] == 0.0 {
+                    vis[cur + 1] = 1.0
+                    q[tail] = as_f64(cur + 1)
+                    tail = tail + 1
+                }
+            }
+            if cnt > best {
+                best = cnt
+            }
+        }
+        s = s + 1
+    }
+    return best / 256.0
+}
+
+// 海岸相邻对计数：相邻两单元海陆异号的边数（>0 即有海岸线）
+pub func metric_coast(land: ref array<f64, 1280>) -> i64 {
+    var c: i64 = 0
+    var i: i64 = 0
+    while i < GRID {
+        var j: i64 = 0
+        while j < GRID {
+            var cur = i * GRID + j
+            if i < GRID - 1 && land[cur] != land[cur + GRID] {
+                c = c + 1
+            }
+            if j < GRID - 1 && land[cur] != land[cur + 1] {
+                c = c + 1
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return c
+}
+
+// 山带-海岸相关：陆上山带均值 − 海上山带均值（>0 表示山带偏向陆地/海岸带）
+// mtn 输入为 target 通道（ch2，∈[-1,1]），换算回 [0,1] 强度统计。
+pub func metric_mtn_corr(t: ref array<f32, 1280>, land: ref array<f64, 1280>) -> f64 {
+    var ml: f64 = 0.0
+    var sl: f64 = 0.0
+    var ms: f64 = 0.0
+    var ss: f64 = 0.0
+    var i: i64 = 0
+    while i < GRID2 {
+        var m01: f64 = (as_f64(t[2 * GRID2 + i]) + 1.0) * 0.5
+        if land[i] > 0.5 {
+            ml = ml + m01
+            sl = sl + 1.0
+        } else {
+            ms = ms + m01
+            ss = ss + 1.0
+        }
+        i = i + 1
+    }
+    if sl < 1.0 { sl = 1.0 }
+    if ss < 1.0 { ss = 1.0 }
+    return ml / sl - ms / ss
+}
+
+}

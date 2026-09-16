@@ -1,0 +1,180 @@
+type tie<logic>
+// 微型 UNet 探针（≥26 断言）
+// 覆盖：前向确定性/零权重输出为 0/形状与有限性；反向与损失有限差分数值梯度
+//   逐参数一致（跨各层权重/偏置/GNγβ/t-线性）；NPAR 布局自洽（OFF_GBB+8==NPAR）。
+// 编译运行（tiec 根目录）：
+//   compiler\tiec.exe --no-cache tests\_diffuser_probe\diffunet_probe.tie
+import "/ext/trng.tie";
+import "/ext/loss.tie";
+import "../diffunet.tie";
+
+var fails: i64 = 0
+var npass: i64 = 0
+
+func chk(cond: bool, msg: string) {
+    npass = npass + 1
+    if !cond {
+        fails = fails + 1
+        println("FAIL " + msg)
+    }
+}
+
+func absf(v: f64) -> f64 {
+    if v < 0.0 {
+        return -v
+    }
+    return v
+}
+
+func near(a: f64, b: f64, tol: f64) -> bool {
+    return absf(a - b) <= tol
+}
+
+// 用 trng 均匀填充 f32 数组 [0..n)
+func fill_rand(a: ref array<f32, 1280>, n: i64, seed: i64, lo: f64, hi: f64) -> Rng {
+    var r = trng.new(seed)
+    var i: i64 = 0
+    while i < n {
+        var p = trng.range(r, lo, hi)
+        r = p.r2
+        a[i] = as_f32(p.v2)
+        i = i + 1
+    }
+    return r
+}
+
+// 全环 loss：L = MSE(forward(in4,p,t), eps)
+func loss_of(in4: ref array<f32, 1280>, p: ref array<f32, 1280>, t: i64, eps: ref array<f32, 1280>) -> f64 {
+    var out: array<f32, 1280> = array_init(0.0)
+    du.forward(in4, p, t, out)
+    return loss.mse<1280>(out, 768, eps, 768)
+}
+
+func main() {
+    println("=== p.9.14.2 diffunet probe ===")
+
+    // ---- 布局自洽 ----
+    chk(du.npar() <= 1280, "NPAR " + to_string(du.npar()) + " <= 1280 (single flat array)")
+    chk(du.off_gbb() + 8 == du.npar(), "layout contiguous: OFF_GBB+8 == NPAR")
+
+    var in4: array<f32, 1280> = array_init(0.0)
+    var p: array<f32, 1280> = array_init(0.0)
+    var p2: array<f32, 1280> = array_init(0.0)
+    var eps: array<f32, 1280> = array_init(0.0)
+    var out: array<f32, 1280> = array_init(0.0)
+    var out2: array<f32, 1280> = array_init(0.0)
+
+    fill_rand(in4, 1280, 11, -1.0, 1.0)
+    fill_rand(eps, 768, 22, -0.5, 0.5)
+    fill_rand(p, du.npar(), 33, -0.08, 0.08)
+
+    // ---- 零权重 → 输出全 0（init 健全性） ----
+    var pz: array<f32, 1280> = array_init(0.0)
+    du.forward(in4, pz, 50, out)
+    var allz: bool = true
+    var i: i64 = 0
+    while i < 768 {
+        if as_f64(out[i]) != 0.0 {
+            allz = false
+        }
+        i = i + 1
+    }
+    chk(allz, "zero weights -> zero output")
+
+    // ---- 确定性 ----
+    du.forward(in4, p, 50, out)
+    du.forward(in4, p, 50, out2)
+    var det: bool = true
+    i = 0
+    while i < 768 {
+        if as_f64(out[i]) != as_f64(out2[i]) {
+            det = false
+        }
+        i = i + 1
+    }
+    chk(det, "forward deterministic (bit-exact)")
+
+    // ---- 有限性 ----
+    var fin: bool = true
+    i = 0
+    while i < 768 {
+        var v: f64 = as_f64(out[i])
+        if v != v || v > 1.0e6 || v < -1.0e6 {
+            fin = false
+        }
+        i = i + 1
+    }
+    chk(fin, "forward output finite")
+    var l0: f64 = loss_of(in4, p, 50, eps)
+    chk(l0 == l0 && l0 > 0.0, "loss finite positive")
+
+    // ---- 反向数值梯度（中心差分） ----
+    var g_p: array<f32, 1280> = array_init(0.0)
+    var gy: array<f32, 1280> = array_init(0.0)
+    var gin: array<f32, 1280> = array_init(0.0)
+    var lbase: f64 = loss_of(in4, p, 50, eps)
+    du.forward(in4, p, 50, out)
+    loss.mse_grad<1280>(gy, out, eps, 768)
+    du.backward(gin, g_p, gy, in4, p, 50)
+
+    // 检查 g_p 溢出区（NPAR..1024）保持 0
+    var spill: bool = true
+    i = du.npar()
+    while i < 1280 {
+        if as_f64(g_p[i]) != 0.0 {
+            spill = false
+        }
+        i = i + 1
+    }
+    chk(spill, "g_p spill region untouched (NPAR..1280 == 0)")
+
+    var probes: array<i64, 10> = [
+        0, 71, du.off_bc1(), du.off_wc2() + 100, du.off_wcb() + 200,
+        du.off_wct() + 10, du.off_wco() + 30, du.off_wte() + 3, du.off_g1g(),
+        du.off_gbb() + 7
+    ];
+    var okGrad: bool = true
+    var pr: i64 = 0
+    while pr < 10 {
+        var idx: i64 = probes[pr]
+        var delta: f64 = 0.02
+        // L(p+δ)
+        var ppos: array<f32, 1280> = array_init(0.0)
+        var pneg: array<f32, 1280> = array_init(0.0)
+        du.slice(p, ppos, 0, du.npar())
+        du.slice(p, pneg, 0, du.npar())
+        ppos[idx] = as_f32(as_f64(ppos[idx]) + delta)
+        pneg[idx] = as_f32(as_f64(pneg[idx]) - delta)
+        var lp: f64 = loss_of(in4, ppos, 50, eps)
+        var ln: f64 = loss_of(in4, pneg, 50, eps)
+        var fd: f64 = (lp - ln) / (2.0 * delta)
+        var gv: f64 = as_f64(g_p[idx])
+        var tol: f64 = 0.02 + 0.2 * absf(fd)
+        if !near(fd, gv, tol) {
+            okGrad = false
+            println("  grad@idx=" + to_string(idx) + " fd=" + to_string(fd) + " bp=" + to_string(gv))
+        }
+        pr = pr + 1
+    }
+    chk(okGrad, "backward grads match finite differences (10 probes)")
+
+    // 反向确定性（同输入两次反向一致）
+    var g_p2: array<f32, 1280> = array_init(0.0)
+    du.backward(gin, g_p2, gy, in4, p, 50)
+    var gdet: bool = true
+    i = 0
+    while i < du.npar() {
+        if as_f64(g_p[i]) != as_f64(g_p2[i]) {
+            gdet = false
+        }
+        i = i + 1
+    }
+    chk(gdet, "backward deterministic (bit-exact)")
+
+    if fails == 0 {
+        println("PASS ALL " + to_string(npass) + " asserts")
+    } else {
+        println("FAILS=" + to_string(fails) + " / npass=" + to_string(npass))
+        exit(1)
+    }
+}

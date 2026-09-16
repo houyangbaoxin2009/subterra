@@ -1,0 +1,65 @@
+type tie<logic>
+// 完整训练（4000 步），产出 _du_weights_full.bin
+// 供采样探针与 DLL 权重生成使用（p.9.14.4/5）。确定性：同参重跑逐位一致。
+// 编译运行（tiec 根目录）：
+//   compiler\tiec.exe --no-cache tests\_diffuser_probe\train_full.tie
+import "/ext/trng.tie";
+import "/ext/diffusion.tie";
+import "/ext/serde.tie";
+import "./macrogen.tie";
+import "./diffunet.tie";
+import "./trainer.tie";
+
+func main() {
+    println("=== train_full: 4000 steps ===")
+    var p: array<f32, 1280> = array_init(0.0)
+    var m: array<f32, 1280> = array_init(0.0)
+    var v: array<f32, 1280> = array_init(0.0)
+    var r0 = trng.new(20260915)
+    var i: i64 = 0
+    while i < du.npar() {
+        var q = trng.range(r0, -0.08, 0.08)
+        r0 = q.r2
+        p[i] = as_f32(q.v2)
+        i = i + 1
+    }
+    var betas = diffusion.schedule_cosine<1280>(10, 0.008)
+    var acp = diffusion.alpha_cumprod<1280>(betas, 10)
+    var wd: f64 = 0.0001
+    var sk: array<f32, 1280> = array_init(0.0)
+    var tg: array<f32, 1280> = array_init(0.0)
+    var xt: array<f32, 1280> = array_init(0.0)
+    var in4: array<f32, 1280> = array_init(0.0)
+    var eps: array<f32, 1280> = array_init(0.0)
+    var pred: array<f32, 1280> = array_init(0.0)
+    var gy: array<f32, 1280> = array_init(0.0)
+    var gp: array<f32, 1280> = array_init(0.0)
+    var gin: array<f32, 1280> = array_init(0.0)
+    var best: array<f32, 1280> = array_init(0.0)
+    var bestL: f64 = 1.0e9
+    var s: i64 = 0
+    while s < 4000 {
+        var lr_eff: f64 = 0.01 * (1.0 - as_f64(s) / 4000.0) + 0.0002
+        var L = tr.train_step(p, m, v, s, betas, acp, lr_eff, wd, sk, tg, xt, in4, eps, pred, gy, gp, gin)
+        if L < bestL {
+            bestL = L
+            du.slice(p, best, 0, du.npar())
+        }
+        if (s + 1) % 1000 == 0 {
+            println("step " + to_string(s + 1) + " loss=" + to_string(L) + " best=" + to_string(bestL))
+        }
+        s = s + 1
+    }
+    println("best loss=" + to_string(bestL))
+    var wpath = "weights/_du_weights_full.bin"
+    fs.remove(wpath)
+    chk_save(best, wpath)
+    println("saved " + wpath + " (best checkpoint)")
+}
+
+func chk_save(p: ref array<f32, 1280>, path: string) {
+    if !serde.save_weights<1280>(p, du.npar(), path) {
+        println("SAVE FAILED")
+        exit(1)
+    }
+}

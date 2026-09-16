@@ -1,0 +1,433 @@
+type tie<class>
+// tests/_diffuser_probe/runtime_forward.tie —— p.9.14.4 自包含运行时模块（namespace rfwd）
+// ============================================================
+// 用途：Subterra DLL 内嵌的确定性运行时核心——零 import、纯标量 + 定长数组。
+// 含：噪声族（与 Subterra 核心逐位同源）、sketch 条件、UNet 前向（conv/convT/
+// groupnorm 自包含拷贝，与 std/nn 数学逐位一致）、seed_gauss（Box-Muller）、
+// sample_tile（确定性 DDPM 反演，strat=false）。权重/调度由调用方提供（DLL 端
+// 用代码生成的字面量；tiec 端探针用 serde 权重 + std 调度）。
+// 与 du.forward 的一致性由探针逐位校验（本文件即 DLL 运行时的唯一真实来源）。
+// EN: self-contained deterministic runtime (zero imports) — noise family, sketch
+// conditioning, UNet forward, seeded gauss, deterministic DDPM tile sampling.
+
+namespace rfwd {
+
+// ---- 权重布局（与 du 同构；DLL 端字面量同此布局；NPAR=1083≤1280） ----
+const OFF_WC1: i64 = 0
+const OFF_BC1: i64 = 180
+const OFF_WC2: i64 = 184
+const OFF_BC2: i64 = 328
+const OFF_WCB: i64 = 332
+const OFF_BCB: i64 = 620
+const OFF_WCT: i64 = 628
+const OFF_BCT: i64 = 916
+const OFF_WCO: i64 = 920
+const OFF_BCO: i64 = 1028
+const OFF_WTE: i64 = 1031
+const OFF_BTE: i64 = 1047
+const OFF_G1G: i64 = 1051
+const OFF_G1B: i64 = 1055
+const OFF_G2G: i64 = 1059
+const OFF_G2B: i64 = 1063
+const OFF_GBG: i64 = 1067
+const OFF_GBB: i64 = 1075
+const NPAR: i64 = 1083
+
+const GRID: i64 = 16
+const GRID2: i64 = 256
+const CELL: i64 = 32
+const EPS: f64 = 0.00001
+
+// ---- 噪声族（与 Subterra 核心逐位同源） ----
+pub func hash3(x: i64, y: i64, z: i64) -> i64 {
+    var h: i64 = x * 374761393 + y * 668265263 + z * 1446675953
+    h = h ^ (h >> 13)
+    h = h * 1274126177
+    h = h ^ (h >> 16)
+    return h
+}
+
+func unorm(h: i64) -> f64 {
+    var a: i64 = h
+    if a < 0 {
+        a = 0 - a
+    }
+    var f: f64 = as_f64(a >> 11) * 2.220446049250313e-16
+    return f * 2.0 - 1.0
+}
+
+func no2(cx: f64, cz: f64, seed: i64) -> f64 {
+    var ix: i64 = as_i64(cx)
+    var iz: i64 = as_i64(cz)
+    var fx: f64 = cx - as_f64(ix)
+    var fz: f64 = cz - as_f64(iz)
+    var a: f64 = unorm(hash3(ix + seed, 0, iz))
+    var b: f64 = unorm(hash3(ix + seed + 1, 0, iz))
+    var c: f64 = unorm(hash3(ix + seed, 0, iz + 1))
+    var d: f64 = unorm(hash3(ix + seed + 1, 0, iz + 1))
+    var sx: f64 = fx * fx * (3.0 - 2.0 * fx)
+    var sz: f64 = fz * fz * (3.0 - 2.0 * fz)
+    var e: f64 = a + (b - a) * sx
+    var f: f64 = c + (d - c) * sx
+    return e + (f - e) * sz
+}
+
+pub func continent(x: i64, z: i64, seed: i64) -> f64 {
+    var fx: f64 = as_f64(x)
+    var fz: f64 = as_f64(z)
+    var c0: f64 = no2(fx * 0.0028 + 101.7, fz * 0.0028, seed)
+    var c1: f64 = no2(fx * 0.0068 + 55.3, fz * 0.0068, seed)
+    var c2: f64 = no2(fx * 0.014 + 7.9, fz * 0.014, seed)
+    return (c0 + 0.55 * c1 + 0.28 * c2) * 0.546
+}
+
+pub func mountain(x: i64, z: i64, seed: i64) -> f64 {
+    var fx: f64 = as_f64(x)
+    var fz: f64 = as_f64(z)
+    var m0: f64 = no2(fx * 0.015 + 33.1, fz * 0.015, seed)
+    var m1: f64 = no2(fx * 0.030 + 199.9, fz * 0.030, seed)
+    return (m0 + 0.55 * m1) * 0.646
+}
+
+// 条件草图（2ch 打包 512）：c_cont / c_mtn
+func sketch(x: i64, z: i64, seed: i64, out: ref array<f32, 1280>) {
+    var i: i64 = 0
+    while i < GRID {
+        var j: i64 = 0
+        while j < GRID {
+            var bx = x + i * CELL + CELL / 2
+            var bz = z + j * CELL + CELL / 2
+            out[i * GRID + j] = as_f32(continent(bx, bz, seed))
+            out[GRID2 + i * GRID + j] = as_f32(mountain(bx, bz, seed))
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
+// ---- 层原语（自包含拷贝，与 std/nn 数学逐位一致） ----
+func conv2d_f(yo: ref array<f32, 1280>, xi: ref array<f32, 1280>, cin: i64, hin: i64, win: i64,
+              wf: ref array<f32, 1280>, cout: i64, kk: i64, stride: i64, pad: i64,
+              wb: ref array<f32, 1280>) {
+    var hout = (hin + 2 * pad - kk) / stride + 1
+    var wout = (win + 2 * pad - kk) / stride + 1
+    var co: i64 = 0
+    while co < cout {
+        var ho: i64 = 0
+        while ho < hout {
+            var wo: i64 = 0
+            while wo < wout {
+                var acc: f64 = as_f64(wb[co])
+                var ci: i64 = 0
+                while ci < cin {
+                    var kh: i64 = 0
+                    while kh < kk {
+                        var hi = ho * stride - pad + kh
+                        if hi >= 0 && hi < hin {
+                            var kw: i64 = 0
+                            while kw < kk {
+                                var wi2 = wo * stride - pad + kw
+                                if wi2 >= 0 && wi2 < win {
+                                    var wi = co * (cin * kk * kk) + ci * (kk * kk) + kh * kk + kw
+                                    var xidx = ci * (hin * win) + hi * win + wi2
+                                    acc = acc + as_f64(xi[xidx]) * as_f64(wf[wi])
+                                }
+                                kw = kw + 1
+                            }
+                        }
+                        kh = kh + 1
+                    }
+                    ci = ci + 1
+                }
+                yo[co * (hout * wout) + ho * wout + wo] = as_f32(acc)
+                wo = wo + 1
+            }
+            ho = ho + 1
+        }
+        co = co + 1
+    }
+}
+
+func conv2d_t_f(yo: ref array<f32, 1280>, xi: ref array<f32, 1280>, cin: i64, hin: i64, win: i64,
+                wf: ref array<f32, 1280>, cout: i64, kk: i64, stride: i64, pad: i64,
+                wb: ref array<f32, 1280>) {
+    var hout = (hin - 1) * stride - 2 * pad + kk
+    var wout = (win - 1) * stride - 2 * pad + kk
+    var co: i64 = 0
+    while co < cout {
+        var ho: i64 = 0
+        while ho < hout {
+            var wo: i64 = 0
+            while wo < wout {
+                var acc: f64 = as_f64(wb[co])
+                var ci: i64 = 0
+                while ci < cin {
+                    var kh: i64 = 0
+                    while kh < kk {
+                        var th: i64 = ho + pad - kh
+                        if th >= 0 && th % stride == 0 && th / stride < hin {
+                            var hi = th / stride
+                            var kw: i64 = 0
+                            while kw < kk {
+                                var tw: i64 = wo + pad - kw
+                                if tw >= 0 && tw % stride == 0 && tw / stride < win {
+                                    var wi2 = tw / stride
+                                    var widx = co * (cin * kk * kk) + ci * (kk * kk) + kh * kk + kw
+                                    var xidx = ci * (hin * win) + hi * win + wi2
+                                    acc = acc + as_f64(xi[xidx]) * as_f64(wf[widx])
+                                }
+                                kw = kw + 1
+                            }
+                        }
+                        kh = kh + 1
+                    }
+                    ci = ci + 1
+                }
+                yo[co * (hout * wout) + ho * wout + wo] = as_f32(acc)
+                wo = wo + 1
+            }
+            ho = ho + 1
+        }
+        co = co + 1
+    }
+}
+
+func groupnorm_f(yo: ref array<f32, 1280>, xi: ref array<f32, 1280>, n: i64, c: i64, hw: i64, g: i64,
+                 gama: ref array<f32, 1280>, beta: ref array<f32, 1280>, eps: f64) {
+    var cpg = c / g
+    var m = cpg * hw
+    var s: i64 = 0
+    while s < n {
+        var gi: i64 = 0
+        while gi < g {
+            var area = (s * c + gi * cpg) * hw
+            var mean: f64 = 0.0
+            var t2: i64 = 0
+            while t2 < m {
+                mean = mean + as_f64(xi[area + t2])
+                t2 = t2 + 1
+            }
+            mean = mean / as_f64(m)
+            var varv: f64 = 0.0
+            var t3: i64 = 0
+            while t3 < m {
+                var d2 = as_f64(xi[area + t3]) - mean
+                varv = varv + d2 * d2
+                t3 = t3 + 1
+            }
+            varv = varv / as_f64(m)
+            var inv = 1.0 / sqrt(varv + eps)
+            var ch: i64 = 0
+            while ch < cpg {
+                var hw2: i64 = 0
+                while hw2 < hw {
+                    var idx = (s * c + gi * cpg + ch) * hw + hw2
+                    var xh = (as_f64(xi[idx]) - mean) * inv
+                    yo[idx] = as_f32(xh * as_f64(gama[gi * cpg + ch]) + as_f64(beta[gi * cpg + ch]))
+                    hw2 = hw2 + 1
+                }
+                ch = ch + 1
+            }
+            gi = gi + 1
+        }
+        s = s + 1
+    }
+}
+
+// ---- 张量工具 ----
+func slice(src: ref array<f32, 1280>, dst: ref array<f32, 1280>, off: i64, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        dst[i] = src[off + i]
+        i = i + 1
+    }
+}
+
+func add_inplace(dst: ref array<f32, 1280>, src: ref array<f32, 1280>, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        dst[i] = as_f32(as_f64(dst[i]) + as_f64(src[i]))
+        i = i + 1
+    }
+}
+
+func add_tv_inplace(dst: ref array<f32, 1280>, tv: ref array<f32, 1280>, nch: i64, hw: i64, modch: bool) {
+    var ch: i64 = 0
+    while ch < nch {
+        var tc: f64 = as_f64(tv[ch % 4])
+        if !modch {
+            tc = as_f64(tv[ch])
+        }
+        var k: i64 = 0
+        while k < hw {
+            var idx = ch * hw + k
+            dst[idx] = as_f32(as_f64(dst[idx]) + tc)
+            k = k + 1
+        }
+        ch = ch + 1
+    }
+}
+
+func relu_inplace(a: ref array<f32, 1280>, n: i64) {
+    var i: i64 = 0
+    while i < n {
+        if as_f64(a[i]) < 0.0 {
+            a[i] = 0.0
+        }
+        i = i + 1
+    }
+}
+
+func t_embed(t: i64, e: ref array<f32, 1280>) {
+    var a0: f64 = as_f64(t) * 0.1
+    var a1: f64 = as_f64(t) * 0.01
+    e[0] = as_f32(sin(a0))
+    e[1] = as_f32(cos(a0))
+    e[2] = as_f32(sin(a1))
+    e[3] = as_f32(cos(a1))
+}
+
+func t_vec(p: ref array<f32, 1280>, e: ref array<f32, 1280>, tv: ref array<f32, 1280>) {
+    var ch: i64 = 0
+    while ch < 4 {
+        var acc: f64 = as_f64(p[OFF_BTE + ch])
+        var i: i64 = 0
+        while i < 4 {
+            acc = acc + as_f64(p[OFF_WTE + ch * 4 + i]) * as_f64(e[i])
+            i = i + 1
+        }
+        tv[ch] = as_f32(acc)
+        ch = ch + 1
+    }
+}
+
+// ---- UNet 前向（与 du.forward 数学逐位一致；5 输入 / 3 输出） ----
+pub func forward(in5: ref array<f32, 1280>, p: ref array<f32, 1280>, t: i64, out3: ref array<f32, 1280>) {
+    var emb: array<f32, 1280> = array_init(0.0)
+    var tv: array<f32, 1280> = array_init(0.0)
+    t_embed(t, emb)
+    t_vec(p, emb, tv)
+    var w: array<f32, 1280> = array_init(0.0)
+    var b: array<f32, 1280> = array_init(0.0)
+    var c1: array<f32, 1280> = array_init(0.0)
+    var e1: array<f32, 1280> = array_init(0.0)
+    slice(p, w, OFF_WC1, 180)
+    slice(p, b, OFF_BC1, 4)
+    conv2d_f(c1, in5, 5, 16, 16, w, 4, 3, 1, 1, b)
+    add_tv_inplace(c1, tv, 4, 256, false)
+    slice(p, w, OFF_G1G, 4)
+    slice(p, b, OFF_G1B, 4)
+    groupnorm_f(e1, c1, 1, 4, 256, 2, w, b, EPS)
+    relu_inplace(e1, 1024)
+    var c2: array<f32, 1280> = array_init(0.0)
+    var e2: array<f32, 1280> = array_init(0.0)
+    slice(p, w, OFF_WC2, 144)
+    slice(p, b, OFF_BC2, 4)
+    conv2d_f(c2, e1, 4, 16, 16, w, 4, 3, 2, 1, b)
+    slice(p, w, OFF_G2G, 4)
+    slice(p, b, OFF_G2B, 4)
+    groupnorm_f(e2, c2, 1, 4, 64, 2, w, b, EPS)
+    relu_inplace(e2, 256)
+    var cb: array<f32, 1280> = array_init(0.0)
+    var bo: array<f32, 1280> = array_init(0.0)
+    slice(p, w, OFF_WCB, 288)
+    slice(p, b, OFF_BCB, 8)
+    conv2d_f(cb, e2, 4, 8, 8, w, 8, 3, 1, 1, b)
+    slice(p, w, OFF_GBG, 8)
+    slice(p, b, OFF_GBB, 8)
+    groupnorm_f(bo, cb, 1, 8, 64, 2, w, b, EPS)
+    add_tv_inplace(bo, tv, 8, 64, true)
+    relu_inplace(bo, 512)
+    var d2: array<f32, 1280> = array_init(0.0)
+    slice(p, w, OFF_WCT, 288)
+    slice(p, b, OFF_BCT, 4)
+    conv2d_t_f(d2, bo, 8, 8, 8, w, 4, 3, 2, 1, b)
+    add_inplace(d2, e1, 1024)
+    slice(p, w, OFF_WCO, 108)
+    slice(p, b, OFF_BCO, 3)
+    conv2d_f(out3, d2, 4, 16, 16, w, 3, 3, 1, 1, b)
+}
+
+// ---- 确定性种子高斯（Box-Muller；供 x_T 初始化） ----
+pub func seed_gauss(s: i64) -> f64 {
+    var h1 = hash3(s, s * 31 + 7, 13579)
+    var h2 = hash3(s + 101, s * 47 + 13, 24680)
+    var u1: f64 = (unorm(h1) + 1.0) * 0.5
+    var u2: f64 = (unorm(h2) + 1.0) * 0.5
+    if u1 < 0.000000001 {
+        u1 = 0.000000001
+    }
+    if u2 < 0.000000001 {
+        u2 = 0.000000001
+    }
+    if u2 >= 1.0 {
+        u2 = 0.999999999
+    }
+    return sqrt(-2.0 * log(u1)) * cos(6.283185307179586 * u2)
+}
+
+// ---- 确定性精炼采样（predict-x0 形式，无 1/√ᾱ 放大；三定调输出） ----
+// x,z=tile 原点；acp=ᾱ 表（余弦 10 步）；p=已训权重；out=3ch 精炼场（768，
+// ch0=climate ch1=elev ch2=mtn）。
+// 流程：cur = √ᾱₛ·sketch3 + √(1−ᾱₛ)·ε（s=起始步，中度噪声，锚定条件布局）
+//       → 逐 t 递减：x0h = forward([cond2|x0h3], t)，cur = √ᾱₜ·x0h（钳 [-1,1]）
+//       → t=0 得最终 3 场。全程确定性（噪声种子由 tile+seed 派生）。
+// EN: deterministic refinement sampling (predict-x0), 3-tone output.
+pub func sample_tile(x: i64, z: i64, seed: i64, acp: ref array<f64, 1280>,
+                     p: ref array<f32, 1280>, out: ref array<f32, 1280>) {
+    var cond: array<f32, 1280> = array_init(0.0)
+    sketch(x, z, seed, cond)
+    var start: i64 = 6
+    var cur: array<f32, 1280> = array_init(0.0)
+    var k: i64 = 0
+    while k < 768 {
+        var cs = hash3(x, z, seed * 7919 + k)
+        var g = seed_gauss(cs)
+        var as0: f64 = sqrt(acp[start])
+        var bs0: f64 = sqrt(1.0 - acp[start])
+        // 锚定：ch0/1（climate/elev）锚 c_cont 大陆草图；ch2（mtn）锚 c_mtn 山带草图
+        var base: f64 = as_f64(cond[k % 256])
+        if k >= 512 {
+            base = as_f64(cond[256 + k % 256])
+        }
+        cur[k] = as_f32(as0 * base + bs0 * g)
+        k = k + 1
+    }
+    var in5: array<f32, 1280> = array_init(0.0)
+    var x0h: array<f32, 1280> = array_init(0.0)
+    var t = start - 1
+    while t >= 0 {
+        var i: i64 = 0
+        while i < 512 {
+            in5[i] = cond[i]
+            i = i + 1
+        }
+        i = 0
+        while i < 768 {
+            in5[512 + i] = cur[i]
+            i = i + 1
+        }
+        forward(in5, p, t, x0h)
+        var at: f64 = sqrt(acp[t])
+        var m: i64 = 0
+        while m < 768 {
+            var v = at * as_f64(x0h[m])
+            if v > 1.0 {
+                v = 1.0
+            }
+            if v < -1.0 {
+                v = -1.0
+            }
+            cur[m] = as_f32(v)
+            m = m + 1
+        }
+        t = t - 1
+    }
+    var o: i64 = 0
+    while o < 768 {
+        out[o] = cur[o]
+        o = o + 1
+    }
+}
+
+}

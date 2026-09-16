@@ -1,0 +1,99 @@
+type tie<class>
+// DDPM 条件训练器（namespace tr）
+// ============================================================
+// 用途：训练微型扩散定调器（sketch 条件 → target 精炼，ε-预测）。数据对来自
+// macrogen（mg.sketch/mg.target，同一 (x,z,seed) 逐位确定），时间步 t 用
+// std/diffusion 的线性 β 调度 + ᾱ 累积乘积；每步：gauss 噪声 → add_noise →
+// in4=[sketch 2ch | xt 2ch] → du.forward → MSE → du.backward → optim.adamw。
+//
+// 确定性纪律：每步 Rng 种子 = step*104729+12345（不携带状态），两次同参数训练
+// 逐位一致。权重最终经 serde.save_weights 单数组导出（供采样器/DLL 字面量生成）。
+// EN: conditioned DDPM trainer (eps-prediction) over macrogen pairs; per-step
+// Rng derived from step index for bit-exact reproducibility.
+import "/ext/trng.tie";
+import "/ext/loss.tie";
+import "/ext/optim.tie";
+import "/ext/diffusion.tie";
+import "/ext/serde.tie";
+import "./macrogen.tie";
+import "./diffunet.tie";
+
+namespace tr {
+
+// 训练与采样共用同一条余弦调度（10 步，ᾱ(9)≈0 → 采样末步近纯噪声），
+// 保证训练见过的噪声水平与采样一致。EN: shared cosine schedule (train==sample).
+const T_STEPS: i64 = 10
+const NCH: i64 = 768
+
+// 单对数据生成：sketch + target（双通道打包 512）→ in4 = [sk|xt] 由调用方拼装
+pub func sample_pair(x: i64, z: i64, seed: i64, sk: ref array<f32, 1280>, tg: ref array<f32, 1280>) {
+    mg.sketch(x, z, seed, sk)
+    mg.target(x, z, seed, tg)
+}
+
+// 拼装 in5：in4[0..512]=sk（2 条件），in4[512..1280]=xt（3 目标噪声 768）
+pub func build_input(sk: ref array<f32, 1280>, xt: ref array<f32, 1280>, in4: ref array<f32, 1280>) {
+    var i: i64 = 0
+    while i < 512 {
+        in4[i] = sk[i]
+        i = i + 1
+    }
+    i = 0
+    while i < NCH {
+        in4[512 + i] = xt[i]
+        i = i + 1
+    }
+}
+
+// 单步训练：返回该步 loss。p/m/v 为 adamw 状态；betas/acp 预计算；
+// 生成 (x,z,seed) 由 step 确定（确定性语料轨迹）。
+// 目标形式：**predict-x0**（模型直接预测干净目标场；反演无 1/√ᾱ 放大，稳定+跟踪）。
+// EN: predict-x0 objective (stable refinement; no 1/sqrt(alpha-bar) amplification).
+pub func train_step(p: ref array<f32, 1280>, m: ref array<f32, 1280>, v: ref array<f32, 1280>,
+                    step: i64, betas: ref array<f64, 1280>, acp: ref array<f64, 1280>,
+                    lr: f64, wd: f64, sk: ref array<f32, 1280>, tg: ref array<f32, 1280>,
+                    xt: ref array<f32, 1280>, in4: ref array<f32, 1280>,
+                    eps: ref array<f32, 1280>, pred: ref array<f32, 1280>, gy: ref array<f32, 1280>,
+                    gp: ref array<f32, 1280>, gin: ref array<f32, 1280>) -> f64 {
+    // 语料轨迹：tile 位置/世界种子由 step 派生
+    var rr = trng.new(step * 104729 + 12345)
+    var rx = trng.range(rr, -800000.0, 800000.0)
+    rr = rx.r2
+    var rz = trng.range(rr, -800000.0, 800000.0)
+    rr = rz.r2
+    var rs = trng.range(rr, 1.0, 2000000000.0)
+    rr = rs.r2
+    var tx: i64 = as_i64(rx.v2)
+    var tz: i64 = as_i64(rz.v2)
+    var tseed: i64 = as_i64(rs.v2)
+    sample_pair(tx, tz, tseed, sk, tg)
+    var t = step % T_STEPS
+    // 标准正态噪声 ε（512）
+    var k: i64 = 0
+    while k < NCH {
+        var g = trng.gauss(rr)
+        rr = g.r2
+        eps[k] = as_f32(g.v2)
+        k = k + 1
+    }
+    // 加噪：x_t = √ᾱₜ·x0 + √(1−ᾱₜ)·ε
+    rr = diffusion.add_noise<1280>(tg, NCH, t, eps, acp, xt, rr)
+    // 模型输入
+    build_input(sk, xt, in4)
+    // 前向 + 损失（predict-x0：对干净目标求 MSE）
+    du.forward(in4, p, t, pred)
+    var L = loss.mse<1280>(pred, NCH, tg, NCH)
+    // 反向 + 更新
+    loss.mse_grad<1280>(gy, pred, tg, NCH)
+    var z: i64 = 0
+    while z < du.npar() {
+        gp[z] = 0.0
+        z = z + 1
+    }
+    du.backward(gin, gp, gy, in4, p, t)
+    var st = step + 1
+    optim.adamw_step<1280>(p, du.npar(), gp, m, v, st, lr, wd, 0.9, 0.999, 0.00000001)
+    return L
+}
+
+}

@@ -1,0 +1,191 @@
+type tie<logic>
+// scripts/gen-subterra-runtime.tie —— p.9.14.5 代码生成器（tie 语言）
+// 用途：由「已训权重 bin + 余弦调度 + runtime_forward.tie 源 + 运行时段模板」组装
+//   自包含 DLL 运行时段 subterra_diffuse_runtime.gen.tie（注入权重/调度字面量）。
+// 编译运行（tiec 根目录）：
+//   compiler\tiec.exe --no-cache scripts\gen-subterra-runtime.tie
+// 输出：_tmp/subterra-tie-core/subterra_diffuse_runtime.gen.tie（供 subterra_density.tie import）
+import "/ext/diffusion.tie";
+import "/ext/serde.tie";
+
+func main() {
+    var wpath = "weights/_du_weights_full.bin"
+    var w: array<f32, 1280> = array_init(0.0)
+    var n = serde.load_weights<1280>(w, 1083, wpath)
+    if n != 1083 {
+        println("WEIGHTS LOAD FAIL: " + to_string(n))
+        exit(1)
+    }
+    var betas = diffusion.schedule_cosine<1280>(10, 0.008)
+    var acp = diffusion.alpha_cumprod<1280>(betas, 10)
+
+    var src = fs.read_lines("runtime_forward.tie")
+    var tmpl = fs.read_lines("gen/subterra_diffuse_runtime.tmpl.tie")
+
+    var out: table<string> = table_new_string()
+    table_push(out, "type tie<class>")
+    table_push(out, "// =====================================================================")
+    table_push(out, "// subterra_diffuse_runtime.gen.tie —— 由 gen/gen-subterra-runtime.tie 生成，勿手改")
+    table_push(out, "// 内容：单一 rfwd 命名空间（DLL 自包含运行时）：内部函数 non-pub（不跨 DLL 导出），")
+    table_push(out, "//   仅 coarse_climate / coarse_elev / coarse_mountain 导出（FFM 标量 ABI）。")
+    table_push(out, "// 生成时间标记：weights=" + wpath + " steps=10 cosine s=0.008")
+    table_push(out, "// =====================================================================")
+    // 模板顶层变量（缓存表）须留在命名空间外（tie 命名空间体内禁 var）
+    var i: i64 = 0
+    while i < len(tmpl) {
+        var ln0 = tmpl[i]
+        if ln0 == "var g_cache: table<f64>;" || ln0 == "var g_cinit: i64 = 0" {
+            table_push(out, ln0)
+        }
+        i = i + 1
+    }
+    table_push(out, "namespace rfwd {")
+    // 1a) 模板段（原 stdens）并入 rfwd：剥 namespace 包裹与 pub（coarse_* 保留 pub）
+    i = 0
+    while i < len(tmpl) {
+        var line = tmpl[i]
+        if line == "namespace stdens {" {
+            i = i + 1
+            continue
+        }
+        if line == "var g_cache: table<f64>;" || line == "var g_cinit: i64 = 0" {
+            i = i + 1
+            continue   // 顶层变量已在命名空间外输出
+        }
+        if line == "}" && i == len(tmpl) - 1 {
+            i = i + 1
+            continue   // stdens 收尾 }
+        }
+        if line == "//@@WEIGHTS@@" {
+            var k: i64 = 0
+            while k < 1083 {
+                var v: f64 = as_f64(w[k])
+                table_push(out, "    w[" + to_string(k) + "] = " + fmt32(v))
+                k = k + 1
+            }
+        } else if line == "//@@ACP@@" {
+            var tk: i64 = 0
+            while tk < 10 {
+                table_push(out, "    a[" + to_string(tk) + "] = " + fmt32(acp[tk]))
+                tk = tk + 1
+            }
+        } else {
+            var stripped: string = line
+            if str_len(line) > 3 && str_char(line, 0) == "p" && str_char(line, 1) == "u" && str_char(line, 2) == "b" && str_char(line, 3) == " " {
+                stripped = str_sub_bytes(line, 4, str_len(line))
+            }
+            // 仅 3 个粗场查询符号导出（FFM 标量 ABI）。此处必须「精确函数名」匹配：
+            // 早先按前缀 "func c…" 判定，连带把内部 cell_field / coarse_field 也导出，
+            // 使 DLL 导出面多出 2 个非契约符号（RCA：前缀过宽）。
+            if is_export_query(stripped) {
+                stripped = "pub " + stripped
+            }
+            table_push(out, stripped)
+        }
+        i = i + 1
+    }
+    // 1b) runtime_forward 段（剥 type 行 / namespace 包裹行 / pub）
+    var last_rf = len(src) - 1
+    i = 1
+    while i < len(src) {
+        var line = src[i]
+        if line == "namespace rfwd {" {
+            i = i + 1
+            continue
+        }
+        if i == last_rf && line == "}" {
+            i = i + 1
+            continue   // rfwd 收尾 }
+        }
+        if str_len(line) > 3 && str_char(line, 0) == "p" && str_char(line, 1) == "u" && str_char(line, 2) == "b" && str_char(line, 3) == " " {
+            line = str_sub_bytes(line, 4, str_len(line))
+        }
+        table_push(out, line)
+        i = i + 1
+    }
+    table_push(out, "}")
+    var outpath = "gen/subterra_diffuse_runtime.gen.tie"
+    fs.remove(outpath)
+    if !write_all(out, outpath) {
+        println("WRITE FAIL")
+        exit(1)
+    }
+    println("generated " + outpath + " lines=" + to_string(len(out)))
+}
+
+// 拼接输出行
+func write_all(lines: ref table<string>, path: string) -> bool {
+    var acc: string = ""
+    var i: i64 = 0
+    while i < len(lines) {
+        acc = acc + lines[i] + "\n"
+        i = i + 1
+    }
+    return fs.write_text(path, acc)
+}
+
+// 前缀判定（带长度护栏；避免越界读）
+func starts_with(s: string, pre: string) -> bool {
+    if str_len(s) < str_len(pre) {
+        return false
+    }
+    return str_sub_bytes(s, 0, str_len(pre)) == pre
+}
+
+// 是否为契约内的粗场查询符号（精确名匹配，内部辅助函数不导出）
+func is_export_query(s: string) -> bool {
+    if starts_with(s, "func coarse_climate") {
+        return true
+    }
+    if starts_with(s, "func coarse_elev") {
+        return true
+    }
+    if starts_with(s, "func coarse_mountain") {
+        return true
+    }
+    return false
+}
+
+// f32 十进制格式化（7 位小数，四舍五入，无科学计数；负零归一）
+func fmt32(v: f64) -> string {
+    var neg: bool = false
+    if v < 0.0 {
+        neg = true
+    }
+    var a: f64 = v
+    if a < 0.0 {
+        a = 0.0 - a
+    }
+    if a >= 10000000.0 {
+        a = 9999999.0
+    }
+    var iv: i64 = as_i64(a * 10000000.0 + 0.5)
+    var whole = iv / 10000000
+    var frac = iv % 10000000
+    var s: string = to_string(whole) + "." + pad7(frac)
+    // 去尾零（保留至少一位小数位）
+    while str_len(s) > 2 {
+        var last = str_char(s, str_len(s) - 1)
+        if last == "0" {
+            s = str_sub_bytes(s, 0, str_len(s) - 1)
+        } else {
+            break
+        }
+    }
+    if str_char(s, str_len(s) - 1) == "." {
+        s = str_sub_bytes(s, 0, str_len(s) - 1)
+    }
+    if neg && s != "0" {
+        s = "-" + s
+    }
+    return s
+}
+
+// 7 位小数补零
+func pad7(f: i64) -> string {
+    var s: string = to_string(f)
+    while str_len(s) < 7 {
+        s = "0" + s
+    }
+    return s
+}

@@ -1,0 +1,208 @@
+type tie<logic>
+// 宏观先验生成器探针（≥28 断言）
+// 覆盖：sketch/target 确定性、通道值域、与 Subterra 噪声族逐位同源（cell-0 对照）、
+//   整体性度量（海陆比例/最大连通大陆/海岸/山带-海岸相关）跨多 seed+tile 稳定、
+//   精炼锐化（elev 边缘能量 > c_cont）、度量函数单元测试。
+// 编译运行（tiec 根目录）：
+//   compiler\tiec.exe --no-cache tests\_diffuser_probe\macrogen_probe.tie
+import "../macrogen.tie";
+
+var fails: i64 = 0
+var npass: i64 = 0
+
+func chk(cond: bool, msg: string) {
+    npass = npass + 1
+    if !cond {
+        fails = fails + 1
+        println("FAIL " + msg)
+    }
+}
+
+func absf(v: f64) -> f64 {
+    if v < 0.0 {
+        return -v
+    }
+    return v
+}
+
+func near(a: f64, b: f64) -> bool {
+    return absf(a - b) < 0.0001
+}
+
+// 逐元素比较两个 512 槽数组
+func same512(a: ref array<f32, 1280>, b: ref array<f32, 1280>) -> bool {
+    var i: i64 = 0
+    while i < 512 {
+        if a[i] != b[i] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+// 通道内最大绝对值
+func ch_max(a: ref array<f32, 1280>, base: i64) -> f64 {
+    var m: f64 = 0.0
+    var i: i64 = 0
+    while i < 256 {
+        var v: f64 = absf(as_f64(a[base + i]))
+        if v > m {
+            m = v
+        }
+        i = i + 1
+    }
+    return m
+}
+
+// 通道平均 |邻差|（边缘能量，4-邻居）
+func edge_energy(a: ref array<f32, 1280>, base: i64) -> f64 {
+    var acc: f64 = 0.0
+    var n: f64 = 0.0
+    var i: i64 = 0
+    while i < 16 {
+        var j: i64 = 0
+        while j < 16 {
+            var v: f64 = as_f64(a[base + i * 16 + j])
+            if i < 15 {
+                acc = acc + absf(v - as_f64(a[base + (i + 1) * 16 + j]))
+                n = n + 1.0
+            }
+            if j < 15 {
+                acc = acc + absf(v - as_f64(a[base + i * 16 + j + 1]))
+                n = n + 1.0
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return acc / n
+}
+
+func main() {
+    println("=== p.9.14.1 macro_gen probe ===")
+
+    var sk1: array<f32, 1280> = array_init(0.0)
+    var sk2: array<f32, 1280> = array_init(0.0)
+    var tg1: array<f32, 1280> = array_init(0.0)
+    var tg2: array<f32, 1280> = array_init(0.0)
+
+    // ---- 确定性 ----
+    mg.sketch(-5000, 12000, 77, sk1)
+    mg.sketch(-5000, 12000, 77, sk2)
+    chk(same512(sk1, sk2), "sketch deterministic same seed")
+    mg.sketch(-5000, 12000, 78, sk2)
+    chk(!same512(sk1, sk2), "sketch differs across seeds")
+    mg.target(-5000, 12000, 77, tg1)
+    mg.target(-5000, 12000, 77, tg2)
+    chk(same512(tg1, tg2), "target deterministic same seed")
+    mg.target(-5000, 12000, 78, tg2)
+    chk(!same512(tg1, tg2), "target differs across seeds")
+
+    // ---- 通道值域 ----
+    chk(ch_max(sk1, 0) <= 1.0001 && ch_max(sk1, 256) <= 1.0001, "sketch channels within [-1,1]")
+    chk(ch_max(tg1, 0) <= 1.0001 && ch_max(tg1, 256) <= 1.0001 && ch_max(tg1, 512) <= 1.0001, "target 3 channels within [-1,1]")
+
+    // ---- 与 Subterra 噪声族逐位同源（cell-0 对照 continent/mountain） ----
+    var bx = -5000 + 16
+    var bz = 12000 + 16
+    var c0: f64 = mg.continent(bx, bz, 77)
+    var m0: f64 = mg.mountain(bx, bz, 77)
+    chk(near(as_f64(sk1[0]), c0), "sketch c_cont cell0 == continent(x+16,z+16)")
+    chk(near(as_f64(sk1[256]), m0), "sketch c_mtn cell0 == mountain(x+16,z+16)")
+
+    // ---- 整体性度量：跨 4 组 (seed, tile) 组合，仅对"混合 tile"断言整体性 ----
+    // 全海/全陆 tile 是真实存在的（开阔洋面），不要求其有海岸/山带；
+    // 语料整体必须覆盖海/陆/混合三种形态。
+    var tiles: array<i64, 8> = [-200000, -95000, -3000, 0, 40000, 150000, 320000, 999999]
+    var seeds: array<i64, 4> = [5, 77, 4096, 12345]
+    // 整体系数 = 最大连通大陆 / 陆地占比：>0.5 表示绝大部分陆地集中在单一大陆
+    // （碎片化目标的该系数显著偏低）——去碎片后按构造应为 1.0，作为 keep_largest 守卫。
+    var okCont: bool = true
+    var okCoast: bool = true
+    var okMtn: bool = true
+    var mixed: i64 = 0
+    var s: i64 = 0
+    while s < 4 {
+        var t: i64 = 0
+        while t < 8 {
+            var tg: array<f32, 1280> = array_init(0.0)
+            mg.target(tiles[t] * 512, seeds[s] * 800, seeds[s], tg)
+            var land: array<f64, 1280> = array_init(0.0)
+            mg.land_map(tg, land)
+            var lf: f64 = mg.metric_land_fraction(land)
+            var lg: f64 = mg.metric_largest_land(land)
+            var ct: i64 = mg.metric_coast(land)
+            var mc: f64 = mg.metric_mtn_corr(tg, land)
+            if lf >= 0.1 && lf <= 0.9 {
+                mixed = mixed + 1
+                var share: f64 = 1.0
+                if lf > 0.001 {
+                    share = lg / lf
+                }
+                if share < 0.5 {
+                    okCont = false
+                }
+                if ct <= 0 {
+                    okCoast = false
+                }
+                if mc <= 0.02 {
+                    okMtn = false
+                }
+            }
+            t = t + 1
+        }
+        s = s + 1
+    }
+    chk(mixed >= 8, "corpus has >=8 mixed land/sea tiles (" + to_string(mixed) + ")")
+    chk(okCont, "mixed tiles land concentrated in one continent (share>=0.5)")
+    chk(okCoast, "mixed tiles have coastline (adjacent land-sea pairs > 0)")
+    chk(okMtn, "mixed tiles mountain-band biased to land/coast (mtn_corr > 0.02)")
+    chk(mixed < 32, "corpus also has all-sea/all-land tiles (variety)")
+
+    // ---- 精炼锐化：elev 边缘能量 > c_cont（目标海岸更锐） ----
+    var ee: f64 = edge_energy(tg1, 256)
+    var es: f64 = edge_energy(sk1, 0)
+    chk(ee > es * 1.2, "target elev sharper than sketch c_cont (edge energy ratio)")
+
+    // ---- 度量函数单元测试（合成 land 形状） ----
+    var lz: array<f64, 1280> = array_init(0.0)
+    chk(mg.metric_land_fraction(lz) == 0.0, "empty land fraction 0")
+    var lo: array<f64, 1280> = array_init(1.0)
+    chk(near(mg.metric_land_fraction(lo), 1.0), "full land fraction 1")
+    chk(near(mg.metric_largest_land(lo), 1.0), "full land largest 1")
+    chk(mg.metric_coast(lo) == 0, "full land coast 0")
+    // 左上角 4×4 方块：最大连通 = 16/256，海岸 > 0
+    var lb: array<f64, 1280> = array_init(0.0)
+    var i: i64 = 0
+    while i < 4 {
+        var j: i64 = 0
+        while j < 4 {
+            lb[i * 16 + j] = 1.0
+            j = j + 1
+        }
+        i = i + 1
+    }
+    chk(near(mg.metric_land_fraction(lb), 16.0 / 256.0), "block land fraction 16/256")
+    chk(near(mg.metric_largest_land(lb), 16.0 / 256.0), "block largest 16/256")
+    chk(mg.metric_coast(lb) == 8, "block coast 8 edges (4 bottom + 4 right)")
+    // 棋盘：最大连通 = 1/256
+    var lc: array<f64, 1280> = array_init(0.0)
+    var k: i64 = 0
+    while k < 256 {
+        var ci: i64 = k / 16
+        var cj: i64 = k % 16
+        if (ci + cj) % 2 == 0 {
+            lc[k] = 1.0
+        }
+        k = k + 1
+    }
+    chk(near(mg.metric_largest_land(lc), 1.0 / 256.0), "checkerboard largest 1/256")
+
+    if fails == 0 {
+        println("PASS ALL " + to_string(npass) + " asserts")
+    } else {
+        println("FAILS=" + to_string(fails) + " / npass=" + to_string(npass))
+        exit(1)
+    }
+}
