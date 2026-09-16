@@ -213,6 +213,10 @@ public class Subterra {
         // guidance on the shared control surfaces; Subterra bundles its own derived
         // async chunk engine (engine.worldgen.async, MIT-attributed in NOTICE). Optional.
         io.toterra.subterra.runtime.worldgen.async.C2meCoexistence.bootstrap(modContainer);
+
+        // LAN holepunch (p.2.30.2, over the p.2.5 stack): default no-op wiring shell;
+        // the loopback self-punch sample runs only under the subterra.probe.holepunch gate.
+        io.toterra.subterra.runtime.network.holepunch.HolepunchRuntime.bootstrap(modContainer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
