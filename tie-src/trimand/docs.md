@@ -130,6 +130,14 @@ gen\gen-subterra-runtime.exe
   * `rfwd$coarse_mountain` —— 山带定调场（[0,1] 山带强度 ×2−1）
 * 命名空间内辅助函数（`cell_field` / `coarse_field` / `forward` / `sample_tile` / `hash3` 等）
   一律不导出；导出面必为 3 个，由生成器的「精确函数名」判定保证。
+* **打包资源同源复核（2026-09-16，主理人执行）**：以权威 tiec 独立重建（生成器 → `.gen.tie`
+  逐位复现 → `--shared` 重编）并与 `gen/subterra_diffuse.dll` 段级比对——`.text/.data/.pdata/
+  .fptable/.reloc/.rdata` 六段全部逐字节一致，导出面均为 3 个。**发现 Java 侧捆绑资源
+  （`subterra-tie/src/main/resources/tie/subterra_diffuse.dll`）为旧代产物：导出面 5 个**
+  （多出 `rfwd$cell_field` / `rfwd$coarse_field`，早于「精确函数名」导出面修复），已用
+  `gen/subterra_diffuse.dll`（SHA-256 `44b6b29e…`）替换；替换后 `TrimandSeamProbe`（FFM
+  ok/skip，40 checks）与开服门全绿。文件级 SHA-256 因 PE 时间戳不同而异属预期，功能同源
+  以段级哈希与导出面为准。
 * 重建等价性：本次重建产物与 Java 侧捆绑资源 DLL 的 `.text / .data / .pdata / .fptable / .reloc`
   五段逐字节一致，仅 PE 时间戳与 `.rdata`（导出表 / 元数据）不同——即可执行代码逐字节同源，
   三符号 FFM 调用输出逐位一致。
