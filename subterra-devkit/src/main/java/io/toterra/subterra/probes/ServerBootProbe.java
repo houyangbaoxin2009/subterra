@@ -42,6 +42,8 @@ public final class ServerBootProbe {
     private static final String TRIMAND_MARKER = "[Subterra trimand]";
     private static final String SURFACE_MARKER = "[Subterra surface]";
     private static final String FEATURE_MARKER = "[Subterra feature]";
+    private static final String ITEMBAN_MARKER = "[item_control]";
+    private static final String RTP_MARKER = "[Subterra rtp]";
     /** Deterministic seam gate flags injected into the forked server JVM (via JAVA_TOOL_OPTIONS). */
     private static final String SEAM_GATE_FLAGS =
             " -Dsubterra.probe.assembly=1 -Dsubterra.probe.surface=1 -Dsubterra.probe.feature=1";
@@ -87,6 +89,10 @@ public final class ServerBootProbe {
         boolean surfaceGate = false;  // [Subterra surface] probe sample installed (gate)
         boolean featureReg = false;   // [Subterra feature] worldgen types registered (FEATURE + placement)
         boolean featurePlan = false;  // [Subterra feature] plan ok (default identity)
+        boolean itembanActive = false;  // [item_control] bootstrap summary (deterministic td defaults)
+        boolean itembanServer = false;  // [item_control] server starting; blacklist loaded
+        boolean rtpShell = false;       // [Subterra rtp] shell active (p.2.31.1)
+        boolean rtpSeed = false;        // [Subterra rtp] server starting; seed captured
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -126,11 +132,23 @@ public final class ServerBootProbe {
                 if (line.contains(FEATURE_MARKER) && line.contains("plan ok (enable=false, mounts=0, guards=0")) {
                     featurePlan = true;
                 }
+                if (line.contains(ITEMBAN_MARKER) && line.contains("item/block blacklist control active")) {
+                    itembanActive = true;
+                }
+                if (line.contains(ITEMBAN_MARKER) && line.contains("server starting; blacklist loaded")) {
+                    itembanServer = true;
+                }
+                if (line.contains(RTP_MARKER) && line.contains("shell active (")) {
+                    rtpShell = true;
+                }
+                if (line.contains(RTP_MARKER) && line.contains("server starting; seed captured")) {
+                    rtpSeed = true;
+                }
                 if (line.contains("FATAL") || line.contains("BUILD FAILED")) {
                     fatal = true;
                 }
                 boolean seamsOk = assemblyOk && trimandOk && surfaceReg && surfaceId && surfaceGate
-                        && featureReg && featurePlan;
+                        && featureReg && featurePlan && itembanActive && itembanServer && rtpShell && rtpSeed;
                 boolean contractMet = done && java25 && argsOk && !fatal && seamsOk;
                 if (contractMet || fatal) {
                     // Evidence collected; stop reading (the game may keep the pipe
@@ -175,14 +193,16 @@ public final class ServerBootProbe {
         }
 
         boolean seamsOk = assemblyOk && trimandOk && surfaceReg && surfaceId && surfaceGate
-                && featureReg && featurePlan;
+                && featureReg && featurePlan && itembanActive && itembanServer && rtpShell && rtpSeed;
         boolean pass = done && java25 && argsOk && !fatal && seamsOk;
         System.out.println();
         System.out.println("[ServerBootProbe] done=" + done + " java25=" + java25 + " argsOk=" + argsOk
                 + " fatal=" + fatal);
         System.out.println("[ServerBootProbe] seams: assembly=" + assemblyOk + " trimand=" + trimandOk
                 + " surface(reg/id/gate)=" + surfaceReg + "/" + surfaceId + "/" + surfaceGate
-                + " feature(reg/plan)=" + featureReg + "/" + featurePlan);
+                + " feature(reg/plan)=" + featureReg + "/" + featurePlan
+                + " itemban(active/server)=" + itembanActive + "/" + itembanServer
+                + " rtp(shell/seed)=" + rtpShell + "/" + rtpSeed);
         if (pass) {
             System.out.println("[ServerBootProbe] PASS (dev server booted on Java 25 + real-seam markers)");
             System.exit(0);

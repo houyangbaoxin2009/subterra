@@ -70,6 +70,11 @@ public class Subterra {
         // /itemban commands and recipe stripper.
         io.toterra.subterra.runtime.optim.server.item_control.shell.ItemControl.bootstrap(modContainer);
 
+        // Random teleport (p.2.31.1, StellarRTP clean-room): preloads the td
+        // config (config/subterra/rtp.td), wires the /subterra rtp command and
+        // the phase-guaranteed world-seed capture for the deterministic planner.
+        io.toterra.subterra.runtime.optim.server.teleport.shell.RtpRuntime.bootstrap(modContainer);
+
         // Worldgen (p.1.8.21, td-gated): registers the subterra:density
         // density-function type and captures the world seed so "Subterra" can be
         // selected as a world generator. Zero effect while the preset is unused.
