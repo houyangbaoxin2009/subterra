@@ -1,0 +1,20 @@
+plugins {
+    id 'java-library'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+// p.2.1/p.2.35: toolchain 25 — TrimandBridge 用稳定 FFM（java.lang.foreign, JDK22+）与 root 一致。
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+// Pure-JDK tie bridge module: bundles the Trimand DLL resource (/tie/subterra_diffuse.dll)
+// and the FFM bridge (io.toterra.subterra.tie.TrimandBridge).
+// Aggregated into the main mod jar; never touches the MC classpath.
+dependencies {
+    // p.2.35: the bridge no longer hand-rolls FFM — it goes through the shared engine tie bridge
+    // (engine.tie.TieLibrary + TieFunction.invokeI64I64I64I64 / the h3i downcall handle).
+    // engine is pure JDK (no MC), so this module stays MC-free; the edge is tie -> engine, the
+    // same shape as runtime -> engine (engine never references this module).
+    implementation project(':subterra-engine')
+}

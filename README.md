@@ -24,6 +24,23 @@ Subterra is a full-stack development framework mod (NeoForge 21.1.x / Minecraft 
 * `subterra-runtime` — MC 层接线（source-host）/ MC-layer wiring (source-host)
 * `subterra-migrate` — 旧 API → 新 API 迁移转化器 / migration translator
 * `subterra-devkit` — 探针与开发工具，不进发布 jar / probes & dev tools, never shipped
+* `subterra-tie` — tie 桥（经 `engine.tie.TieLibrary` 的 FFM 装载 + Trimand 微型扩散三定调器桥）/ tie bridge (FFM loading via `engine.tie.TieLibrary` + the Trimand micro-diffusion three-tone bridge)
+
+## tie 侧源码 / tie-src
+
+* **`subterra-tie`** — tie 桥模块：经 `engine.tie.TieLibrary` / `TieFunction` 的 FFM 装载链路调用
+  tiec 编译的 DLL，并捆绑 **Trimand 微型扩散三定调器桥**（`TrimandBridge`，资源
+  `/tie/subterra_diffuse.dll`，导出 `rfwd$coarse_climate / coarse_elev / coarse_mountain`，
+  ABI `(i64,i64,i64) -> f64`）。缺 DLL 时确定性 skip，密度真值与缺省预设逐位不变。
+* **`tie-src/`** — tie 语言编写的 Subterra 工作区（随仓库一起管理，按模块分子目录）。当前模块：
+  * **`tie-src/trimand/`** — **Trimand 微型扩散三定调器**：给地形生成提供气候 / 海拔 / 山带三个宏观定调场
+    （海岸线/水文由三者组合派生，非模型输出）。含 macrogen（三定调先验数据）、diffunet（5 输入
+    3 输出 UNet，NPAR=1083，容量档位 1280）、trainer/train_full（训练入口）、runtime_forward +
+    gen（自包含 DLL 运行时段生成，导出 `stdens::coarse_climate / coarse_elev / coarse_mountain`）、
+    四组验收探针。设计见 [`tie-src/trimand/docs.md`](tie-src/trimand/docs.md)。
+* 运行需 `tiec` 编译器与 tie 内置库（`--lib-root`），编译链：`tiec --lib-root <tlib> <target.tie>`。
+
+## Roadmap / 路线图
 
 路线图与框架设计详见 `docs/ROAD.md`（聚合仓库 `docs/2026-09-08-subterra-framework-design.md`）。/ See `docs/ROAD.md` and the framework design in the aggregate repo (`docs/2026-09-08-subterra-framework-design.md`).
 

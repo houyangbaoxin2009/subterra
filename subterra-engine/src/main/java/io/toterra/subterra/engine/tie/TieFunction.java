@@ -22,6 +22,7 @@ public final class TieFunction {
     private MethodHandle h1i;
     private MethodHandle h2i;
     private MethodHandle h1d;
+    private MethodHandle h3i;
 
     TieFunction(String symbol, MemorySegment address, TieLibrary library) {
         this.symbol = symbol;
@@ -78,6 +79,15 @@ public final class TieFunction {
         }
     }
 
+    /** (i64, i64, i64) -> f64 —— 地形/气候定调类查询 ABI（如 Trimand coarse_*）。 */
+    public double invokeI64I64I64I64(long a, long b, long c) {
+        try {
+            return (double) handle3i().invokeExact(a, b, c);
+        } catch (Throwable t) {
+            throw new TieBridgeException("tie 调用失败: " + symbol + "(i64,i64,i64)", t);
+        }
+    }
+
     private MethodHandle handle0() {
         if (h0 == null) {
             h0 = Linker.nativeLinker().downcallHandle(address, FunctionDescriptor.of(ValueLayout.JAVA_LONG));
@@ -107,5 +117,14 @@ public final class TieFunction {
                     FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
         }
         return h1d;
+    }
+
+    private MethodHandle handle3i() {
+        if (h3i == null) {
+            h3i = Linker.nativeLinker().downcallHandle(address,
+                    FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE,
+                            ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
+        }
+        return h3i;
     }
 }
