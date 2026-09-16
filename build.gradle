@@ -114,6 +114,11 @@ neoForge {
                     '-XX:MaxRAMPercentage=75',
                     '-XX:+AlwaysPreTouch',
                     '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+                    // p.2.35: the tie/Trimand FFM bridges (engine.tie.TieLibrary + invokeExact
+                    // downcalls) are restricted methods on Java 24+; the dev runs declare the native
+                    // access explicitly so every tie-backed path (density bridge, Trimand coarse
+                    // fields, runtime tie shell) runs warning-free and deterministically.
+                    '--enable-native-access=ALL-UNNAMED',
             ])
         }
 
@@ -263,6 +268,23 @@ neoForge {
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()
+            // p.2.29.4 / p.2.35 deterministic E2E hook: gate the worldgen assembly boot snapshot
+            // (one-pass effective-rule parse + the canonical [Subterra assembly] render + the
+            // Trimand ok/skip line) at ServerStartingEvent; absent -> identity snapshot, no output.
+            systemProperty 'subterra.probe.assembly',
+                    System.getProperty('subterra.probe.assembly', project.findProperty('subterra.probe.assembly') ?: '')
+            // p.2.29 / p.2.35 assembly boot-override tier: forward one system property per assembly
+            // rule key (same names as the engine rule keys; absent/empty -> not overridden ->
+            // identity defaults, so the shipped world stays vanilla-equivalent). Threading it here
+            // keeps a single forwarding mechanism for all six keys across the three seams.
+            ['subterra.worldgen.density_offset',
+             'subterra.worldgen.density_scale',
+             'subterra.worldgen.surface_palette',
+             'subterra.worldgen.ore_density',
+             'subterra.worldgen.trimand_enabled',
+             'subterra.worldgen.trimand_weight'].each { key ->
+                systemProperty key, System.getProperty(key, project.findProperty(key) ?: '')
+            }
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
@@ -330,6 +352,9 @@ dependencies {
     implementation project(':subterra-api')
     // p.2.0 pure-JDK engine core (worldgen/optim/config/log/export migrate into engine.*).
     implementation project(':subterra-engine')
+    // p.2.35 tie bridge (pure JDK): Trimand DLL + FFM bridge (io.toterra.subterra.tie.TrimandBridge),
+    // coalesced into the main mod jar alongside the engine/api outputs.
+    implementation project(':subterra-tie')
 
     // JUnit 5 for the ported MC-layer source-host tests (subterra-invadvopt).
     testImplementation platform('org.junit:junit-bom:5.11.4')

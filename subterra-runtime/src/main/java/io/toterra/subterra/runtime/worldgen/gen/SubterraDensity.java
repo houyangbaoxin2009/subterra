@@ -171,6 +171,10 @@ public final class SubterraDensity implements DensityFunction {
     private static double applyAssembly(double v) {
         return v * assemblyScale + assemblyOffset;
     }
+
+    // p.2.35 density-seam order (deterministic): density offset/scale first, then the Trimand
+    // three-field hint via SubterraTrimand.apply — which is a bit-exact pass-through while the
+    // Trimand snapshot is identity (the default), so the default preset stays vanilla-equivalent.
     /** Total compute() hot-path calls since the last reset. */
     private static volatile long perfComputeCalls;
     /** Total samples filled (fillArray elements). */
@@ -223,16 +227,18 @@ public final class SubterraDensity implements DensityFunction {
                     perfComputeCalls++;
                     perfDistinctCells++;
                 }
-                return applyAssembly(v);
+                return SubterraTrimand.apply(applyAssembly(v), bx, bz, seed);
             }
         // 回退：纯 Java 的 p.1.8.14 复合主世界路由器（DLL 缺失/失败时与原先逐位一致）。
+        long bx = context.blockX();
+        long bz = context.blockZ();
         double v = routerFor(seed).finalDensity()
-                .eval((double) context.blockX(), (double) context.blockY(), (double) context.blockZ());
+                .eval((double) bx, (double) context.blockY(), (double) bz);
         if (PERF) {
             perfComputeCalls++;
             perfDistinctCells++;
         }
-        return applyAssembly(v);
+        return SubterraTrimand.apply(applyAssembly(v), bx, bz, seed);
     }
 
     @Override

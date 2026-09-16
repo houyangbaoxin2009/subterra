@@ -13,8 +13,11 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import io.toterra.subterra.Subterra;
+import io.toterra.subterra.engine.worldgen.assembly.AssemblySeam;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Registration + seed-wiring hub for Subterra's MC-layer worldgen adoption
@@ -121,22 +124,28 @@ public final class SubterraWorldgen {
     public static void onServerStarting(ServerStartingEvent event) {
         MinecraftServer server = event.getServer();
         captureSeed(server);
-        // p.2.29.1 boot-time rules → density snapshot (deterministic: read once from the boot props;
-        // defaults 0.0/1.0 = identity = the default preset stays vanilla-equivalent; the hot-reload
-        // wiring point into RuleStore is documented in runtime-wiring.md).
-        double bootOffset;
-        double bootScale;
+        // p.2.29.4 / p.2.35 boot-time rules → assembly snapshot (deterministic): one effective rule
+        // table is read once from the boot-override tier (one system property per rule key) and
+        // parsed through the single assembly seam (AssemblySeam.of). The default preset (no
+        // override) resolves to identity, so the shipped world stays vanilla-equivalent; an invalid
+        // value deterministically rejects the whole table and keeps the identity snapshot. The
+        // datapack/save-tier hot-reload wiring point is documented in runtime-wiring.md.
+        AssemblySeam.Resolved resolved;
+        String rejected = null;
         try {
-            bootOffset = Double.parseDouble(System.getProperty("subterra.worldgen.density_offset", "0.0"));
-            bootScale = Double.parseDouble(System.getProperty("subterra.worldgen.density_scale", "1.0"));
-        } catch (NumberFormatException e) {
-            Subterra.LOGGER.error("Subterra worldgen: invalid assembly boot prop; using defaults");
-            bootOffset = 0.0;
-            bootScale = 1.0;
+            resolved = AssemblySeam.of(bootAssemblyRules());
+        } catch (IllegalArgumentException e) {
+            resolved = AssemblySeam.DEFAULTS;
+            rejected = e.getMessage();
         }
-        SubterraDensity.setAssembly(bootOffset, bootScale);
+        SubterraDensity.setAssembly(resolved.density().densityOffset(), resolved.density().densityScale());
+        SubterraTrimand.setSnapshot(resolved.trimand());
+        if (rejected != null) {
+            Subterra.LOGGER.error("[Subterra assembly] reject ({}) -> identity defaults (no behaviour change)", rejected);
+        }
         if (System.getProperty("subterra.probe.assembly") != null) {
-            Subterra.LOGGER.info("[Subterra assembly] boot density offset={} scale={} (snapshot)", bootOffset, bootScale);
+            Subterra.LOGGER.info("[Subterra assembly] {} (snapshot)", AssemblySeam.render(resolved));
+            Subterra.LOGGER.info("{}", SubterraTrimand.statusLine());
         }
         var registryAccess = server.registryAccess();
         List<ResourceLocation> worldPresets = registryAccess
@@ -166,6 +175,30 @@ public final class SubterraWorldgen {
         worldSeed = server.getWorldData().worldGenOptions().seed();
         Subterra.LOGGER.info("Subterra worldgen: captured world seed {} for {}",
                 worldSeed, DENSITY_TYPE_ID);
+    }
+
+    /**
+     * 读取装配规则键的 boot 覆盖层：每个 {@link AssemblySeam#RULE_KEYS} 一条同名 system property
+     * （dev 由 gradle {@code -D}/{@code -P} 转发），缺失或空白即「未覆盖」。返回表按
+     * {@link AssemblySeam#RULE_KEYS} 的固定规范序，确定性（同属性集恒得同表）；本方法不校验值，
+     * 校验由 {@link AssemblySeam#of} 一次性完成（任一条非法即整表拒绝）。
+     * <p>
+     * Reads the boot-override tier of the assembly rule keys: one same-named system property per
+     * {@link AssemblySeam#RULE_KEYS} entry (forwarded by gradle in dev); absent or blank means "not
+     * overridden". The returned table follows the fixed canonical order of
+     * {@link AssemblySeam#RULE_KEYS} and is deterministic (same properties → same table). Validation
+     * is deliberately left to {@link AssemblySeam#of}, which rejects the whole table on any invalid
+     * value.
+     */
+    private static Map<String, String> bootAssemblyRules() {
+        Map<String, String> rules = new LinkedHashMap<>();
+        for (String key : AssemblySeam.RULE_KEYS) {
+            String value = System.getProperty(key);
+            if (value != null && !value.isBlank()) {
+                rules.put(key, value);
+            }
+        }
+        return rules;
     }
 
     /**
