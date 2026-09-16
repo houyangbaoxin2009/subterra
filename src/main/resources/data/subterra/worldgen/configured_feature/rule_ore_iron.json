@@ -1,0 +1,6 @@
+{
+  "type": "subterra:rule_ore",
+  "config": {
+    "mineral": "iron"
+  }
+}

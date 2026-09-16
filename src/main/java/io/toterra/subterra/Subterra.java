@@ -80,6 +80,13 @@ public class Subterra {
         // via config ([ use_subterra_generator = true ]) or API. No boot impact.
         io.toterra.subterra.runtime.worldgen.gen.WorldgenConfig.bootstrap();
 
+        // Feature/ore assembly (p.2.29.3): registers the td-rule-plan-driven worldgen
+        // types (subterra:rule_ore -> FEATURE, subterra:rule_vein -> PLACEMENT_MODIFIER_TYPE)
+        // and loads config/subterra/features.td (zero-json). The shipped datapack
+        // (placed_feature + neoforge biome_modifier) mounts the placed feature onto the real
+        // generation path. Default (plan off) is identity: zero origins, zero blocks placed.
+        io.toterra.subterra.runtime.worldgen.gen.SubterraFeatures.bootstrap(modEventBus);
+
         // Datapack runtime (p.2.2): wires the td datapack loader into the server
         // lifecycle (ServerStartedEvent); registration lands in the registrar.
         io.toterra.subterra.runtime.datapack.DatapackRuntime.bootstrap();
@@ -88,6 +95,13 @@ public class Subterra {
         // shell (ServerStartedEvent); the deterministic E2E view hook is gated by
         // subterra.probe.rule, mirroring the datapack export probe channel.
         io.toterra.subterra.runtime.rules.RulesRuntime.bootstrap();
+
+        // Surface-rule assembly (p.2.29.2): registers the subterra:surface_palette surface
+        // rule-source type into Registries.MATERIAL_RULE (the real chunk-gen surface path via the
+        // subterra_overworld noise_settings surface_rule) and snapshots the effective surface
+        // palette from the live RuleStore at ServerStarted (default vanilla = identity). Must
+        // bootstrap AFTER RulesRuntime so the same-LOWEST ServerStarted listener reads the store.
+        io.toterra.subterra.runtime.worldgen.gen.SubterraSurfaceRules.bootstrap(modEventBus);
 
         // Export runtime (p.2.19.5): unified /subterra export [<form>] [<path>] command core
         // (ExportCommandCore, single-point registration) + both deterministic startup gates

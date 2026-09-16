@@ -1,0 +1,12 @@
+{
+  "feature": "subterra:rule_ore_iron",
+  "placement": [
+    {
+      "type": "subterra:rule_vein",
+      "mineral": "iron"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
