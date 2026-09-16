@@ -252,6 +252,8 @@
     }
   ],
   "surface_rule": {
+    "type": "subterra:surface_palette",
+    "base": {
     "type": "minecraft:sequence",
     "sequence": [
       {
@@ -2406,5 +2408,6 @@
         }
       }
     ]
+    }
   }
 }
