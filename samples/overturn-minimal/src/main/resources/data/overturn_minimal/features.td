@@ -1,0 +1,28 @@
+// OverturnMinimal 特征/成矿规则包（p.2.29.3）——「一种按母岩矿石」最小样例。
+// 规则文档形态 = 根表 rules = [ [ k = .., v = .. ], ... ]（pack.td 同源；k 为字符串、可含点号）。
+// 颠覆目标：在 Subterra 的真实生成路径上，让「一种矿石只按母岩产出」——本样例把铁矿石
+// （minecraft:iron_ore）限定为只在花岗岩（minecraft:granite）母岩上、以竖直矿脉（vertical）
+// 产出；并声明一个结构护栏 box（0,0,64,64,8）使矿脉不越过该保护区。
+//
+// OverturnMinimal feature/ore rules pack (p.2.29.3) — the minimal "mineral-by-host-rock" sample.
+// Rule document shape = root table rules = [ [ k = .., v = .. ], ... ] (same as pack.td; k is a
+// string and may contain dots). Overturn target: on Subterra's real generation path, make "one
+// mineral only form by host rock" — this sample restricts iron ore to a granite host rock, forms it
+// as vertical veins, and declares a structure-guard box (0,0,64,64,8) so veins never cross it.
+type tie<data>
+[ rules = [
+  [ k = "subterra.worldgen.feature.enable", v = true ],
+  [ k = "subterra.worldgen.feature.mineral.iron.block", v = "minecraft:iron_ore" ],
+  [ k = "subterra.worldgen.feature.mineral.iron.host_rock", v = "minecraft:granite" ],
+  [ k = "subterra.worldgen.feature.mineral.iron.vein_trend", v = "vertical" ],
+  [ k = "subterra.worldgen.feature.mineral.iron.count", v = 2 ],
+  [ k = "subterra.worldgen.feature.mineral.iron.min_y", v = -48 ],
+  [ k = "subterra.worldgen.feature.mineral.iron.max_y", v = 16 ],
+  [ k = "subterra.worldgen.feature.vegetation.fern.block", v = "minecraft:fern" ],
+  [ k = "subterra.worldgen.feature.vegetation.fern.climate", v = "temperate" ],
+  [ k = "subterra.worldgen.feature.vegetation.fern.count", v = 4 ],
+  [ k = "subterra.worldgen.feature.vegetation.fern.min_y", v = 60 ],
+  [ k = "subterra.worldgen.feature.vegetation.fern.max_y", v = 80 ],
+  [ k = "subterra.worldgen.feature.guard.box.temple.box", v = "0,0,64,64,8" ],
+  [ k = "subterra.worldgen.feature.guard.clearance", v = 4 ],
+] ]

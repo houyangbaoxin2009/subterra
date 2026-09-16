@@ -45,6 +45,7 @@ randomness):
 | td 数据包直载 direct td datapack load | `DatapackLoader.load`：classpath 资源 pack.td 暂存为数据包目录直载，manifest 规则直出 | `td datapack ok (...)` |
 | export 恒等 export identity | `ConfigExporter`：有效双层配置导出 td + zd，断言 export∘rehydrate∘export 逐字节恒等 | `export ok (...)` |
 | tie 装载 tie load | `engine.tie.TieLibrary` 尝试装载（固定序：`subterra.tie.lib` 属性 → 捆绑资源 → 缺省 skip）；无 dll → 确定性 skip，有 → ok，不抛异常 | `tie skip (no lib)` / `tie ok` |
+| 规则→特征/成矿 rules→feature/ore | `engine.worldgen.feature.FeatureAssembly`：把 td 规则包 `data/overturn_minimal/features.td` 解析为确定性挂载计划（矿物×母岩前置 / 矿脉走向 / 结构护栏），入口 `OverturnMineralSample` | `feature plan ok (...)` / `FEATURE PASS (...)` |
 | runtime 壳消费面 runtime shell consumption | 由根工程装配提供（runtime 为根工程源码宿主目录，非 Gradle 子项目）——示例编译期不 import，仅文档化消费面 | —（根工程装配） |
 
 ## 结构 / Layout
@@ -54,11 +55,13 @@ samples/overturn-minimal/
 ├── README.md
 ├── build.gradle
 └── src/main/
-    ├── java/io/toterra/sample/overturn/OverturnMinimal.java   # 入口（纯 JDK）/ entry (pure JDK)
+    ├── java/io/toterra/sample/overturn/OverturnMinimal.java        # 入口（纯 JDK）/ entry (pure JDK)
+    ├── java/io/toterra/sample/overturn/OverturnMineralSample.java  # p.2.29.3 矿物×母岩样例入口 / mineral-by-rock sample entry
     └── resources/
-        ├── META-INF/neoforge.mods.toml                        # 装配元数据声明 / assembly metadata declaration
-        └── data/overturn_minimal/pack.td                      # 最小 td 规则包（数据包 manifest 直载源）/
-                                                               # minimal td rules pack (direct datapack manifest source)
+        ├── META-INF/neoforge.mods.toml                             # 装配元数据声明 / assembly metadata declaration
+        ├── data/overturn_minimal/pack.td                           # 最小 td 规则包（数据包 manifest 直载源）/
+        │                                                           # minimal td rules pack (direct datapack manifest source)
+        └── data/overturn_minimal/features.td                       # p.2.29.3 特征/成矿规则包（矿物×母岩）/ feature/ore rules pack
 ```
 
 * 纯 Java 库形态：不引 MC、不引 NeoForge userdev 插件；MC 装配在根工程（root moddev 项目）。
@@ -97,6 +100,44 @@ overturn_minimal export ok (tdBytes=476, zdBytes=680, rehydrate=ok)
 overturn_minimal tie skip (no lib)
 overturn_minimal PASS (all capability surfaces: rules two-tier, td datapack, export identity, tie skip-or-ok)
 ```
+
+`OverturnMineralSample`（p.2.29.3「一种按母岩矿石」最小可见效果样例）的确定性报告：
+
+```sh
+overturn_minimal feature plan ok (enable=true, minerals=1, vegetation=1, mounts=2, guards=1, clearance=4)
+overturn_minimal mineral iron -> minecraft:iron_ore (host_rock=minecraft:granite, trend=vertical, count=2, y=[-48,16])
+overturn_minimal guard ok (blocked(0,0)=true, blocked(400,400)=false)
+overturn_minimal feature plan render=enable=true; guard_clearance=4; minerals=[...]; vegetation=[...]; guards=[...]
+overturn_minimal FEATURE PASS (mineral-by-host-rock rule plan, deterministic)
+```
+
+运行（纯 JDK，需先构建 engine / api）：
+
+```sh
+java -cp samples/overturn-minimal/build/classes/java/main;samples/overturn-minimal/build/resources/main;subterra-api/build/classes/java/main;subterra-engine/build/classes/java/main io.toterra.sample.overturn.OverturnMineralSample
+```
+
+## 规则→特征/成矿（p.2.29.3）/ Rules → feature/ore (p.2.29.3)
+
+「一种按母岩矿石」= 矿石只在声明的**母岩**上产出。规则一律走 td（零 json），由 engine 纯 JDK 核心
+`FeatureAssembly` 解析为确定性挂载计划；缺失/非法 → 恒等缺省（零行为变化）：
+
+```td
+[ rules = [
+  [ k = "subterra.worldgen.feature.enable", v = true ],
+  [ k = "subterra.worldgen.feature.mineral.iron.block", v = "minecraft:iron_ore" ],
+  [ k = "subterra.worldgen.feature.mineral.iron.host_rock", v = "minecraft:granite" ],
+  [ k = "subterra.worldgen.feature.mineral.iron.vein_trend", v = "vertical" ],
+  [ k = "subterra.worldgen.feature.mineral.iron.count", v = 2 ],
+  [ k = "subterra.worldgen.feature.mineral.iron.min_y", v = -48 ],
+  [ k = "subterra.worldgen.feature.mineral.iron.max_y", v = 16 ],
+  [ k = "subterra.worldgen.feature.guard.box.temple.box", v = "0,0,64,64,8" ],
+] ]
+```
+
+真实生成路由根工程 runtime 侧承接：`subterra:rule_ore`（规则驱动矿石特征）与 `subterra:rule_vein`（规则
+驱动矿脉原点放置器）读取同一份规则计划，随附 placed feature 经 `neoforge:add_features` biome modifier
+挂到主世界地下矿脉步；缺省（规则未启用）即恒等。
 
 ## 确定性纪律 / Determinism discipline
 
