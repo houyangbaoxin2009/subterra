@@ -26,7 +26,7 @@ Every row is verified against the source (audited 2026-09-11, branch main); anyt
 | world | `WorldRuntime` | `runtime.world` | `subterra.probe.world` | `ServerStarted`(LOWEST) / `ServerStopping`（自注册） | `[Subterra world]` | `AsyncE2EProbe` L162/L165（`world-shell-gate=on`、`world-pack closed-loop OK`） | 已挂接（门控探针壳） |
 | network | `EnhancedChannelRuntime` | `runtime.network` | `subterra.probe.network` | `ServerStarted`(LOWEST) / `ServerStopping`（自注册；关停含 relay 清理） | `[Subterra network]` + `[Subterra relay]`（p.2.5.8 关停新行） | `NetworkE2EProbe` L79/L82/L85（`enhanced-channel-initialized`、`original-path-preserved`、`encryption-enabled-by-default=true`） | 已挂接（门控探针壳） |
 | worldgen · async | `AsyncChunkRuntime` / `C2meCoexistence` | `runtime.worldgen.async` | `subterra.probe.async`；C2ME 检测无门控 | `ServerStarted`(LOWEST) / `ServerStopping`（自注册）；C2ME 在 `commonSetup` 经 `bootstrap(modContainer)` | `[Subterra async]` / `[subterra_c2me]` | `AsyncE2EProbe` L141/L144/L147（`baseline-io-default-off=true`、`async-io-gate-enabled=true`、`async-chunk-runtime-initialized`） | 已挂接（门控探针壳） |
-| worldgen · gen | `SubterraWorldgen` / `WorldgenConfig` | `runtime.worldgen.gen` | 无探针门控；td 门控（`worldgen.td` `use_subterra_generator`） | `bootstrap(modEventBus)`（注册 `subterra:density` 密度函数类型 + 捕获世界种子）/ `bootstrap()`（选项门控日志） | `[subterra_worldgen]`（类内日志风格） | `ServerBootProbe`（boot 门控间接覆盖）；`DensityProbe`/`WorldGenGuardProbe` 等纯 JVM | 已挂接 |
+| worldgen · gen | `SubterraWorldgen` / `WorldgenConfig` / `SubterraDensity` / `SubterraTrimand` | `runtime.worldgen.gen` | 无探针门控；td 门控（`worldgen.td` `use_subterra_generator`）；装配快照门控 `subterra.probe.assembly`（默认 no-op）；装配规则键 boot 覆盖层 `subterra.worldgen.{density_offset,density_scale,surface_palette,ore_density,trimand_enabled,trimand_weight}`（缺省 → 恒等） | `bootstrap(modEventBus)`（注册 `subterra:density` 密度函数类型 + 捕获世界种子）/ `bootstrap()`（选项门控日志）/ `ServerStarting`（装配快照：`AssemblySeam.of` 一次解析 → `SubterraDensity.setAssembly` + `SubterraTrimand.setSnapshot`） | `[subterra_worldgen]`（类内日志风格）；`[Subterra assembly]`（装配快照规范渲染）；`[Subterra trimand]`（ok/skip） | `ServerBootProbe`（boot 门控间接覆盖）；`DensityProbe`/`WorldGenGuardProbe` 等纯 JVM；装配面 `AssemblyProbe`（api vs engine 镜像） | 已挂接 |
 | worldgen · compare | `SameSeedCompareHook` | `runtime.worldgen.compare` | `subterra.compareSeed`（auto-trigger，值=seed long） | `ServerStarted` / `RegisterCommandsEvent`（自注册） | `[SameSeedCompare]` | 无专用 E2E 探针；`/subterra compare <seed>` 命令 + auto-trigger marker | 已挂接（属性门控） |
 | worldgen · profiler | `WorldProfilerHook` | `runtime.worldgen.profiler` | `subterra.profile` / `subterra.profileSlice` / `subterra.profileBuild` / `subterra.perfCount` / `subterra.profileCenter` | `ServerStarted` / `ChunkEvent.Load`（residency）/ `RegisterCommandsEvent`（自注册） | `[subterra_profiler]` | `WorldProfileAcceptanceProbe`（纯 JVM 断言 report 契约）；boot 门控间接覆盖 | 已挂接（属性门控） |
 | optim · advancement | `InventoryAdvancementAccelerator` (+`InventoryAdvancementRuntime`) | `runtime.optim.server.advancement` | 无探针门控（td config + toml） | `ServerStarted` / `ServerStopping` / `TagsUpdated` / `ServerTick.Post`（bootstrap 注册实例） | `[subterra_invadvopt]`（MOD_ID 风格） | `MobcapProbe`/`MergeProbe` 等纯 JVM；无专用 E2E | 已挂接 |
@@ -38,7 +38,7 @@ Every row is verified against the source (audited 2026-09-11, branch main); anyt
 | optim · spawning | `SpawnEnforcementShell` | `runtime.optim.entity.spawning.shell` | 无探针门控（纯引擎门控，默认 off） | 无事件；mixin（spawner/portal/infested/zombie-reinforcement）调用 `allowed()` | —（无自身 marker） | `SpawnEnforcementProbe`（纯 JVM） | 已挂接（引擎门控壳） |
 | launch | `JvmEnv` / `JvmLaunchArgs` | `runtime.launch` | 无门控；boot 只读校验 | `Subterra.java` `commonSetup`（`JvmEnv.verify()` + `JvmLaunchArgs.missingStaticFlags()`）；**未做参数注入** | `Subterra L1:`（log 前缀） | `ServerBootProbe`（`Java 25 … verified: true`、`JVM argument package present`）；`LaunchArgsProbe`/`LaunchLayerProbe`（纯 JVM） | 已挂接（校验；注入在 gradle run 块） |
 | runtime-fix | `Java25Gaps` | `runtime.fix` | 无门控 | **未挂进 boot**（`Subterra.java` 与各 runtime bootstrap 均未调用；仅 `CompatProbe` 引用） | —（无自身 marker） | `CompatProbe`（纯 JVM 断言 registry 契约） | 待挂接 |
-| tie | `package-info` only（占位） | `runtime.tie` | — | — | — | — | 占位空壳（待补） |
+| tie | `TieRuntime`（runtime 壳）/ `TrimandBridge`（subterra-tie） | `runtime.tie`；`io.toterra.subterra.tie` | `subterra.probe.tie`（tie 壳启动钩子）；`subterra.tie.lib`（tie dll 路径）；`subterra.trimand.lib`（Trimand dll 路径） | `ServerStarted`(LOWEST) / `ServerStopping`（自注册，`bootstrap()` 由 `Subterra.java` 构造调用） | `[Subterra tie]`；`[Subterra trimand]` | `TieBridgeProbe`（纯 JVM 8 项，`tiefib_probe.dll` FFM 链路）；`TrimandBridge.main`/`report()`（纯 JVM ok/skip 两路径） | 已挂接（门控探针壳） |
 | cfglog | `package-info` only（占位） | `runtime.cfglog` | — | — | — | — | 占位空壳（待补） |
 
 ---
@@ -73,6 +73,13 @@ Every row is verified against the source (audited 2026-09-11, branch main); anyt
 - p.2.19.x：把四支线收编进统一 `runtime.worldgen` 壳清单（入口分散：两处 `bootstrap` 直挂、两处 `@EventBusSubscriber`），统一启动钩子序列与 marker 命名约定（当前 `[Subterra async]` / `[SameSeedCompare]` / `[subterra_profiler]` 三套前缀）。
 - p.2.19.x：worldgen 结果接入统一 export 指令（接 p.2.18 的 world form：当前 `ExportHubCommand` 的 world/save form 为 `skip (no save source)`，本壳无 `SaveContainer` 源物供给）。
 
+**装配快照（p.2.29.4 / p.2.35，已并入开服流程 / Assembly snapshot — folded into the boot flow):**
+- 单一装配面：`engine.worldgen.assembly.AssemblySeam` 把**一张有效规则表**一次解析为密度面（`DensityAssembly.Params`：`subterra.worldgen.{density_offset,density_scale,surface_palette,ore_density}`）与 Trimand 三场装配面（`TrimandAssembly.Params`：`subterra.worldgen.{trimand_enabled,trimand_weight}`）；`AssemblySeam.RULE_KEYS` 为固定六键规范序。
+- 启动快照：`SubterraWorldgen.onServerStarting`（`ServerStartingEvent`，与既有种子捕获同一回调）读 **boot 覆盖层**（每规则键一条同名 system property，gradle server run 已统一转发六个键），经 `AssemblySeam.of` 一次解析 → `SubterraDensity.setAssembly(offset, scale)`（缺省 `0.0`/`1.0` = 恒等）+ `SubterraTrimand.setSnapshot(trimand)`（缺省关闭 = 不触碰 DLL）。任一条规则值非法 → 整表确定性拒绝、保持恒等快照并记一条 `[Subterra assembly] reject (...)` error。
+- marker：`subterra.probe.assembly` 门控（默认 no-op）下打 `[Subterra assembly] <AssemblySeam.render(resolved)> (snapshot)` 规范串（同输入同字节）+ 一行 `[Subterra trimand] ok|skip|mismatch`。
+- 密度接缝次序（`SubterraDensity.compute`）：先密度面 `value*scale+offset`，再 `SubterraTrimand.apply`（Trimand 提示）；恒等快照下两步都逐位直通原始密度。
+- 剩余接线点：datapack/存档双层 `RuleStore` 的**热重载**回灌（当前仅 boot 覆盖层；`RulesRuntime.activeStore()` 的规格集不含装配键，p.2.29.x 补）。
+
 ### 4. optim-shell
 
 **现状 / Current:** 七壳全部经 `Subterra.java` 构造 `bootstrap(modContainer)` 直挂（均为 ported/clean-room 内部能力，非 `@Mod`）：`InventoryAdvancementAccelerator`（`subterra_invadvopt`）、`WorkerPoolTuning`（`subterra_smoothboot`）、`VillagerLobotomize`（`subterra_servercore`）、`DynamicDistance`（`subterra_servercore`，ServerStarted/Tick/Stopping）、`SyncLoadRuntime`（`subterra_servercore`，servercore.td `loading` 表）、`ItemControl`（`item_control`，EVENT_BUS 注册）；另 `SpawnEnforcementShell` 为纯引擎门控壳（无 bootstrap，mixin 调用 `allowed()`）。配置均走 `config/subterra/*.td`（或独立 toml），**无探针门控、无统一 marker 前缀**。
@@ -83,11 +90,11 @@ Every row is verified against the source (audited 2026-09-11, branch main); anyt
 
 ### 5. tie
 
-**现状 / Current:** `runtime.tie` 仅 `package-info` 占位（「tiec -> DLL -> FFM loading, hot paths in tie」）。桥接点实际在：**subterra-tie 模块**（独立 gradle 模块，`src/main/java` 当前为空，仅 `build/libs` 残留 `subterra-tie-p.1.8.33.jar`）+ **`TieBridgeProbe`**（devkit，FFM downcall 确定性探针：从资源提取 `tiefib_probe.dll` → `TieLibrary.load` → 符号解析/调用断言；运行期需 `--enable-native-access=ALL-UNNAMED`）。runtime 侧现存 tie 消费点：`DatapackRegistrar.registerTie()` 经 `TieLogicLoader`/`TieFunction.invoke0()` 调用 FUNCTION 条目（引擎 `engine.tie`，非 runtime 壳）。
+**现状 / Current:** `runtime.tie.TieRuntime` 为已挂接门控壳（`subterra.probe.tie`；`ServerStarted`(LOWEST) 上 `TieLibrary.load` + 一次确定性 ABI 调用，缺 dll → `skip (no tie lib)`，marker `[Subterra tie]`）。桥接点：**subterra-tie 模块**（纯 JDK，`api` 级依赖 `engine`：**p.2.35 起 `TrimandBridge` 不再自建 FFM，改走 `engine.tie.TieLibrary` + `TieFunction.invokeI64I64I64I64`（p.2.1 的 `h3i` downcall 句柄）**，模块被主 jar 收编）+ **`TieBridgeProbe`**（devkit，FFM downcall 确定性探针）。Trimand 侧：`TrimandBridge` 捆绑 `/tie/subterra_diffuse.dll`（导出 `rfwd$coarse_{climate,elev,mountain}`，ABI `(i64,i64,i64)→f64`；符号固定序 `rfwd$` → 回退 `stdens$`），`report()` 产 `[Subterra trimand] ok|skip|mismatch` 确定性行；runtime 消费壳 `SubterraTrimand`（`runtime.worldgen.gen`）只在装配快照非恒等时惰性装载 DLL，缺 dll/调用失败 → 确定性直通、真值逐位不变。
 
 **缺口 / Gaps (p.2.19.x 要补):**
-- p.2.19.x：新建 `runtime.tie` 壳（把 FFM `--enable-native-access` 装载接线、`TieLibrary.load` 生命周期与 `ServerStarted/Stopping` 钩子对齐），承接 subterra-tie 桥（当前只有 devkit 探针证明链路，runtime 无壳）。
-- p.2.19.x：tie 壳产出确定性 boot marker（如 `[Subterra tie] bridge loaded`），并入统一探针面。
+- p.2.19.x：`IronLawProbe` 的 root 标签集未含 `tie`（现覆盖 api/engine/runtime/migrate）——`tie → engine` 这条边暂由构建依赖方向与人工核查保证，建议把 `subterra-tie` 的 classes 目录以 `tie` 标签并入同一探针（label 的禁止前缀集 = runtime 同级：禁 migrate/probes/MC）。
+- p.2.19.x：tie 壳的 boot E2E 断言（`[Subterra tie] ok`）尚未并入任何 E2E 门控的任务行（现仅纯 JVM 两侧探针）。
 
 ### 6. cfglog
 
@@ -118,3 +125,5 @@ Every row is verified against the source (audited 2026-09-11, branch main); anyt
 
 - 根初始化入口 `Subterra.java`（根 sourceSet `io.toterra.subterra`）现挂：`InventoryAdvancementAccelerator`、`WorkerPoolTuning`、`VillagerLobotomize`、`DynamicDistance`、`SyncLoadRuntime`、`ItemControl`、`SubterraWorldgen`、`WorldgenConfig`、`DatapackRuntime`、`RulesRuntime`、`ExportHubRuntime`（构造）；`JvmEnv`/`JvmLaunchArgs`/`SubterraLogging`/`C2meCoexistence`（`commonSetup`）。其余探针壳（save/saveverify/session/sim/world/network/async/compare/profiler）经 `@EventBusSubscriber` 自注册，无需改 `Subterra.java`。
 - 探针宿主：`subterra-devkit` 模块 `io.toterra.subterra.probes`；`ServerBootProbe` 为 boot 门控（断言 `Done (`、`Java 25 … verified: true`、`JVM argument package present`）。
+- p.2.35：dev run 的 JVM 参数包（`runs.configureEach.jvmArguments`）新增 `--enable-native-access=ALL-UNNAMED`，让 tie/Trimand 的 FFM 受限方法在 dev 下无告警、行为确定（`JvmLaunchArgs.STATIC_TUNING_FLAGS` 未变，`LaunchArgsProbe` 契约不受影响）。
+- p.2.35：`subterra-tie` 模块聚合进主 jar（根 `jar` 任务已排除 devkit/migrate），其资源 `/tie/subterra_diffuse.dll` 与 engine 的 `/tie/subterra_density.dll` 同名不同文件，无 `duplicatesStrategy.EXCLUDE` 冲突。
