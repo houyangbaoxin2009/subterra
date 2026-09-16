@@ -338,6 +338,36 @@ public final class FeatureAssembly {
         }
 
         /**
+         * p.2.29.3.1：以装配面 ore_density 标量（{@code DensityAssembly.Params.oreDensity}，
+         * 界 [0, 100]）确定性缩放每矿物 count——{@code floor(count × density)} 并 clamp 到
+         * [0, {@link #MAX_COUNT}]；植被 count 不受影响（该标量语义为<b>矿石</b>密度）。
+         * {@code d == 1.0} 走恒等快路径（返回同实例）；关闭/无矿物计划原样返回；
+         * 非法 d（非有限 / 越界）确定性拒绝。同输入同结果。
+         *
+         * <p>p.2.29.3.1: deterministically scales every mineral count by the assembly
+         * ore-density scalar ({@code DensityAssembly.Params.oreDensity}, bounded [0, 100]) —
+         * {@code floor(count × density)} clamped to [0, {@link #MAX_COUNT}]; vegetation counts
+         * are untouched (the scalar is semantically an <b>ore</b> density). {@code d == 1.0}
+         * takes the identity fast path (returns the same instance); disabled/empty plans return
+         * as-is; an illegal d (non-finite / out of bounds) is rejected deterministically.
+         * Identical inputs give identical results.
+         */
+        public Plan withOreDensity(double oreDensity) {
+            if (!Double.isFinite(oreDensity) || oreDensity < 0.0 || oreDensity > 100.0) {
+                throw new IllegalArgumentException("ore density must be finite in [0, 100], got " + oreDensity);
+            }
+            if (oreDensity == 1.0d || !enabled || minerals.isEmpty()) {
+                return this;
+            }
+            List<Mineral> scaled = new ArrayList<>(minerals.size());
+            for (Mineral m : minerals) {
+                int scaledCount = (int) StrictMath.min(MAX_COUNT, StrictMath.floor(m.count() * oreDensity));
+                scaled.add(new Mineral(m.id(), m.block(), m.hostRock(), m.trend(), scaledCount, m.minY(), m.maxY()));
+            }
+            return new Plan(enabled, scaled, vegetation, guardClearance, guards);
+        }
+
+        /**
          * 确定性挂载列表：关闭 → 空；否则矿物（规范序）在前、植被（规范序）在后。 /
          * The deterministic mount list: empty when off; otherwise minerals (canonical order) first,
          * vegetation (canonical order) after.

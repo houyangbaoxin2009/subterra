@@ -50,6 +50,10 @@ public final class SubterraFeaturePlan {
     /** 规则文件相对游戏目录的路径。 / The rule file path relative to the game dir. */
     public static final String CONFIG_REL_PATH = "config/subterra/features.td";
 
+    /** 基线计划（td 载入结果，未乘 ore_density）。 / The base plan (the td load result, before ore-density scaling). */
+    private static volatile FeatureAssembly.Plan basePlan = FeatureAssembly.DEFAULT_PLAN;
+
+    /** 当前有效计划（基线 × ore_density，缺省为恒等缺省计划）。 / The current effective plan (base × ore density; identity default until loaded). */
     private static volatile FeatureAssembly.Plan plan = FeatureAssembly.DEFAULT_PLAN;
 
     private SubterraFeaturePlan() {
@@ -63,7 +67,24 @@ public final class SubterraFeaturePlan {
     /** 从游戏目录下的 {@code config/subterra/features.td} 载入（缺失 → 恒等缺省）。 /
      *  Loads {@code config/subterra/features.td} from the game dir (absent → identity default). */
     public static void load(Path gameDir) {
-        plan = read(gameDir == null ? null : gameDir.resolve(CONFIG_REL_PATH));
+        basePlan = read(gameDir == null ? null : gameDir.resolve(CONFIG_REL_PATH));
+        plan = basePlan;
+    }
+
+    /**
+     * p.2.29.3.1：以装配面 ore_density 标量（{@code AssemblySeam} → {@code
+     * DensityAssembly.Params.oreDensity}，ServerStarting 快照期调用）确定性重导有效计划——
+     * 每矿物 count 乘以该标量（floor + clamp，见 {@link FeatureAssembly.Plan#withOreDensity}），
+     * 基线计划保持不变，故跨世界/多次开服不累积。d = 1（缺省）→ 与基线恒等。
+     *
+     * <p>p.2.29.3.1: re-derives the effective plan deterministically with the assembly
+     * ore-density scalar (called at the ServerStarting snapshot); every mineral count is
+     * scaled (floor + clamp, see {@link FeatureAssembly.Plan#withOreDensity}) while the base
+     * plan stays untouched, so worlds and repeated boots never compound. d = 1 (default) is
+     * identical to the base plan.
+     */
+    public static void applyOreDensity(double oreDensity) {
+        plan = basePlan.withOreDensity(oreDensity);
     }
 
     /** 解析后的规范计划渲染（确定性；供 E2E 断言）。 / Canonical plan render (deterministic; for E2E assertions). */

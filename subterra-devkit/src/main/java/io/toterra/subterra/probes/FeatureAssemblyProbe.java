@@ -45,6 +45,35 @@ public final class FeatureAssemblyProbe {
     public static void main(String[] args) {
         int checks = 0;
 
+        // 0a) p.2.29.3.1: the assembly ore-density scalar scales per-mineral counts deterministically.
+        FeatureAssembly.Plan densityBase = FeatureAssembly.of(DECLARED);
+        FeatureAssembly.Plan scaled = densityBase.withOreDensity(2.5d);
+        FeatureAssembly.Plan halved = densityBase.withOreDensity(0.5d);
+        FeatureAssembly.Plan floored = densityBase.withOreDensity(0.4d);
+        FeatureAssembly.Plan zeroed = densityBase.withOreDensity(0.0d);
+        check(scaled.minerals().size() == 1 && scaled.minerals().get(0).count() == 5,
+                "ore density 2.5 scales count 2 -> 5 (floor + no clamp hit)");
+        check(halved.minerals().get(0).count() == 1, "ore density 0.5 scales count 2 -> 1");
+        check(floored.minerals().get(0).count() == 0, "ore density 0.4 floors count 2 -> 0 (floor semantics)");
+        check(zeroed.minerals().get(0).count() == 0,
+                "ore density 0 -> zero origins (declared entry kept, count floored to 0)");
+        check(densityBase.withOreDensity(1.0d) == densityBase,
+                "ore density 1.0 takes the identity fast path (same instance)");
+        check(scaled.vegetation().equals(densityBase.vegetation()) && scaled.guards().equals(densityBase.guards()),
+                "ore density leaves vegetation and guards untouched");
+        check(FeatureAssembly.render(scaled).contains("count=5") && FeatureAssembly.render(halved).contains("count=1"),
+                "scaled plan renders canonical counts deterministically");
+        int illegalRejected = 0;
+        for (double bad : new double[]{-1.0d, Double.NaN, 100.5d}) {
+            try {
+                densityBase.withOreDensity(bad);
+            } catch (IllegalArgumentException expected) {
+                illegalRejected++;
+            }
+        }
+        check(illegalRejected == 3, "ore density rejects -1 / NaN / >100 deterministically");
+        checks++;
+
         // 1) default / null tables resolve to the identity default plan.
         FeatureAssembly.Plan defaulted = FeatureAssembly.of(Map.of());
         check(defaulted.equals(FeatureAssembly.DEFAULT_PLAN) && defaulted.isIdentity(),

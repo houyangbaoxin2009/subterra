@@ -140,6 +140,10 @@ public final class SubterraWorldgen {
         }
         SubterraDensity.setAssembly(resolved.density().densityOffset(), resolved.density().densityScale());
         SubterraTrimand.setSnapshot(resolved.trimand());
+        // p.2.29.3.1: the assembly ore-density scalar multiplies the feature plan's per-mineral
+        // counts (floor + clamp, base plan untouched -> no compounding across boots). d = 1
+        // (default) is the identity fast path.
+        SubterraFeaturePlan.applyOreDensity(resolved.density().oreDensity());
         if (rejected != null) {
             Subterra.LOGGER.error("[Subterra assembly] reject ({}) -> identity defaults (no behaviour change)", rejected);
         }
