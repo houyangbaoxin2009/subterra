@@ -17,6 +17,9 @@ dependencies {
     implementation project(':subterra-api')
     implementation project(':subterra-engine')
     implementation project(':subterra-migrate')
+    // p.2.35: the Trimand seam probe exercises the pure-JDK tie bridge (TrimandBridge FFM
+    // ok/skip two paths) directly — the tie module bundles /tie/subterra_diffuse.dll.
+    implementation project(':subterra-tie')
     // p.2.20.5: the official sample is the acceptance probe's fixture — devkit runs
     // OverturnMinimal.main as a self-bootstrap check. The sample never depends on
     // devkit (one-way: sample -> api/engine only), so there is no cycle.
@@ -1120,8 +1123,55 @@ def worldApiProbe = tasks.register('runWorldApiProbe', JavaExec) {
     mainClass = 'io.toterra.subterra.probes.WorldApiProbe'
 }
 
+// p.2.29.3: rules→feature/ore assembly core probe (engine FeatureAssembly rule parsing / canonical
+// render / identity default / in-group canonical order / host-rock prerequisite / vein trend /
+// structure guard / deterministic rejection). Pure JVM. (The runtime seam + datapack mount surface is
+// covered by runFeatureSeamProbe below.)
+def featureAssemblyProbe = tasks.register('runFeatureAssemblyProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.29.3: rules→feature/ore assembly core probe (engine FeatureAssembly determinism, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.FeatureAssemblyProbe'
+}
+
+// p.2.29.2: rules→surface real seam acceptance — engine SurfacePaletteResolution deterministic
+// parse/render/reject + canonical order + default identity, api-contract palette-selector agreement,
+// and the runtime seam SubterraSurfaceRules load-only wiring inventory (rule-source registration +
+// gate prop + marker + the shipped noise_settings reference). Pure JVM.
+def surfaceSeamProbe = tasks.register('runSurfaceSeamProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.29.2: rules→surface seam probe (engine SurfacePaletteResolution + api palette + SubterraSurfaceRules wiring inventory, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.SurfaceSeamProbe'
+}
+
+// p.2.29.3: rules→feature/ore real seam acceptance — engine FeatureAssembly deterministic plan
+// (canonical order, host-rock prerequisite, vein guard non-overlap, default identity, rejection),
+// StructureFootprint overlap agreement, and the runtime seam SubterraFeatures load-only wiring
+// inventory (FEATURE / PLACEMENT_MODIFIER_TYPE registration + gate + marker + datapack mount surface).
+// Pure JVM.
+def featureSeamProbe = tasks.register('runFeatureSeamProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.29.3: rules→feature/ore seam probe (engine FeatureAssembly + guard geometry + SubterraFeatures wiring inventory + datapack mounts, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.FeatureSeamProbe'
+}
+
+// p.2.35 / p.2.29.4: Trimand three-field assembly surface + the single worldgen-assembly entry —
+// engine TrimandAssembly + AssemblySeam (six keys fixed order, all-or-nothing reject, bit-identical
+// identity) + the tie TrimandBridge FFM ok/skip two paths + the runtime shells SubterraTrimand /
+// SubterraWorldgen boot-snapshot load-only wiring inventory. The bridge's FFM downcall needs explicit
+// native access (same as tieBridgeProbe / lodProbe).
+def trimandSeamProbe = tasks.register('runTrimandSeamProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.2.35/p.2.29.4: Trimand seam probe (TrimandAssembly + AssemblySeam + TrimandBridge FFM ok/skip + SubterraTrimand/SubterraWorldgen wiring inventory, pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.TrimandSeamProbe'
+    jvmArgs += ['--enable-native-access=ALL-UNNAMED']
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
-    description = 'Run all 114 acceptance tasks (109 pure-JVM probes + five E2E boot gates)'
-    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe, contractProbe, ruleSystemProbe, exportHubProbe, runtimeWiringProbe, sampleBootstrapProbe, flywheelInstancingProbe, renderFidelityProbe, animProbe, uiProbe, hubProbe, aiProbe, scaleProbe, timeProbe, lodProbe, noiseSettingsTdProbe, assemblyProbe, datapackApiProbe, scaleApiProbe, animApiProbe, aiApiProbe, uiApiProbe, simApiProbe, interactApiProbe, pcgApiProbe, saveApiProbe, worldApiProbe
+    description = 'Run all 119 acceptance tasks (114 pure-JVM probes + five E2E boot gates)'
+    dependsOn launchProbe, launchArgsProbe, compatProbe, apiProbe, poolProbe, configProbe, logProbe, ecoDimsProbe, worldGenGuardProbe, mergeProbe, configPackProbe, regionProbe, breedingCapProbe, pronounceProbe, readingSearchProbe, tickingChunkCacheProbe, mobcapProbe, activationProbe, spawnEnforcementProbe, syncLoadGuardProbe, pipelineFacesProbe, densityProbe, terrainCurveProbe, surfaceRulesProbe, itemControlProbe, noiseBaseProbe, perlinProbe, simplexProbe, formulaProbe, formulaTerrainProbe, dimensionProbe, noiseRouterProbe, chunkGridProbe, compositeProbe, surfaceBridgeProbe, biomeSourceProbe, dimensionWorldsProbe, netherEndProbe, generatorOptionProbe, bootProbe, worldProfileProbe, flowSchedProbe, ironLawProbe, tieBridgeProbe, datapackProbe, datapackE2EProbe, saveProbe, saveMigrateProbe, savePlayerProbe, saveDocProbe, savePipelineProbe, saveExportProbe, saveE2EProbe, networkFrameProbe, networkIntegrityProbe, networkStrategyProbe, networkOptimizerProbe, networkCryptoProbe, p2pChannelBenchmarkProbe, p2pAddressingProbe, p2pHandshakeProbe, p2pTransportProbe, p2pPayloadProbe, p2pPlannerProbe, p2pDiscoveryProbe, p2pRelayProbe, asyncDispatchProbe, chunkContextProbe, asyncChunkGenProbe, asyncIoProbe, parallelPartitionProbe, parallelBankProbe, parallelDispatchProbe, parallelEquivalenceProbe, parallelSchedProbe, simBudgetProbe, simSpatialProbe, simIncrementalProbe, simParallelProbe, simCombineProbe, networkE2EProbe, asyncE2EProbe, worldPackProbe, saveVerifyProbe, sessionProbe, scaffoldProbe, pcgProbe, interactProbe, vanillaGoldenProbe, contractProbe, ruleSystemProbe, exportHubProbe, runtimeWiringProbe, sampleBootstrapProbe, flywheelInstancingProbe, renderFidelityProbe, animProbe, uiProbe, hubProbe, aiProbe, scaleProbe, timeProbe, lodProbe, noiseSettingsTdProbe, assemblyProbe, datapackApiProbe, scaleApiProbe, animApiProbe, aiApiProbe, uiApiProbe, simApiProbe, interactApiProbe, pcgApiProbe, saveApiProbe, worldApiProbe, featureAssemblyProbe, surfaceSeamProbe, featureSeamProbe, trimandSeamProbe
 }

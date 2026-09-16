@@ -37,6 +37,15 @@ public final class ServerBootProbe {
     /** Fixed probe port (see the server run config); used to reap the gate's own game. */
     private static final int PROBE_PORT = 25599;
 
+    // p.2.29.2 / p.2.29.3 / p.2.35 real-seam E2E markers (deterministic boot-log lines).
+    private static final String ASSEMBLY_MARKER = "[Subterra assembly]";
+    private static final String TRIMAND_MARKER = "[Subterra trimand]";
+    private static final String SURFACE_MARKER = "[Subterra surface]";
+    private static final String FEATURE_MARKER = "[Subterra feature]";
+    /** Deterministic seam gate flags injected into the forked server JVM (via JAVA_TOOL_OPTIONS). */
+    private static final String SEAM_GATE_FLAGS =
+            " -Dsubterra.probe.assembly=1 -Dsubterra.probe.surface=1 -Dsubterra.probe.feature=1";
+
     private ServerBootProbe() {
     }
 
@@ -60,7 +69,7 @@ public final class ServerBootProbe {
         pb.directory(root.toFile());
         pb.redirectErrorStream(true);
         Map<String, String> env = pb.environment();
-        String ipv4 = "-Djava.net.preferIPv4Stack=true";
+        String ipv4 = "-Djava.net.preferIPv4Stack=true" + SEAM_GATE_FLAGS;
         env.merge("JAVA_TOOL_OPTIONS", ipv4, (oldVal, newVal) -> oldVal.isBlank() ? newVal : oldVal + " " + newVal);
 
         Process process = pb.start();
@@ -70,6 +79,14 @@ public final class ServerBootProbe {
         boolean argsOk = false;
         boolean fatal = false;
         boolean signaled = false;
+        // p.2.29.2 / p.2.29.3 / p.2.35 real-seam E2E evidence (each a deterministic boot-log marker).
+        boolean assemblyOk = false;   // [Subterra assembly] boot snapshot + identity defaults
+        boolean trimandOk = false;    // [Subterra trimand] deterministic skip (no DLL touched by default)
+        boolean surfaceReg = false;   // [Subterra surface] rule-source registered on the real chunk-gen path
+        boolean surfaceId = false;    // [Subterra surface] palette=vanilla remap=0 mode=identity
+        boolean surfaceGate = false;  // [Subterra surface] probe sample installed (gate)
+        boolean featureReg = false;   // [Subterra feature] worldgen types registered (FEATURE + placement)
+        boolean featurePlan = false;  // [Subterra feature] plan ok (default identity)
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -86,10 +103,35 @@ public final class ServerBootProbe {
                 if (line.contains(ARGS_MARKER)) {
                     argsOk = true;
                 }
+                if (line.contains(ASSEMBLY_MARKER) && line.contains("trimand_enabled=false; trimand_weight=0.0")) {
+                    assemblyOk = true;
+                }
+                if (line.contains(TRIMAND_MARKER) && line.contains("skip (disabled")) {
+                    trimandOk = true;
+                }
+                if (line.contains(SURFACE_MARKER) && line.contains("registered rule-source type subterra:surface_palette")) {
+                    surfaceReg = true;
+                }
+                if (line.contains(SURFACE_MARKER) && line.contains("palette=vanilla remap=0 mode=identity")) {
+                    surfaceId = true;
+                }
+                if (line.contains(SURFACE_MARKER) && line.contains("probe gate=on sample installed")
+                        && line.contains("minecraft:grass_block->minecraft:podzol")) {
+                    surfaceGate = true;
+                }
+                if (line.contains(FEATURE_MARKER) && line.contains("registered worldgen types")
+                        && line.contains("subterra:rule_ore") && line.contains("subterra:rule_vein")) {
+                    featureReg = true;
+                }
+                if (line.contains(FEATURE_MARKER) && line.contains("plan ok (enable=false, mounts=0, guards=0")) {
+                    featurePlan = true;
+                }
                 if (line.contains("FATAL") || line.contains("BUILD FAILED")) {
                     fatal = true;
                 }
-                boolean contractMet = done && java25 && argsOk && !fatal;
+                boolean seamsOk = assemblyOk && trimandOk && surfaceReg && surfaceId && surfaceGate
+                        && featureReg && featurePlan;
+                boolean contractMet = done && java25 && argsOk && !fatal && seamsOk;
                 if (contractMet || fatal) {
                     // Evidence collected; stop reading (the game may keep the pipe
                     // open indefinitely, so never wait for EOF).
@@ -132,11 +174,17 @@ public final class ServerBootProbe {
             reapPort(PROBE_PORT);
         }
 
-        boolean pass = done && java25 && argsOk && !fatal;
+        boolean seamsOk = assemblyOk && trimandOk && surfaceReg && surfaceId && surfaceGate
+                && featureReg && featurePlan;
+        boolean pass = done && java25 && argsOk && !fatal && seamsOk;
         System.out.println();
-        System.out.println("[ServerBootProbe] done=" + done + " java25=" + java25 + " argsOk=" + argsOk + " fatal=" + fatal);
+        System.out.println("[ServerBootProbe] done=" + done + " java25=" + java25 + " argsOk=" + argsOk
+                + " fatal=" + fatal);
+        System.out.println("[ServerBootProbe] seams: assembly=" + assemblyOk + " trimand=" + trimandOk
+                + " surface(reg/id/gate)=" + surfaceReg + "/" + surfaceId + "/" + surfaceGate
+                + " feature(reg/plan)=" + featureReg + "/" + featurePlan);
         if (pass) {
-            System.out.println("[ServerBootProbe] PASS (dev server booted on Java 25)");
+            System.out.println("[ServerBootProbe] PASS (dev server booted on Java 25 + real-seam markers)");
             System.exit(0);
         } else {
             System.out.println("[ServerBootProbe] FAIL: boot contract not met");
