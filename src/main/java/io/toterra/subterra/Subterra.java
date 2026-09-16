@@ -217,6 +217,14 @@ public class Subterra {
         // LAN holepunch (p.2.30.2, over the p.2.5 stack): default no-op wiring shell;
         // the loopback self-punch sample runs only under the subterra.probe.holepunch gate.
         io.toterra.subterra.runtime.network.holepunch.HolepunchRuntime.bootstrap(modContainer);
+
+        // p.2.32 Traveler series (clean-room, td-ized): title hints / weather /
+        // upscale / skin data planes with gated no-op wiring shells. Samples run
+        // only under their subterra.probe.* gates; zero effect by default.
+        io.toterra.subterra.runtime.ui.title.TitleRuntime.bootstrap(modContainer);
+        io.toterra.subterra.runtime.weather.WeatherRuntime.bootstrap(modContainer);
+        io.toterra.subterra.runtime.render.upscale.UpscaleRuntime.bootstrap(modContainer);
+        io.toterra.subterra.runtime.skin.SkinRuntime.bootstrap(modContainer);
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call

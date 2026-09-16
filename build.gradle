@@ -265,6 +265,18 @@ neoForge {
             // priority no-op, no-op shell).
             systemProperty 'subterra.probe.lod',
                     System.getProperty('subterra.probe.lod', project.findProperty('subterra.probe.lod') ?: '')
+            // p.2.32 Traveler series gate: forward -P to the game JVM as -D.
+            systemProperty 'subterra.probe.title',
+                    System.getProperty('subterra.probe.title', project.findProperty('subterra.probe.title') ?: '')
+            // p.2.32 Traveler series gate: forward -P to the game JVM as -D.
+            systemProperty 'subterra.probe.weather',
+                    System.getProperty('subterra.probe.weather', project.findProperty('subterra.probe.weather') ?: '')
+            // p.2.32 Traveler series gate: forward -P to the game JVM as -D.
+            systemProperty 'subterra.probe.upscale',
+                    System.getProperty('subterra.probe.upscale', project.findProperty('subterra.probe.upscale') ?: '')
+            // p.2.32 Traveler series gate: forward -P to the game JVM as -D.
+            systemProperty 'subterra.probe.skin',
+                    System.getProperty('subterra.probe.skin', project.findProperty('subterra.probe.skin') ?: '')
             // p.2.9.6 world shell staging base: fixed build/tmp/world-e2e under the root project dir
             // (ModDevGradle run server does not forward -D to the game JVM, so forward it explicitly).
             systemProperty 'subterra.projectDir', project.projectDir.toString()

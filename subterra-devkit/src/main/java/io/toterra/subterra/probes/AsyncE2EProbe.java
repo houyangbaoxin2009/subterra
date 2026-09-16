@@ -188,6 +188,10 @@ public final class AsyncE2EProbe {
      * + api.lod (api↔mirror / pipeline / cache / tie skip-or-parity / backend), gated by
      * subterra.probe.lod (p.2.28.6 2/2). */
     private static final String LOD_MARKER = "[Subterra lod]";
+    private static final String TITLE_MARKER = "[Subterra title]";
+    private static final String WEATHER_MARKER = "[Subterra weather]";
+    private static final String UPSCALE_MARKER = "[Subterra upscale]";
+    private static final String SKIN_MARKER = "[Subterra skin]";
     /** Fixed seed shared with the engine-core check and the engine probes. */
     private static final long WORLD_SEED = 44905237L;
 
@@ -229,7 +233,9 @@ public final class AsyncE2EProbe {
                 "-Psubterra.probe.ai=probe",
                 "-Psubterra.probe.scale=probe",
                 "-Psubterra.probe.time=probe",
-                "-Psubterra.probe.lod=probe"));
+                "-Psubterra.probe.lod=probe",
+                "-Psubterra.probe.title=probe", "-Psubterra.probe.weather=probe",
+                "-Psubterra.probe.upscale=probe", "-Psubterra.probe.skin=probe"));
         if (tieLib != null) {
             cmd.add("-Psubterra.tie.lib=" + tieLib);
         }
@@ -262,7 +268,7 @@ public final class AsyncE2EProbe {
         // 22 = scale-shell-ok   (ScaleRuntime engine.scale data-plane drive slot, p.2.25.2)
         // 23 = time-shell-ok   (TimeRuntime engine.time/api.time + fixed-tick budget-drive slot, p.2.26.4)
         // 24 = lod-shell-ok   (LodRuntime engine.render.lod + api.lod load slot, p.2.28.6 2/2)
-        boolean[] seen = new boolean[25];
+        boolean[] seen = new boolean[29];
         boolean fatal = false;
         int asyncMarkerLines = 0;
         int simMarkerLines = 0;
@@ -281,6 +287,10 @@ public final class AsyncE2EProbe {
         int scaleMarkerLines = 0;
         int timeMarkerLines = 0;
         int lodMarkerLines = 0;
+        int titleMarkerLines = 0;
+        int weatherMarkerLines = 0;
+        int upscaleMarkerLines = 0;
+        int skinMarkerLines = 0;
         long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(BOOT_DEADLINE_MINUTES);
 
         try (BufferedReader reader = new BufferedReader(
@@ -412,6 +422,30 @@ public final class AsyncE2EProbe {
                 if (line.contains(LOD_MARKER)) {
                     lodMarkerLines++;
                 }
+                if (line.contains(TITLE_MARKER)) {
+                    titleMarkerLines++;
+                }
+                if (line.contains(TITLE_MARKER + " gate=on sample ok (")) {
+                    seen[25] = true;
+                }
+                if (line.contains(WEATHER_MARKER)) {
+                    weatherMarkerLines++;
+                }
+                if (line.contains(WEATHER_MARKER + " gate=on forecast ok (")) {
+                    seen[26] = true;
+                }
+                if (line.contains(UPSCALE_MARKER)) {
+                    upscaleMarkerLines++;
+                }
+                if (line.contains(UPSCALE_MARKER + " gate=on pipeline ok (")) {
+                    seen[27] = true;
+                }
+                if (line.contains(SKIN_MARKER)) {
+                    skinMarkerLines++;
+                }
+                if (line.contains(SKIN_MARKER + " gate=on resolve ok (")) {
+                    seen[28] = true;
+                }
                 if (line.contains(LOD_MARKER + " ok (api=")) {
                     seen[24] = true;
                 }
@@ -472,7 +506,11 @@ public final class AsyncE2EProbe {
                 + " aiOk=" + seen[21] + " aiMarkerLines=" + aiMarkerLines
                 + " scaleOk=" + seen[22] + " scaleMarkerLines=" + scaleMarkerLines
                 + " timeOk=" + seen[23] + " timeMarkerLines=" + timeMarkerLines
-                + " lodOk=" + seen[24] + " lodMarkerLines=" + lodMarkerLines
+                 + " lodOk=" + seen[24] + " lodMarkerLines=" + lodMarkerLines
+                + " titleOk=" + seen[25] + " titleMarkerLines=" + titleMarkerLines
+                + " weatherOk=" + seen[26] + " weatherMarkerLines=" + weatherMarkerLines
+                + " upscaleOk=" + seen[27] + " upscaleMarkerLines=" + upscaleMarkerLines
+                + " skinOk=" + seen[28] + " skinMarkerLines=" + skinMarkerLines
                 + " fatal=" + fatal);
         if (pass) {
             System.out.println("[AsyncE2EProbe] PASS (async + sim + world + saveverify + launch + fix + cfglog + tie + render+hooks + anim + ui + hub + ai + scale + time shells fired on a live server, "
@@ -492,10 +530,14 @@ public final class AsyncE2EProbe {
                     + " [Subterra ai] + " + scaleMarkerLines
                     + " [Subterra scale] + " + timeMarkerLines
                     + " [Subterra time] + " + lodMarkerLines
-                    + " [Subterra lod] line(s) observed)");
+                    + " [Subterra lod] + " + titleMarkerLines
+                    + " [Subterra title] + " + weatherMarkerLines
+                    + " [Subterra weather] + " + upscaleMarkerLines
+                    + " [Subterra upscale] + " + skinMarkerLines
+                    + " [Subterra skin] line(s) observed)");
             System.exit(0);
         } else {
-            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub/ai/scale/time/lod shell contract not met");
+            System.out.println("[AsyncE2EProbe] FAIL: async/sim/world/saveverify/launch/fix/cfglog/tie/render+hooks/anim/ui/hub/ai/scale/time/lod/title/weather/upscale/skin shell contract not met");
             System.exit(1);
         }
     }
