@@ -65,6 +65,10 @@ public final class SubterraFeatures {
     public static final PlacementModifierType<SubterraRuleVeinPlacement> RULE_VEIN =
             () -> SubterraRuleVeinPlacement.CODEC;
 
+    private static volatile boolean oreRegistered = false;
+
+    private static volatile boolean veinRegistered = false;
+
     private static volatile boolean typesRegistered = false;
 
     private SubterraFeatures() {
@@ -86,21 +90,29 @@ public final class SubterraFeatures {
     /**
      * 注册静态世界生成类型（{@link RegisterEvent}）。幂等（重复调用无害）。
      * / Registers the static worldgen types ({@link RegisterEvent}). Idempotent.
+     *
+     * <p>根因注记 / Root-cause note: {@link RegisterEvent} fires <b>once per registry</b>, so the shared
+     * single "typesRegistered" guard skipped the second registration entirely (FEATURE fired first and
+     * marked both done; the shipped placed_feature JSON then failed with "Unknown registry key ...
+     * placement_modifier_type: subterra:rule_vein"). Guards are per-type now, and the marker prints the
+     * accurate pair state. / 事件逐注册表各触发一次，旧实现用单个布尔守卫导致第二次注册被整体跳过
+     * （marker 日志却照打）——守卫已改为逐类型，marker 反映真实成对状态。
      */
     public static void registerTypes(RegisterEvent event) {
-        if (typesRegistered) {
-            return;
-        }
-        if (event.getRegistryKey() == Registries.FEATURE) {
+        if (event.getRegistryKey() == Registries.FEATURE && !oreRegistered) {
             event.register(Registries.FEATURE, RULE_ORE_ID, () -> RULE_ORE);
-        } else if (event.getRegistryKey() == Registries.PLACEMENT_MODIFIER_TYPE) {
+            oreRegistered = true;
+        } else if (event.getRegistryKey() == Registries.PLACEMENT_MODIFIER_TYPE && !veinRegistered) {
             event.register(Registries.PLACEMENT_MODIFIER_TYPE, RULE_VEIN_ID, () -> RULE_VEIN);
+            veinRegistered = true;
         } else {
             return;
         }
-        typesRegistered = true;
-        Subterra.LOGGER.info("{} registered worldgen types {} -> FEATURE, {} -> PLACEMENT_MODIFIER_TYPE",
-                MARKER, RULE_ORE_ID, RULE_VEIN_ID);
+        if (oreRegistered && veinRegistered && !typesRegistered) {
+            typesRegistered = true;
+            Subterra.LOGGER.info("{} registered worldgen types {} -> FEATURE, {} -> PLACEMENT_MODIFIER_TYPE",
+                    MARKER, RULE_ORE_ID, RULE_VEIN_ID);
+        }
     }
 
     /** 门控启动标记：{@code subterra.probe.feature} 设置时打印确定性计划渲染 + 挂载计数（供 E2E 断言）。 /
