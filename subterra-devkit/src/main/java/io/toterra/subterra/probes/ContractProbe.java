@@ -99,7 +99,7 @@ import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 public final class ContractProbe {
 
     /** Classpath resource of the frozen golden asset (devkit resources on runtimeClasspath). */
-    private static final String RESOURCE = "/golden/vanilla-router-seed44905237.td";
+    private static final String RESOURCE = "/golden/vanilla-router-seed44905237.data.tie";
 
     /** Bridge sample points into the golden rows (fixed, spread over the 12 rows). */
     private static final int[] BRIDGE_POINTS = {0, 5, 11};

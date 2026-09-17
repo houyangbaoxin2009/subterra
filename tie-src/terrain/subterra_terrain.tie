@@ -1,0 +1,515 @@
+type tie<class>
+// ============================================================================
+// subterra_terrain.tie —— p.1.8.34 Subterra 自有主世界地形模型的 tie 侧镜像
+// （namespace stdens），经 tiec --shared 编译为 subterra_density.dll，由
+// TieTerrainDensityBridge 以 FFM 标量 ABI 装载。
+//
+// 真值来源（Java 侧，逐位镜像；两侧禁止单方改动）：
+//   worldgen/pipeline/terrain/SubterraTerrain.java     —— finalDensity 组合式
+//   worldgen/pipeline/router/PositionalRand.java       —— ofMaster / fromHashOf（MD5 大端对拆）
+//   worldgen/pipeline/noise/XoroRandom.java            —— Xoroshiro128++（单 long 升级 + 128 位直构）
+//   worldgen/pipeline/noise/simplex/NormalNoise.java   —— first/second 双层 + INPUT_FACTOR + valueFactor
+//   worldgen/pipeline/noise/perlin/PerlinNoise.java    —— createForked 八度 + wrap + 值因子
+//   worldgen/pipeline/noise/perlin/ImprovedNoise.java  —— 置换晶格 + fade 三线性
+//
+// 导出面（FFM 标量 ABI，命名空间前缀 stdens$，与旧 ABI 契约一致）：
+//   density(x: i64, y: i64, z: i64, seed: i64) -> f64
+//       —— 与 SubterraTerrain.finalDensity(seed).eval(x, y, z) 逐位一致（raw bits）。
+//   y_min / y_max / y_block_size / y_block_count / poi_levels -> i64
+//   poi_cell_scale / poi_radius(i64) -> f64；y_to_block(i64) -> i64；
+//   block_active(x,y,z,seed) -> i64        （Wave-B 查询面，取值与 Java 静态默认一致）
+//
+// 数值纪律（逐位一致的关键）：
+//   * 求值路径只有 + - * / 与 floor / abs / 比较——均为 IEEE-754 精确定义运算，
+//     无超越函数（无 libm 分歧面）；tiec 默认不开 fast-math，禁止对其加 --ffast-math；
+//   * i64 乘加按二补数回绕（与 Java long 一致）；tie 的 >> 是算术移位，
+//     逻辑右移用 ushr(v, n) = (v >> n) & ((1 << (64 - n)) - 1) 模拟（n ∈ [1,63]）；
+//   * 循环左移 rotl(v, n) = (v << n) | ushr(v, 64 - n)；64 位常量一律写十进制二补数；
+//   * 浮点表达式严格按 Java 的求值顺序与结合方向书写（左结合），不做代数重排。
+//
+// 种子派生（镜像 PositionalRand / XoroRandom）：
+//   ofMaster(seed): XoroRandom 单 long 构造 = upgradeSeedTo128bit（a = seed ^ SILVER，
+//     b = a + GOLDEN，Stafford13 终化，全零态护栏）→ 抽两个 nextLong 为 (baseLo, baseHi)；
+//   fromHashOf(盐): MD5(盐 UTF-8) 摘要按大端拆 (lo, hi)，与基逐字异或（不再混合）；
+//   NormalNoise: 128 位态直构 XoroRandom（全零态护栏）后，first、second 两层先后
+//     createForked——各抽 2 个 nextLong 为叉基，每个非零振幅八度 k 以
+//     fromHashOf("octave_" + (firstOctave + k)) 派生晶格 RNG（本模型振幅全 1，无跳八度）；
+//   ImprovedNoise: 3 个 nextDouble × 256 为晶格偏移，再 256 次 Fisher-Yates
+//     （nextInt(256 - i)：低 32 位舍弃归约）。
+//   盐与八度标签全部编译期已知；MD5 用 tlib /std/md5.tie 运行时计算
+//   （smoke 探针对拍 Java/Python 参考向量）。
+//
+// 状态纪律：全局 g_lat 按入参 seed 惰性缓存（seed 变更即整表重算；40 晶格 × 259 槽
+//   = 10360 项 f64），求值路径只读、无分配。与 trimand g_cache 同模式：
+//   seed 切换重建瞬间的跨线程读为已接受的一次性竞争面（世界加载期）。
+// ============================================================================
+
+import "/std/md5.tie";
+
+// ---- 全局状态（tie 命名空间体内禁 var，故置于顶层；与 trimand 运行时段同模式） ----
+var g_init: i64 = 0            // 0 = 未建表；1 = g_lat 就绪
+var g_seed: i64 = 0            // 当前缓存对应的 world seed
+var g_lat: table<f64>;         // 40 晶格 × 259 槽：[xo, yo, zo, p0..p255]
+var g_rlo: i64 = 0             // 初始化期工作 RNG（Xoroshiro128++ 状态，求值期不使用）
+var g_rhi: i64 = 0
+
+namespace stdens {
+
+// ---- Xoroshiro128++ 基元（镜像 XoroRandom；i64 二补数回绕语义） ----
+
+// 逻辑右移（tie 的 >> 为算术移位，负数需掩码清符号扩展位）
+func ushr(v: i64, n: i64) -> i64 {
+    if n <= 0 {
+        return v
+    }
+    return (v >> n) & ((1 << (64 - n)) - 1)
+}
+
+// 64 位循环左移（n ∈ [1,63]）
+func rotl(v: i64, n: i64) -> i64 {
+    return (v << n) | ushr(v, 64 - n)
+}
+
+// Stafford13 / splitmix64 终化（镜像 XoroRandom.mixStafford13）
+func stafford(x: i64) -> i64 {
+    x = (x ^ ushr(x, 30)) * -4658895280553007687          // 0xBF58476D1CE4E5B9
+    x = (x ^ ushr(x, 27)) * -7723592293110705685          // 0x94D049BB133111EB
+    return x ^ ushr(x, 31)
+}
+
+const GOLDEN: i64 = -7046029254386353131                  // 0x9E3779B97F4A7C15
+const SILVER: i64 = 7640891576956012809                   // 0x6A09E667F3BCC909
+
+// 128 位直构（镜像 XoroRandom(seedLo, seedHi)：原样使用 + 全零态护栏）
+func rng_seed128(lo: i64, hi: i64) {
+    g_rlo = lo
+    g_rhi = hi
+    if (g_rlo | g_rhi) == 0 {
+        g_rlo = GOLDEN
+        g_rhi = SILVER
+    }
+}
+
+// nextLong：result = rotl(s0 + s1, 17) + s0；s1 ^= s0；
+//           s0 = rotl(s0, 49) ^ s1 ^ (s1 << 21)；s1 = rotl(s1, 28)
+func rng_next() -> i64 {
+    var s0 = g_rlo
+    var s1 = g_rhi
+    var result = rotl(s0 + s1, 17) + s0
+    s1 = s1 ^ s0
+    g_rlo = rotl(s0, 49) ^ s1 ^ (s1 << 21)
+    g_rhi = rotl(s1, 28)
+    return result
+}
+
+// nextDouble = (nextLong() >>> 11) × 2^-53
+func rng_next_double() -> f64 {
+    return as_f64(ushr(rng_next(), 11)) * 1.1102230246251565e-16
+}
+
+// nextInt(bound)：低 32 位无符号 × bound，低于 2^32 mod bound 阈值时重抽（无模偏）
+func rng_next_int(bound: i64) -> i64 {
+    var l = rng_next() & 0xFFFFFFFF
+    var prod = l * bound
+    var r = prod & 0xFFFFFFFF
+    if r < bound {
+        var throttle = (4294967296 - bound) % bound       // remainderUnsigned(-bound, bound)
+        while r < throttle {
+            l = rng_next() & 0xFFFFFFFF
+            prod = l * bound
+            r = prod & 0xFFFFFFFF
+        }
+    }
+    return prod >> 32
+}
+
+// ---- MD5 大端对拆（镜像 PositionalRand.md5Pair / fromBytes） ----
+
+func hex_nibble(c: string) -> i64 {
+    var digits = "0123456789abcdef"
+    var i: i64 = 0
+    while i < 16 {
+        if str_char(digits, i) == c {
+            return i
+        }
+        i = i + 1
+    }
+    return 0
+}
+
+// 16 个 hex 字符 → i64（超出 i64 正域时随二补数自然回绕 = Java 大端读入 signed long）
+func hex16(s: string, off: i64) -> i64 {
+    var v: i64 = 0
+    var i: i64 = 0
+    while i < 16 {
+        v = (v << 4) | hex_nibble(str_char(s, off + i))
+        i = i + 1
+    }
+    return v
+}
+
+func md5_lo(label: string) -> i64 {
+    return hex16(md5.md5_hex(label), 0)
+}
+
+func md5_hi(label: string) -> i64 {
+    return hex16(md5.md5_hex(label), 16)
+}
+
+// 八度标签表：本模型四个栈的八度区间为 [-11, -2]，全部编译期已知。
+// 下标 idx = (firstOctave + k) + 11 ∈ [0, 9]。
+func oct_label(idx: i64) -> string {
+    var tabs: array<string, 10> = ["octave_-11", "octave_-10", "octave_-9", "octave_-8",
+                                   "octave_-7", "octave_-6", "octave_-5", "octave_-4",
+                                   "octave_-3", "octave_-2"]
+    return tabs[idx]
+}
+
+// ---- 晶格构建（镜像 ImprovedNoise(RandomSource)：3×nextDouble×256 + 256 次 Fisher-Yates） ----
+
+const LAT_REC: i64 = 259          // 每晶格槽位：3 偏移 + 256 置换
+const N_LATTICE: i64 = 40         // 4 栈 × (first + second) × 八度数 = 16+8+10+6
+
+func build_lattice(slot: i64) {
+    var b = slot * LAT_REC
+    g_lat[b] = rng_next_double() * 256.0
+    g_lat[b + 1] = rng_next_double() * 256.0
+    g_lat[b + 2] = rng_next_double() * 256.0
+    var i: i64 = 0
+    while i < 256 {
+        g_lat[b + 3 + i] = as_f64(i)
+        i = i + 1
+    }
+    i = 0
+    while i < 256 {
+        var j = i + rng_next_int(256 - i)
+        var t = g_lat[b + 3 + i]
+        g_lat[b + 3 + i] = g_lat[b + 3 + j]
+        g_lat[b + 3 + j] = t
+        i = i + 1
+    }
+}
+
+// 单层八度组建（镜像 PerlinNoise.createForked：抽 2 个 nextLong 为叉基，
+// 非零振幅八度 k 由 fromHashOf("octave_"+(firstOctave+k)) 派生晶格 RNG）
+func init_layer(slot0: i64, first_oct: i64, size: i64) {
+    var base_lo = rng_next()
+    var base_hi = rng_next()
+    var k: i64 = 0
+    while k < size {
+        var ol = md5_lo(oct_label(first_oct + k + 11)) ^ base_lo
+        var oh = md5_hi(oct_label(first_oct + k + 11)) ^ base_hi
+        rng_seed128(ol, oh)
+        build_lattice(slot0 + k)
+        k = k + 1
+    }
+}
+
+// fromHashOf(盐)：MD5 大端对拆后与基逐字异或（原样使用，不再混合）
+func seed_from_salt(base_lo: i64, base_hi: i64, salt: string) {
+    var lo = md5_lo(salt) ^ base_lo
+    var hi = md5_hi(salt) ^ base_hi
+    rng_seed128(lo, hi)
+}
+
+// 按种子建全 40 晶格（镜像 SubterraTerrain.noise × 4 + NormalNoise.create 双层）
+func ensure_state(seed: i64) {
+    if g_init == 1 {
+        if g_seed == seed {
+            return
+        }
+    }
+    if g_init == 0 {
+        g_lat = table_new_f64()
+        var z: i64 = 0
+        while z < N_LATTICE * LAT_REC {
+            table_push(g_lat, 0.0)
+            z = z + 1
+        }
+        g_init = 1
+    }
+    g_seed = seed
+    // PositionalRand.ofMaster(seed)：单 long 升级为 128 位态，抽两个 nextLong
+    var a = seed ^ SILVER
+    var b = a + GOLDEN
+    var mlo = stafford(a)
+    var mhi = stafford(b)
+    if (mlo | mhi) == 0 {
+        mlo = GOLDEN
+        mhi = SILVER
+    }
+    rng_seed128(mlo, mhi)
+    var f1 = rng_next()
+    var f2 = rng_next()
+    // 四栈（槽位布局：大陆 0..15，丘陵 16..23，山脊 24..33，细节 34..39）
+    seed_from_salt(f1, f2, "subterra.terrain.continent")
+    init_layer(0, -11, 8)
+    init_layer(8, -11, 8)
+    seed_from_salt(f1, f2, "subterra.terrain.hills")
+    init_layer(16, -6, 4)
+    init_layer(20, -6, 4)
+    seed_from_salt(f1, f2, "subterra.terrain.ridge")
+    init_layer(24, -8, 5)
+    init_layer(29, -8, 5)
+    seed_from_salt(f1, f2, "subterra.terrain.detail")
+    init_layer(34, -4, 3)
+    init_layer(37, -4, 3)
+}
+
+// ---- ImprovedNoise 求值（镜像 sampleAndLerp / gradientDot / Mth 数学） ----
+
+// Mth.floor：真地板（截断后按符号回退一格）
+func mfloor(v: f64) -> i64 {
+    var t = as_i64(v)
+    if v < as_f64(t) {
+        t = t - 1
+    }
+    return t
+}
+
+// PerlinNoise.wrap：折叠进 [-2^25, 2^25]
+const WRAPD: f64 = 3.3554432E7
+
+func wrapc(v: f64) -> f64 {
+    return v - as_f64(mfloor(v / WRAPD + 0.5)) * WRAPD
+}
+
+func absf(v: f64) -> f64 {
+    if v < 0.0 {
+        return 0.0 - v
+    }
+    return v
+}
+
+// Mth.smoothstep：t^3 (t (6t − 15) + 10)
+func smooth(t: f64) -> f64 {
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+}
+
+// Mth.lerp / lerp2 / lerp3（x 对先并，再 y，再 z）
+func lerpd(delta: f64, start: f64, end: f64) -> f64 {
+    return start + delta * (end - start)
+}
+
+func lerp2d(a: f64, b: f64, d0: f64, d1: f64, d2: f64, d3: f64) -> f64 {
+    return lerpd(b, lerpd(a, d0, d1), lerpd(a, d2, d3))
+}
+
+func perm(slot: i64, idx: i64) -> i64 {
+    var b = slot * LAT_REC
+    return as_i64(g_lat[b + 3 + (idx & 255)])
+}
+
+// 16 项梯度表点积（GRADIENT[hash & 15] · (dx, dy, dz)）
+func gdot(hash: i64, dx: f64, dy: f64, dz: f64) -> f64 {
+    var h = hash & 15
+    var gx: f64 = 0.0
+    var gy: f64 = 0.0
+    var gz: f64 = 0.0
+    if h == 0 {
+        gx = 1.0; gy = 1.0
+    } else if h == 1 {
+        gx = -1.0; gy = 1.0
+    } else if h == 2 {
+        gx = 1.0; gy = -1.0
+    } else if h == 3 {
+        gx = -1.0; gy = -1.0
+    } else if h == 4 {
+        gx = 1.0; gz = 1.0
+    } else if h == 5 {
+        gx = -1.0; gz = 1.0
+    } else if h == 6 {
+        gx = 1.0; gz = -1.0
+    } else if h == 7 {
+        gx = -1.0; gz = -1.0
+    } else if h == 8 {
+        gy = 1.0; gz = 1.0
+    } else if h == 9 {
+        gy = -1.0; gz = 1.0
+    } else if h == 10 {
+        gy = 1.0; gz = -1.0
+    } else if h == 11 {
+        gy = -1.0; gz = -1.0
+    } else if h == 12 {
+        gx = 1.0; gy = 1.0
+    } else if h == 13 {
+        gy = -1.0; gz = 1.0
+    } else if h == 14 {
+        gx = -1.0; gy = 1.0
+    } else {
+        gy = -1.0; gz = -1.0
+    }
+    return (gx * dx + gy * dy) + gz * dz
+}
+
+// 单晶格采样（ImprovedNoise.noise + sampleAndLerp：先 x 后 y 再 z 三线性）
+func lattice_noise(slot: i64, x: f64, y: f64, z: f64) -> f64 {
+    var b = slot * LAT_REC
+    var xp = x + g_lat[b]
+    var yp = y + g_lat[b + 1]
+    var zp = z + g_lat[b + 2]
+    var xi = mfloor(xp)
+    var yi = mfloor(yp)
+    var zi = mfloor(zp)
+    var dx = xp - as_f64(xi)
+    var dy = yp - as_f64(yi)
+    var dz = zp - as_f64(zi)
+    var i = perm(slot, xi)
+    var i1 = perm(slot, xi + 1)
+    var k = perm(slot, i + yi)
+    var k1 = perm(slot, i + yi + 1)
+    var l = perm(slot, i1 + yi)
+    var l1 = perm(slot, i1 + yi + 1)
+    var d0 = gdot(perm(slot, k + zi), dx, dy, dz)
+    var d1 = gdot(perm(slot, l + zi), dx - 1.0, dy, dz)
+    var d2 = gdot(perm(slot, k1 + zi), dx, dy - 1.0, dz)
+    var d3 = gdot(perm(slot, l1 + zi), dx - 1.0, dy - 1.0, dz)
+    var d4 = gdot(perm(slot, k + zi + 1), dx, dy, dz - 1.0)
+    var d5 = gdot(perm(slot, l + zi + 1), dx - 1.0, dy, dz - 1.0)
+    var d6 = gdot(perm(slot, k1 + zi + 1), dx, dy - 1.0, dz - 1.0)
+    var d7 = gdot(perm(slot, l1 + zi + 1), dx - 1.0, dy - 1.0, dz - 1.0)
+    var sx = smooth(dx)
+    var sy = smooth(dy)
+    var sz = smooth(dz)
+    return lerpd(sz, lerp2d(sx, sy, d0, d1, d2, d3), lerp2d(sx, sy, d4, d5, d6, d7))
+}
+
+// ---- PerlinNoise / NormalNoise 组合（振幅全 1 的本模型专用形） ----
+
+// NormalNoise.valueFactor = (1/6) / (0.1 × (1 + 1/(span+1)))，span = size − 1
+func value_factor(span: i64) -> f64 {
+    return (1.0 / 6.0) / (0.1 * (1.0 + 1.0 / as_f64(span + 1)))
+}
+
+// PerlinNoise.getValue：八度自低频向高频，输入 ×2、值因子减半（镜像运算顺序）
+func perlin_sum(slot0: i64, size: i64, in0: f64, vf0: f64, x: f64, y: f64, z: f64) -> f64 {
+    var sum: f64 = 0.0
+    var input = in0
+    var vf = vf0
+    var k: i64 = 0
+    while k < size {
+        var v = lattice_noise(slot0 + k, wrapc(x * input), wrapc(y * input), wrapc(z * input))
+        sum = sum + v * vf
+        input = input * 2.0
+        vf = vf / 2.0
+        k = k + 1
+    }
+    return sum
+}
+
+// NormalNoise.getValue = (first(x,y,z) + second(x·K, y·K, z·K)) × valueFactor
+const INPUT_K: f64 = 1.0181268882175227
+
+func normal_get(slot0: i64, size: i64, in0: f64, lfvf: f64, vf: f64, x: f64, y: f64, z: f64) -> f64 {
+    var a = perlin_sum(slot0, size, in0, lfvf, x, y, z)
+    var b = perlin_sum(slot0 + size, size, in0, lfvf,
+                       x * INPUT_K, y * INPUT_K, z * INPUT_K)
+    return (a + b) * vf
+}
+
+// 四栈封装（槽位布局与 ensure_state 一致；in0 = 2^firstOctave，lfvf = 2^(size−1)/(2^size−1)）
+func normal_continent(x: f64, y: f64, z: f64) -> f64 {
+    return normal_get(0, 8, 0.00048828125, 128.0 / 255.0, value_factor(7), x, y, z)
+}
+
+func normal_hills(x: f64, y: f64, z: f64) -> f64 {
+    return normal_get(16, 4, 0.015625, 8.0 / 15.0, value_factor(3), x, y, z)
+}
+
+func normal_ridge(x: f64, y: f64, z: f64) -> f64 {
+    return normal_get(24, 5, 0.00390625, 16.0 / 31.0, value_factor(4), x, y, z)
+}
+
+func normal_detail(x: f64, y: f64, z: f64) -> f64 {
+    return normal_get(34, 3, 0.0625, 4.0 / 7.0, value_factor(2), x, y, z)
+}
+
+// ---- 导出：密度主入口（镜像 SubterraTerrain.finalDensity 的求值闭包） ----
+// surface = 127 − 20 + 95·c + 16·hills（+ mask²·(1−|ridge|)²·115，仅内陆）；
+// density = (surface − y) × 0.30 + detail × 0.25。
+pub func density(x: i64, y: i64, z: i64, seed: i64) -> f64 {
+    ensure_state(seed)
+    var fx = as_f64(x)
+    var fy = as_f64(y)
+    var fz = as_f64(z)
+    var c = normal_continent(fx * 0.5, 0.0, fz * 0.5)
+    var h = normal_hills(fx * 0.5, 0.0, fz * 0.5)
+    var surface = (127.0 - 20.0 + 95.0 * c) + 16.0 * h
+    // 山地掩码：仅内陆（c > 0.15）隆起，平方缓入
+    var mask = (c - 0.15) / 0.5
+    if mask < 0.0 {
+        mask = 0.0
+    }
+    if mask > 1.0 {
+        mask = 1.0
+    }
+    if mask > 0.0 {
+        var r = 1.0 - absf(normal_ridge(fx * 0.4, 0.0, fz * 0.4))
+        surface = surface + (((mask * mask) * r) * r) * 115.0
+    }
+    var detail_term = normal_detail(fx * 0.25, fy * 0.06, fz * 0.25) * 0.25
+    return (surface - fy) * 0.30 + detail_term
+}
+
+// ---- 导出：Wave-B 查询面（取值与 TieTerrainDensityBridge 静态默认一致） ----
+
+pub func y_min() -> i64 {
+    return -128
+}
+
+pub func y_max() -> i64 {
+    return 1024
+}
+
+pub func y_block_size() -> i64 {
+    return 128
+}
+
+pub func y_block_count() -> i64 {
+    return 9
+}
+
+pub func poi_levels() -> i64 {
+    return 3
+}
+
+pub func poi_cell_scale(level: i64) -> f64 {
+    if level == 0 {
+        return 1.0
+    }
+    if level == 1 {
+        return 4.0
+    }
+    return 32.0
+}
+
+pub func poi_radius(level: i64) -> f64 {
+    if level == 0 {
+        return 128.0
+    }
+    if level == 1 {
+        return 512.0
+    }
+    if level == 2 {
+        return 2048.0
+    }
+    return 0.0
+}
+
+// 方块 y → y 块索引；越界 −1（镜像 defaultYToBlock：(y − yMin) / yBlockSize）
+pub func y_to_block(y: i64) -> i64 {
+    if y < -128 {
+        return -1
+    }
+    if y >= 1024 {
+        return -1
+    }
+    return (y + 128) / 128
+}
+
+// 保守全精度（镜像 Java 侧降级默认 1）
+pub func block_active(x: i64, y: i64, z: i64, seed: i64) -> i64 {
+    return 1
+}
+
+}   // namespace stdens

@@ -1217,6 +1217,13 @@ def trimandSeamProbe = tasks.register('runTrimandSeamProbe', JavaExec) {
     jvmArgs += ['--enable-native-access=ALL-UNNAMED']
 }
 
+// TEMPORARY (pre-equivalence RCA): dump Java reference raw bits. Remove before commit.
+def densityRefProbe = tasks.register('runDensityRefProbe', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.DensityRefProbe'
+}
+
 tasks.register('probeAcceptance') {
     group = 'verification'
     description = 'Run all 126 acceptance tasks (121 pure-JVM probes + five E2E boot gates)'

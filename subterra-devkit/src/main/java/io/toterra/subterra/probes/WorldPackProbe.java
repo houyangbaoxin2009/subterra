@@ -164,13 +164,13 @@ public final class WorldPackProbe {
 
         // Datapack dir with 3 td files (one in a nested data/x/... subdir).
         Path srcDatapack = STAGING.resolve("src-datapack");
-        Path dpFile1 = srcDatapack.resolve("pack.td");
+        Path dpFile1 = srcDatapack.resolve("pack.data.tie");
         writeText(dpFile1, "type tie<data>\n" + Td.write(TdTable.builder()
                 .put("name", TdValue.str("mini_world")).build()));
-        Path dpFile2 = srcDatapack.resolve("data/toterra/lang/en_us.td");
+        Path dpFile2 = srcDatapack.resolve("data/toterra/lang/en_us.data.tie");
         writeText(dpFile2, "type tie<data>\n" + Td.write(TdTable.builder()
                 .put("hello", TdValue.str("world")).build()));
-        Path dpFile3 = srcDatapack.resolve("data/x/tag/root.td");
+        Path dpFile3 = srcDatapack.resolve("data/x/tag/root.data.tie");
         writeText(dpFile3, "type tie<data>\n" + Td.write(TdTable.builder()
                 .put("value", TdValue.of(5L)).build()));
 
@@ -217,7 +217,7 @@ public final class WorldPackProbe {
         // Write the five slot docs (enum order); relic directory intentionally absent.
         for (SaveSlot slot : FIVE_SLOTS) {
             TdTable doc = fx.container().document(slot);
-            writeText(fx.saveRoot().resolve(slot.dir()).resolve("doc.td"), Td.write(doc));
+            writeText(fx.saveRoot().resolve(slot.dir()).resolve("doc.data.tie"), Td.write(doc));
         }
         String p1 = WorldPackPacker.pack(fx.saveRoot(), fx.srcDatapack(), META);
 
@@ -227,7 +227,7 @@ public final class WorldPackProbe {
 
         boolean fiveWritten = true;
         for (SaveSlot slot : FIVE_SLOTS) {
-            if (!Files.isRegularFile(saveOut.resolve(slot.dir()).resolve("doc.td"))) {
+            if (!Files.isRegularFile(saveOut.resolve(slot.dir()).resolve("doc.data.tie"))) {
                 fiveWritten = false;
             }
         }
@@ -237,7 +237,7 @@ public final class WorldPackProbe {
         boolean contentOk = true;
         for (SaveSlot slot : FIVE_SLOTS) {
             String src = Td.write(fx.container().document(slot));
-            String dst = Files.readString(saveOut.resolve(slot.dir()).resolve("doc.td"));
+            String dst = Files.readString(saveOut.resolve(slot.dir()).resolve("doc.data.tie"));
             if (!Td.write(Td.parse(dst)).equals(src)) {
                 contentOk = false;
             }

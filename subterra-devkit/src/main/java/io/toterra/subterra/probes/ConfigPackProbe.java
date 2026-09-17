@@ -45,7 +45,7 @@ public final class ConfigPackProbe {
 
     private static void roundtrip() {
         Map<String, TdTable> files = new LinkedHashMap<>();
-        files.put("log.td", Td.parse("""
+        files.put("log.data.tie", Td.parse("""
                 type tie<data>
                 log = [
                   level = "WARN",
@@ -53,13 +53,13 @@ public final class ConfigPackProbe {
                   file = [ enabled = true, dir = "logs/x", keep = 3 ],
                 ]
                 """));
-        files.put("worldgen.td", Td.parse("""
+        files.put("worldgen.data.tie", Td.parse("""
                 [
                   worldgen = [ mode = "eco" ],
                   dimension = [ id = "overworld" ],
                 ]
                 """));
-        files.put("z-last.td", Td.parse("[\n  enabled = false,\n]\n"));
+        files.put("z-last.data.tie", Td.parse("[\n  enabled = false,\n]\n"));
 
         String packed = ConfigPack.export(files);
         check("package has header and bare root", packed.startsWith("type tie<data>\n[\n")
@@ -71,10 +71,10 @@ public final class ConfigPackProbe {
         check("restored file count", restored.size() == 3);
         // The td parser strips a top-level table name (`log = [...]` -> bare
         // content), same as tiec parse_data; content is preserved at root.
-        check("log.td content preserved", restored.get("log.td") instanceof TdTable logTable
+        check("log.td content preserved", restored.get("log.data.tie") instanceof TdTable logTable
                 && logTable.get("level").asString().equals("WARN")
                 && logTable.get("ring_size").asInt() == 64);
-        check("worldgen.td preserved", restored.get("worldgen.td").get("worldgen") instanceof TdTable wg
+        check("worldgen.td preserved", restored.get("worldgen.data.tie").get("worldgen") instanceof TdTable wg
                 && wg.get("mode").asString().equals("eco"));
         check("ordering deterministic", files.keySet().equals(restored.keySet()));
 
@@ -83,8 +83,8 @@ public final class ConfigPackProbe {
 
         // Scalars round-trip too.
         Map<String, TdTable> scalar = new LinkedHashMap<>();
-        scalar.put("s.td", TdTable.builder().put("n", TdValue.of(7L)).build());
-        TdTable s = ConfigPack.parse(ConfigPack.export(scalar)).get("s.td");
+        scalar.put("s.data.tie", TdTable.builder().put("n", TdValue.of(7L)).build());
+        TdTable s = ConfigPack.parse(ConfigPack.export(scalar)).get("s.data.tie");
         check("scalar nested round-trip", s.get("n").asInt() == 7);
     }
 

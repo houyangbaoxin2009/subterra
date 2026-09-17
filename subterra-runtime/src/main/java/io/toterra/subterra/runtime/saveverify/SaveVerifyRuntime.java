@@ -74,7 +74,7 @@ public final class SaveVerifyRuntime {
     private static final String STAGING_ROOT = "saveverify-e2e";
 
     /** 存档文本落盘名。Ledger text file name in staging. */
-    private static final String LEDGER_FILE = "ledger.td";
+    private static final String LEDGER_FILE = "ledger.data.tie";
 
     /**
      * 固定注入密钥（与 p.2.10.4 SaveVerifyProbe 同对，验证「确定性注入契约」）：PKCS#8 私钥 48B +

@@ -161,7 +161,7 @@ public final class DatapackProbe {
                 DatapackEntry srcEntry = dp.get(EntryKind.RECIPE, "toterra", rp);
                 String text1 = DatapackExporter.exportRecipeTd(srcEntry);
                 text1Map.put(rp, text1);
-                Path tdFile = rexData.resolve(rp + ".td");
+                Path tdFile = rexData.resolve(rp + ".data.tie");
                 Files.createDirectories(tdFile.getParent());
                 Files.writeString(tdFile, "type tie<data>\n" + text1);
             }
@@ -172,7 +172,7 @@ public final class DatapackProbe {
                 check("导出往返 " + rp + " 逐字节一致", text2.equals(text1Map.get(rp)));
                 // third pass: feed the re-export back into a second dir -> must be stable
                 Path rex2 = tmp.resolve("rex_dp_" + rp);
-                Path f2 = rex2.resolve("data/toterra/recipe").resolve(rp + ".td");
+                Path f2 = rex2.resolve("data/toterra/recipe").resolve(rp + ".data.tie");
                 Files.createDirectories(f2.getParent());
                 Files.writeString(f2, "type tie<data>\n" + text2);
                 Datapack rex2dp = DatapackLoader.load(rex2);
@@ -188,12 +188,12 @@ public final class DatapackProbe {
             // 8. malformed td names the offender
             Path bad = tmp.resolve("bad_pack");
             Files.createDirectories(bad.resolve("data/broken/function"));
-            Files.writeString(bad.resolve("data/broken/function/x.td"), "type tie<data>\nfunction = [\n");
+            Files.writeString(bad.resolve("data/broken/function/x.data.tie"), "type tie<data>\nfunction = [\n");
             try {
                 DatapackLoader.load(bad);
                 check("畸形 td 抛错含文件", false);
             } catch (IllegalArgumentException e) {
-                check("畸形 td 抛错含文件", e.getMessage().contains("x.td"));
+                check("畸形 td 抛错含文件", e.getMessage().contains("x.data.tie"));
             }
 
             // 9. export round-trip all kinds + archive (p.2.2 block 6)
@@ -203,7 +203,7 @@ public final class DatapackProbe {
                 String safeId = entry.id().replace('/', '_').replace(':', '_');
                 Path pack7 = tmp.resolve("dp7_" + safeId);
                 Path tdFile = pack7.resolve("data").resolve(entry.namespace())
-                        .resolve(entry.kind().dir()).resolve(entry.path() + ".td");
+                        .resolve(entry.kind().dir()).resolve(entry.path() + ".data.tie");
                 Files.createDirectories(tdFile.getParent());
                 Files.writeString(tdFile, "type tie<data>\n" + e1);
                 Datapack reloaded = DatapackLoader.load(pack7);
@@ -308,18 +308,18 @@ public final class DatapackProbe {
         Path packDir = tmp.resolve("mini_dp");
         Path dataRoot = packDir.resolve("data");
         // td files (explicit list — classpath resources have no directory listing)
-        copy("/datapack/mini_dp/pack.td", packDir.resolve("pack.td"));
-        copy("/datapack/mini_dp/data/toterra/tag/item/special.td", dataRoot.resolve("toterra/tag/item/special.td"));
-        copy("/datapack/mini_dp/data/toterra/lang/en_us.td", dataRoot.resolve("toterra/lang/en_us.td"));
-        copy("/datapack/mini_dp/data/toterra/recipe/example.td", dataRoot.resolve("toterra/recipe/example.td"));
-        copy("/datapack/mini_dp/data/toterra/recipe/smoke.td", dataRoot.resolve("toterra/recipe/smoke.td"));
-        copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", dataRoot.resolve("toterra/loot_table/chest/bonus.td"));
-        copy("/datapack/mini_dp/data/toterra/worldgen/configured_feature/meadow_of_tie.td", dataRoot.resolve("toterra/worldgen/configured_feature/meadow_of_tie.td"));
-        copy("/datapack/mini_dp/data/toterra/structure/shrine.td", dataRoot.resolve("toterra/structure/shrine.td"));
-        copy("/datapack/mini_dp/data/toterra/function/greet.td", dataRoot.resolve("toterra/function/greet.td"));
-        copy("/datapack/mini_dp/data/toterra/function/farewell.td", dataRoot.resolve("toterra/function/farewell.td"));
+        copy("/datapack/mini_dp/pack.data.tie", packDir.resolve("pack.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/tag/item/special.data.tie", dataRoot.resolve("toterra/tag/item/special.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/lang/en_us.data.tie", dataRoot.resolve("toterra/lang/en_us.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/recipe/example.data.tie", dataRoot.resolve("toterra/recipe/example.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/recipe/smoke.data.tie", dataRoot.resolve("toterra/recipe/smoke.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.data.tie", dataRoot.resolve("toterra/loot_table/chest/bonus.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/worldgen/configured_feature/meadow_of_tie.data.tie", dataRoot.resolve("toterra/worldgen/configured_feature/meadow_of_tie.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/structure/shrine.data.tie", dataRoot.resolve("toterra/structure/shrine.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/function/greet.data.tie", dataRoot.resolve("toterra/function/greet.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/function/farewell.data.tie", dataRoot.resolve("toterra/function/farewell.data.tie"));
         // manifest-only entry lives outside data/ (never scanned)
-        copy("/datapack/mini_dp/extra/obligatory_tower.td", packDir.resolve("extra/obligatory_tower.td"));
+        copy("/datapack/mini_dp/extra/obligatory_tower.data.tie", packDir.resolve("extra/obligatory_tower.data.tie"));
         // precompiled tie logic library — resolves pack.td's dll="tie/dp_logic_probe.dll"
         copy("/tie/dp_logic_probe.dll", packDir.resolve("tie/dp_logic_probe.dll"));
         return packDir;

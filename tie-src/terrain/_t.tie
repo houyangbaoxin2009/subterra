@@ -1,0 +1,11 @@
+type tie<logic>
+func chk(cond: bool, msg: string) {
+    println(msg)
+}
+func main() {
+    chk(1 == 1,
+        "J ok")
+    chk(1 == 1 && 2 == 2,
+        "K ok")
+    println("L done")
+}

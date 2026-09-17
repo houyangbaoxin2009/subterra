@@ -60,7 +60,7 @@ public final class SaveApiProbe {
         check("isKnownSlotDir unknown rejected both sides",
                 !SaveApi.isKnownSlotDir("cache") && !SaveApiMirror.isKnownSlotDir("cache"));
         check("slotDocFileName api == mirror", SaveApi.slotDocFileName().equals(SaveApiMirror.slotDocFileName()));
-        check("slotDocFileName value", "doc.td".equals(SaveApi.slotDocFileName()));
+        check("slotDocFileName value", "doc.data.tie".equals(SaveApi.slotDocFileName()));
     }
 
     private static void ledger() {

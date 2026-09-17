@@ -70,7 +70,7 @@ import java.util.Map;
 public final class WorldPackPacker {
 
     /** Canonical document file name inside each slot directory. */
-    private static final String DOC = "doc.td";
+    private static final String DOC = "doc.data.tie";
 
     private WorldPackPacker() {
     }

@@ -47,7 +47,7 @@ public final class LobotomizeConfig {
      * falls back to defaults on absence, malformed input or invalid values.
      */
     public static LobotomizeConfig load(Path gameDir) {
-        Path config = gameDir.resolve("config/subterra/servercore.td");
+        Path config = gameDir.resolve("config/subterra/servercore.data.tie");
         if (!Files.isRegularFile(config)) {
             return defaults();
         }

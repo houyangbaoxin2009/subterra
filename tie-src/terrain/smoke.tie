@@ -1,0 +1,89 @@
+type tie<logic>
+// smoke.tie —— subterra_terrain.tie 冒烟探针（编译运行均在 tie-src/terrain/ 下）：
+//   tiec --no-cache --lib-root F:\Projects\tlib smoke.tie -o smoke.exe && smoke.exe
+// 覆盖：MD5 参考向量（RFC 1321 + Java/Python 对拍）、八度标签表、Wave-B 查询面、
+//   density 确定性（同种子逐位一致 / 换种子重算后回到原值）、有限性与量级。
+// 断言确定性、禁时序、禁随机。
+
+import "/std/md5.tie";
+import "./subterra_terrain.tie";
+
+var fails: i64 = 0
+var npass: i64 = 0
+
+func chk(cond: bool, msg: string) {
+    npass = npass + 1
+    if !cond {
+        fails = fails + 1
+        println("FAIL " + msg)
+    }
+}
+
+func main() {
+    println("=== p.1.8.34 terrain tie smoke ===")
+
+    // ---- MD5 参考向量 ----
+    chk(md5.md5_hex("") == "d41d8cd98f00b204e9800998ecf8427e", "md5 empty (RFC 1321)")
+    chk(md5.md5_hex("abc") == "900150983cd24fb0d6963f7d28e17f72", "md5 abc (RFC 1321)")
+    chk(md5.md5_hex("subterra.terrain.continent") == "078671764e0312102eddb79b7772deea",
+        "md5 salt continent (java/python vector)")
+    chk(md5.md5_hex("subterra.terrain.hills") == "45f8cd6ef8ed04b2a9f705fba4305ed1",
+        "md5 salt hills (java/python vector)")
+    chk(md5.md5_hex("subterra.terrain.ridge") == "fb9ce7b84a439703a3dd2e702e1b2cb2",
+        "md5 salt ridge (java/python vector)")
+    chk(md5.md5_hex("subterra.terrain.detail") == "8623bee2fe16e96aee4df0119d719d59",
+        "md5 salt detail (java/python vector)")
+    chk(md5.md5_hex("octave_-11") == "0fd787bfbc403ec374a4a31ca21b48b8",
+        "md5 octave_-11 (java/python vector)")
+    chk(md5.md5_hex("octave_-2") == "b4a24d7a84e7677b023ff9668e89b5c4",
+        "md5 octave_-2 (java/python vector)")
+
+    // ---- Wave-B 查询面（与 Java 静态默认一致） ----
+    chk(stdens.y_min() == -128, "y_min = -128")
+    chk(stdens.y_max() == 1024, "y_max = 1024")
+    chk(stdens.y_block_size() == 128, "y_block_size = 128")
+    chk(stdens.y_block_count() == 9, "y_block_count = 9")
+    chk(stdens.poi_levels() == 3, "poi_levels = 3")
+    chk(stdens.poi_cell_scale(0) == 1.0, "poi_cell_scale(0) = 1")
+    chk(stdens.poi_cell_scale(1) == 4.0, "poi_cell_scale(1) = 4")
+    chk(stdens.poi_cell_scale(2) == 32.0, "poi_cell_scale(2) = 32")
+    chk(stdens.poi_cell_scale(5) == 32.0, "poi_cell_scale out-of-range -> outermost")
+    chk(stdens.poi_radius(0) == 128.0, "poi_radius(0) = 128")
+    chk(stdens.poi_radius(1) == 512.0, "poi_radius(1) = 512")
+    chk(stdens.poi_radius(2) == 2048.0, "poi_radius(2) = 2048")
+    chk(stdens.poi_radius(7) == 0.0, "poi_radius out-of-range -> 0")
+    chk(stdens.y_to_block(-128) == 0, "y_to_block(-128) = 0")
+    chk(stdens.y_to_block(63) == 1, "y_to_block(63) = 1")
+    chk(stdens.y_to_block(1023) == 8, "y_to_block(1023) = 8")
+    chk(stdens.y_to_block(-129) == -1 && stdens.y_to_block(1024) == -1, "y_to_block out-of-range -> -1")
+    chk(stdens.block_active(1, 2, 3, 42) == 1, "block_active = 1")
+
+    // ---- density 确定性 ----
+    var d1 = stdens.density(0, 63, 0, 42)
+    var d2 = stdens.density(0, 63, 0, 42)
+    chk(d1 == d2, "density deterministic same seed (bit-exact)")
+    var finite = d1 == d1 && d1 < 1000.0 && d1 > 0.0 - 1000.0
+    chk(finite, "density finite and bounded (" + to_string(d1) + ")")
+    // 换种子重算（触发整表重建），再回到原种子必须复现原值
+    var d3 = stdens.density(0, 63, 0, 7)
+    var d4 = stdens.density(0, 63, 0, 42)
+    chk(d4 == d1, "density reproduces after seed switch (rebuild correct)")
+    // 负坐标（地板分支）
+    var dn = stdens.density(-513, -64, -511, 42)
+    chk(dn == dn, "density at negative coords finite")
+
+    // ---- 参考值打印（供 Java 侧等价探针人工对拍；权威断言在 devkit 探针） ----
+    println("ref density(0,63,0,42)      = " + to_string(stdens.density(0, 63, 0, 42)))
+    println("ref density(64,-64,-128,42) = " + to_string(stdens.density(64, -64, -128, 42)))
+    println("ref density(-512,127,512,42)= " + to_string(stdens.density(-512, 127, 512, 42)))
+    println("ref density(512,200,-448,42)= " + to_string(stdens.density(512, 200, -448, 42)))
+    println("ref density(-64,0,64,42)    = " + to_string(stdens.density(-64, 0, 64, 42)))
+    println("ref density(64,-64,-128,7)  = " + to_string(stdens.density(64, -64, -128, 7)))
+
+    if fails == 0 {
+        println("PASS ALL " + to_string(npass) + " asserts")
+    } else {
+        println("FAILS=" + to_string(fails) + " / npass=" + to_string(npass))
+        exit(1)
+    }
+}

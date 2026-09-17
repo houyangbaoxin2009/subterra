@@ -57,7 +57,7 @@ public final class ReadingSearchConfig {
      * to defaults on absence, malformed input or invalid values.
      */
     public static ReadingSearchConfig load(Path gameDir) {
-        Path config = gameDir.resolve("config/subterra/jec.td");
+        Path config = gameDir.resolve("config/subterra/jec.data.tie");
         if (!Files.isRegularFile(config)) {
             return defaults();
         }

@@ -49,7 +49,7 @@ public final class SaveApiMirror {
 
     /** The canonical per-slot document file name, mirroring {@code WorldPackPacker}'s {@code DOC}. */
     public static String slotDocFileName() {
-        return "doc.td";
+        return "doc.data.tie";
     }
 
     /** The ledger-document version, sourced verbatim from {@link LedgerDoc#toTd}'s {@code version}. */

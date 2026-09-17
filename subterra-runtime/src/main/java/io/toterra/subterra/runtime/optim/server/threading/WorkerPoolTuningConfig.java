@@ -61,7 +61,7 @@ public final class WorkerPoolTuningConfig {
      * falls back to defaults on absence, malformed input or invalid values.
      */
     public static WorkerPoolTuningConfig load(Path gameDir) {
-        Path config = gameDir.resolve("config/subterra/smoothboot.td");
+        Path config = gameDir.resolve("config/subterra/smoothboot.data.tie");
         if (!Files.isRegularFile(config)) {
             return defaults();
         }

@@ -37,7 +37,7 @@ import io.toterra.subterra.engine.worldgen.profiler.facade.ProfilePlanTd;
 public final class WorldProfilerConfig {
 
     /** Relative path (from the game dir) of the profiler option file. */
-    private static final String CONFIG_REL_PATH = "config/subterra/worldprofile.td";
+    private static final String CONFIG_REL_PATH = "config/subterra/worldprofile.data.tie";
 
     private WorldProfilerConfig() {
     }

@@ -28,8 +28,8 @@ import java.util.stream.Stream;
  * datapack = [
  *   version = 1,
  *   files = [
- *     [ path = "pack.td", content = "..." ],
- *     [ path = "data/toterra/lang/en_us.td", content = "..." ],
+ *     [ path = "pack.data.tie", content = "..." ],
+ *     [ path = "data/toterra/lang/en_us.data.tie", content = "..." ],
  *   ],
  * ]
  * }</pre>
@@ -117,7 +117,7 @@ public final class DatapackPack {
         List<Path> files = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(root)) {
             walk.filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().endsWith(".td"))
+                    .filter(p -> p.getFileName().toString().endsWith(".data.tie"))
                     .sorted()
                     .forEach(files::add);
         } catch (IOException e) {

@@ -90,7 +90,7 @@ public final class DatapackE2EProbe {
                 gradlew, "runServer", "-x", "downloadAssets",
                 "--console=plain", "--no-daemon",
                 "-Psubterra.datapacks=" + stagedRoot,
-                "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.td").toString(),
+                "-Psubterra.override=" + Paths.get(stagedRoot).resolve("overrides.data.tie").toString(),
                 "-Psubterra.probe.export=" + exportTarget,
                 "-Psubterra.probe.exportHub=" + exportHubTarget,
                 "-Psubterra.probe.rule=probe");
@@ -346,23 +346,23 @@ public final class DatapackE2EProbe {
             }
         }
         Path target = stagedRoot.resolve("mini_dp");
-        copy("/datapack/mini_dp/pack.td", target.resolve("pack.td"));
+        copy("/datapack/mini_dp/pack.data.tie", target.resolve("pack.data.tie"));
         Path data = target.resolve("data/toterra");
-        copy("/datapack/mini_dp/data/toterra/tag/item/special.td", data.resolve("tag/item/special.td"));
-        copy("/datapack/mini_dp/data/toterra/lang/en_us.td", data.resolve("lang/en_us.td"));
-        copy("/datapack/mini_dp/data/toterra/recipe/example.td", data.resolve("recipe/example.td"));
-        copy("/datapack/mini_dp/data/toterra/recipe/smoke.td", data.resolve("recipe/smoke.td"));
-        copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.td", data.resolve("loot_table/chest/bonus.td"));
-        copy("/datapack/mini_dp/data/toterra/worldgen/configured_feature/meadow_of_tie.td", data.resolve("worldgen/configured_feature/meadow_of_tie.td"));
-        copy("/datapack/mini_dp/data/toterra/structure/shrine.td", data.resolve("structure/shrine.td"));
-        copy("/datapack/mini_dp/data/toterra/function/greet.td", data.resolve("function/greet.td"));
-        copy("/datapack/mini_dp/data/toterra/function/farewell.td", data.resolve("function/farewell.td"));
-        copy("/datapack/mini_dp/extra/obligatory_tower.td", target.resolve("extra/obligatory_tower.td"));
+        copy("/datapack/mini_dp/data/toterra/tag/item/special.data.tie", data.resolve("tag/item/special.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/lang/en_us.data.tie", data.resolve("lang/en_us.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/recipe/example.data.tie", data.resolve("recipe/example.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/recipe/smoke.data.tie", data.resolve("recipe/smoke.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/loot_table/chest/bonus.data.tie", data.resolve("loot_table/chest/bonus.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/worldgen/configured_feature/meadow_of_tie.data.tie", data.resolve("worldgen/configured_feature/meadow_of_tie.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/structure/shrine.data.tie", data.resolve("structure/shrine.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/function/greet.data.tie", data.resolve("function/greet.data.tie"));
+        copy("/datapack/mini_dp/data/toterra/function/farewell.data.tie", data.resolve("function/farewell.data.tie"));
+        copy("/datapack/mini_dp/extra/obligatory_tower.data.tie", target.resolve("extra/obligatory_tower.data.tie"));
         copy("/tie/dp_logic_probe.dll", target.resolve("tie/dp_logic_probe.dll"));
         // save/session rules override for p.2.2.9: flips pack.td's wild=true -> false
         // A bare root table with a "rules" key, so that Td.parse's name-strip does
         // not consume the identifier: fromManifest reads the returned root's rules key.
-        Files.writeString(stagedRoot.resolve("overrides.td"),
+        Files.writeString(stagedRoot.resolve("overrides.data.tie"),
                 "type tie<data>\n[ rules = [ [ k = \"wild\", v = false ] ] ]\n");
         System.out.println("[DatapackE2EProbe] staged seed pack at " + target);
         return stagedRoot.toAbsolutePath().normalize().toString();

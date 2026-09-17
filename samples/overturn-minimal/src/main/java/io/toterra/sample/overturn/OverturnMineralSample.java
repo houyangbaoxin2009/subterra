@@ -36,7 +36,7 @@ import java.util.Map;
 public final class OverturnMineralSample {
 
     /** 特征/成矿规则文档类路径资源。 / The feature/ore rule-document classpath resource. */
-    public static final String FEATURES_RESOURCE = "/data/overturn_minimal/features.td";
+    public static final String FEATURES_RESOURCE = "/data/overturn_minimal/features.data.tie";
 
     private OverturnMineralSample() {
     }

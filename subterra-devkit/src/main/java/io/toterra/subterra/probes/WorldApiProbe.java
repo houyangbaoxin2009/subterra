@@ -58,7 +58,7 @@ public final class WorldApiProbe {
     private static void pathGuard() {
         Path tmp = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
         Path target = tmp.resolve("subterra-probe-target");
-        Path inside = target.resolve("ledger").resolve("doc.td");
+        Path inside = target.resolve("ledger").resolve("doc.data.tie");
         Path escaping = target.resolve("..").resolve("subterra-probe-evil");
         Path sibling = tmp.resolve("subterra-probe-sibling");
 

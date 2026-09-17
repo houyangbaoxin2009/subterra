@@ -49,7 +49,7 @@ public final class RtpConfig {
 
     /** 载入 td 配置；缺文件用缺省；解析/取值非法确定性拒绝（告警 + 保持缺省）。 / Loads the td config; deterministic rejection on illegal values. */
     public static void load(Path gameDir) {
-        Path configFile = gameDir.resolve("config/subterra/rtp.td");
+        Path configFile = gameDir.resolve("config/subterra/rtp.data.tie");
         try {
             if (Files.isRegularFile(configFile)) {
                 String text = Files.readString(configFile, StandardCharsets.UTF_8);

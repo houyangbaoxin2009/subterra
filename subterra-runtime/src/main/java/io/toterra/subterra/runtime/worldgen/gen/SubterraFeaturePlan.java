@@ -48,7 +48,7 @@ import io.toterra.subterra.engine.worldgen.feature.FeatureAssembly;
 public final class SubterraFeaturePlan {
 
     /** 规则文件相对游戏目录的路径。 / The rule file path relative to the game dir. */
-    public static final String CONFIG_REL_PATH = "config/subterra/features.td";
+    public static final String CONFIG_REL_PATH = "config/subterra/features.data.tie";
 
     /** 基线计划（td 载入结果，未乘 ore_density）。 / The base plan (the td load result, before ore-density scaling). */
     private static volatile FeatureAssembly.Plan basePlan = FeatureAssembly.DEFAULT_PLAN;

@@ -215,7 +215,7 @@ public final class WorldProfilerHook {
             LOGGER.info("[subterra_profiler] auto profile radius={}: sampling window …", radius);
             ProfileReport report = WorldProfileRunner.run(
                     new McWorldSampler(level), plan, seed, dimension, appVersion, sinkDir);
-            LOGGER.info("[subterra_profiler] auto profile radius={} done; summary:\n{}files: {}/profile.zd, {}/profile.td",
+            LOGGER.info("[subterra_profiler] auto profile radius={} done; summary:\n{}files: {}/profile.zd, {}/profile.data.tie",
                     radius, WorldProfileRunner.summary(report), sinkDir, sinkDir);
         } catch (Throwable t) {
             String reason = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : t.toString();
@@ -271,7 +271,7 @@ public final class WorldProfilerHook {
         Path sinkDir = sinkDirFor(plan, level);
         ProfileReport report = WorldProfileRunner.run(new McWorldSampler(level), plan,
                 seed, dimension, appVersion, sinkDir);
-        LOGGER.info("[subterra_profiler] auto slice {} done; summary:\n{}files: {}/profile.zd, {}/profile.td",
+        LOGGER.info("[subterra_profiler] auto slice {} done; summary:\n{}files: {}/profile.zd, {}/profile.data.tie",
                 spec, WorldProfileRunner.summary(report), sinkDir, sinkDir);
     }
 
@@ -399,7 +399,7 @@ public final class WorldProfilerHook {
             ProfileReport report = WorldProfileRunner.run(
                     new McWorldSampler(level), plan, seed, dimension, appVersion, sinkDir);
             sendSummary(ctx.getSource(), "[subterra_profiler] " + WorldProfileRunner.summary(report)
-                    + " files: " + sinkDir.resolve("profile.zd") + ", " + sinkDir.resolve("profile.td"));
+                    + " files: " + sinkDir.resolve("profile.zd") + ", " + sinkDir.resolve("profile.data.tie"));
         } catch (Throwable t) {
             blockedToSender(ctx.getSource(), t);
         }
@@ -453,7 +453,7 @@ public final class WorldProfilerHook {
             ProfileReport report = WorldProfileRunner.run(
                     new McWorldSampler(level), plan, seed, dimension, appVersion, sinkDir);
             sendSummary(ctx.getSource(), "[subterra_profiler] " + WorldProfileRunner.summary(report)
-                    + " files: " + sinkDir.resolve("profile.zd") + ", " + sinkDir.resolve("profile.td"));
+                    + " files: " + sinkDir.resolve("profile.zd") + ", " + sinkDir.resolve("profile.data.tie"));
         } catch (Throwable t) {
             blockedToSender(ctx.getSource(), t);
         }

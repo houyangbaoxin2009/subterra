@@ -104,7 +104,7 @@ public final class WorldProfileRunner {
                     written.add(p);
                 }
                 case TD -> {
-                    Path p = sinkDir.resolve("profile.td");
+                    Path p = sinkDir.resolve("profile.data.tie");
                     Files.write(p, TdWriter.write(r).getBytes(StandardCharsets.UTF_8));
                     written.add(p);
                 }

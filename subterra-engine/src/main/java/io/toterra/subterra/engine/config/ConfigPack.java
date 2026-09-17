@@ -15,8 +15,8 @@ import java.util.TreeMap;
  * package = [
  *   version = 1,
  *   files = [
- *     [ name = "log.td", config = [ ...table content... ] ],
- *     [ name = "worldgen.td", config = [ ...table content... ] ],
+ *     [ name = "log.data.tie", config = [ ...table content... ] ],
+ *     [ name = "worldgen.data.tie", config = [ ...table content... ] ],
  *   ],
  * ]
  * }</pre>

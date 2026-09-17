@@ -70,7 +70,7 @@ public final class VanillaGoldenGen {
 
     /** Relative output path (JavaExec workingDir = the devkit project dir). */
     private static final Path GOLDEN_REL = Path.of("src", "main", "resources", "golden",
-            "vanilla-router-seed44905237.td");
+            "vanilla-router-seed44905237.data.tie");
 
     private VanillaGoldenGen() {
     }

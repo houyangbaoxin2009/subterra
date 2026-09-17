@@ -67,7 +67,7 @@ import java.util.Map;
 public final class OverturnMinimal {
 
     /** 规则文档类路径资源。The rule document classpath resource. */
-    public static final String RULES_RESOURCE = "/data/overturn_minimal/pack.td";
+    public static final String RULES_RESOURCE = "/data/overturn_minimal/pack.data.tie";
 
     /** 覆盖档 td 文档（能力面 a）：把密度偏移覆盖为 3.5（确定性内联文档，无文件）。
      *  Overrides td document (surface a): density offset overridden to 3.5 (inline, no file). */
@@ -161,7 +161,7 @@ public final class OverturnMinimal {
                 if (in == null) {
                     throw new IOException("missing classpath resource: " + RULES_RESOURCE);
                 }
-                Files.write(stage.resolve("pack.td"), in.readAllBytes());
+                Files.write(stage.resolve("pack.data.tie"), in.readAllBytes());
             }
             Datapack pack = DatapackLoader.load(stage);
             check(pack.rules().size() == 2, "td datapack must carry the two manifest rules");

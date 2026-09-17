@@ -44,7 +44,7 @@ import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 public final class VanillaGoldenProbe {
 
     /** Classpath resource of the frozen golden asset (devkit resources on runtimeClasspath). */
-    private static final String RESOURCE = "/golden/vanilla-router-seed44905237.td";
+    private static final String RESOURCE = "/golden/vanilla-router-seed44905237.data.tie";
 
     /** td doc type header written by the p.2.15.2 generator (single leading line). */
     private static final String DOC_HEADER = "type tie<data>";

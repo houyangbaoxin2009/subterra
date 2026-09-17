@@ -212,8 +212,8 @@ public final class SampleBootstrapProbe {
         }
         check("a neoforge.mods.toml classpath resource is present", tomlPresent);
         check("a neoforge.mods.toml declares overturn_minimal (sample manifest)", overturnToml);
-        check("OverturnMinimal.RULES_RESOURCE anchors the parsed pack.td",
-                OverturnMinimal.RULES_RESOURCE.equals("/data/overturn_minimal/pack.td"));
+        check("OverturnMinimal.RULES_RESOURCE anchors the parsed pack.data.tie",
+                OverturnMinimal.RULES_RESOURCE.equals("/data/overturn_minimal/pack.data.tie"));
     }
 
     /** 读取 classpath 资源（缺失/异常 → null）。Reads a classpath resource (null on missing/error). */

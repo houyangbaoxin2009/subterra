@@ -72,7 +72,7 @@ public final class SubterraLogging {
     }
 
     private static LogConfig loadConfig(Path gameDir) {
-        Path config = gameDir.resolve("config/subterra/log.td");
+        Path config = gameDir.resolve("config/subterra/log.data.tie");
         if (!Files.isRegularFile(config)) {
             return LogConfig.defaults();
         }

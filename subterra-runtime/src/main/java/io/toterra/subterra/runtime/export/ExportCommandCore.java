@@ -317,7 +317,7 @@ public final class ExportCommandCore {
                 failed = true;
             }
             try {
-                Files.writeString(dir.resolve(safeName(pack.name()) + ".td"), doc);
+                Files.writeString(dir.resolve(safeName(pack.name()) + ".data.tie"), doc);
             } catch (IOException e) {
                 LOGGER.error("{} export cmd mismatch (write failed): {}",
                         DatapackRegistrar.MARKER, e.toString());
@@ -471,7 +471,7 @@ public final class ExportCommandCore {
 
         try {
             Files.createDirectories(dir);
-            Files.writeString(dir.resolve(form + ".td"), td);
+            Files.writeString(dir.resolve(form + ".data.tie"), td);
             Files.write(dir.resolve(form + ".zd"), zd);
         } catch (IOException e) {
             return HUB_MARKER + " export hub " + form + " mismatch (write failed: " + e + ")";

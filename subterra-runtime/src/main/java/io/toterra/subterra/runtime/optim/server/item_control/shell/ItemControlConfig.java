@@ -86,7 +86,7 @@ public final class ItemControlConfig {
 
     /** Loads the td config under {@code gameDir}; falls back to defaults. */
     public static void load(Path gameDir) {
-        configFile = gameDir.resolve("config/subterra/item_control.td");
+        configFile = gameDir.resolve("config/subterra/item_control.data.tie");
         useTdFile = Files.isRegularFile(configFile);
         try {
             if (useTdFile) {

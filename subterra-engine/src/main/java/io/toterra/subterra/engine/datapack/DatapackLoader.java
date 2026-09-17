@@ -33,7 +33,7 @@ import java.util.stream.Stream;
  */
 public final class DatapackLoader {
 
-    private static final String MANIFEST = "pack.td";
+    private static final String MANIFEST = "pack.data.tie";
 
     private DatapackLoader() {
     }
@@ -70,7 +70,7 @@ public final class DatapackLoader {
         List<Path> files = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(data)) {
             walk.filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().endsWith(".td"))
+                    .filter(p -> p.getFileName().toString().endsWith(".data.tie"))
                     .sorted()
                     .forEach(files::add);
         } catch (IOException e) {
@@ -90,13 +90,13 @@ public final class DatapackLoader {
         }
     }
 
-    /** Joins path segments from {@code fromIndex} on, stripping the trailing ".td". */
+    /** Joins path segments from {@code fromIndex} on, stripping the trailing ".data.tie". */
     private static String joinPath(Path segments, int fromIndex) {
         StringBuilder sb = new StringBuilder();
         for (int i = fromIndex; i < segments.getNameCount(); i++) {
             String seg = segments.getName(i).toString();
-            if (i == segments.getNameCount() - 1 && seg.endsWith(".td")) {
-                seg = seg.substring(0, seg.length() - ".td".length());
+            if (i == segments.getNameCount() - 1 && seg.endsWith(".data.tie")) {
+                seg = seg.substring(0, seg.length() - ".data.tie".length());
             }
             if (i > fromIndex) {
                 sb.append('/');

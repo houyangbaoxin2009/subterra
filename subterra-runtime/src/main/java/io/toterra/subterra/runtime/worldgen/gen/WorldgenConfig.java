@@ -53,7 +53,7 @@ import io.toterra.subterra.engine.config.TdValue;
 public final class WorldgenConfig {
 
     /** Relative path (from the game dir) of the generator option file. */
-    private static final String CONFIG_REL_PATH = "config/subterra/worldgen.td";
+    private static final String CONFIG_REL_PATH = "config/subterra/worldgen.data.tie";
 
     /** The boot marker when Subterra is the default generator. */
     public static final String ENABLED_LOG =

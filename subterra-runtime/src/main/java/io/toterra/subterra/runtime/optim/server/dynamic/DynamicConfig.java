@@ -81,7 +81,7 @@ public final class DynamicConfig {
      * falls back to defaults on absence, malformed input or invalid values.
      */
     public static DynamicConfig load(Path gameDir) {
-        Path config = gameDir.resolve("config/subterra/servercore.td");
+        Path config = gameDir.resolve("config/subterra/servercore.data.tie");
         if (!Files.isRegularFile(config)) {
             return defaults();
         }

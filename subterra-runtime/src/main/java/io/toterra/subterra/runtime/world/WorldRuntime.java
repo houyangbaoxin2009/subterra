@@ -196,7 +196,7 @@ public final class WorldRuntime {
         }
         try (Stream<Path> walk = Files.walk(dir)) {
             return (int) walk.filter(Files::isRegularFile)
-                    .filter(p -> p.getFileName().toString().endsWith(".td"))
+                    .filter(p -> p.getFileName().toString().endsWith(".data.tie"))
                     .count();
         } catch (IOException e) {
             throw new UncheckedIOException("datapack count failed: " + dir, e);

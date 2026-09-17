@@ -46,7 +46,7 @@ public final class SyncLoadRuntime {
     }
 
     private static Setting load(Path gameDir) {
-        Path config = gameDir.resolve("config/subterra/servercore.td");
+        Path config = gameDir.resolve("config/subterra/servercore.data.tie");
         if (!Files.isRegularFile(config)) {
             return Setting.off();
         }
