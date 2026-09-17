@@ -11,6 +11,7 @@ import net.minecraft.world.level.levelgen.DensityFunction;
 
 import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
 import io.toterra.subterra.engine.worldgen.tie.TiePoiResidency;
+import io.toterra.subterra.Subterra;
 import io.toterra.subterra.engine.worldgen.tie.TieTerrainDensityBridge;
 
 /**
@@ -64,17 +65,25 @@ public final class SubterraDensity implements DensityFunction {
      */
     public enum Kind {
         /** The p.1.8.14 composite overworld {@code finalDensity}. */
-        OVERWORLD_FINAL("overworld_final", -128, 592),
+        // p.1.8.33 fix: the composite anchors (y_clamped_gradient / depth splines / slides) are
+        // vanilla-window-bound (surface ~63); a wider Kind window here desynchronises the JSON
+        // noise block from the terrain shape (the 2026-09-16 drowned-world regression) — keep
+        // the window identical to the vanilla overworld recipe until window re-parameterisation
+        // is a designed feature.
+        OVERWORLD_FINAL("overworld_final", -64, 384, 127.0),
         ;
 
         private final String id;
         private final int minY;
         private final int maxY;
+        /** 设计海平面（p.1.8.33：Subterra 不再还原原版海平面）。 / The design sea level (p.1.8.33). */
+        private final double seaLevel;
 
-        Kind(String id, int minY, int maxY) {
+        Kind(String id, int minY, int maxY, double seaLevel) {
             this.id = id;
             this.minY = minY;
             this.maxY = maxY;
+            this.seaLevel = seaLevel;
         }
 
         /** The JSON {@code "kind"} literal. */
@@ -133,6 +142,9 @@ public final class SubterraDensity implements DensityFunction {
     private static final Object TIE_BRIDGE_LOCK = new Object();
     /** 一次装载失败后置真，避免每 chunk 重复尝试 load()（静默降级）。 */
     private static volatile boolean tieBridgeFailed = false;
+
+    /** p.1.8.33 默认跳过日志只打一次。 / The p.1.8.33 default-skip log-once flag. */
+    private static volatile boolean TIE_BRIDGE_SKIP_LOGGED;
 
     // ---- lazily seeded router cache (keyed by the world seed) ----
     private volatile long cachedSeed = Long.MIN_VALUE;
@@ -286,6 +298,21 @@ public final class SubterraDensity implements DensityFunction {
      * cached in {@link #tieBridgeFailed} so no per-chunk retry happens. Never throws.
      */
     private static TieTerrainDensityBridge tieBridgeForCompute() {
+        // p.1.8.33: the bundled subterra_density.dll is a STALE divergent build — it predates the
+        // sea-127 re-anchoring and its outputs diverge from the Java tree by up to ~1.46 (verified
+        // by the TerrainAxisProbe bridge audit), so it must NOT drive terrain. Default OFF: the
+        // proven pure-Java tree generates terrain; opt in explicitly with
+        // -Dsubterra.density.tie=true ONLY after the tie track regenerates an equivalent DLL and
+        // an equivalence probe pins it.
+        if (!Boolean.getBoolean("subterra.density.tie")) {
+            if (!TIE_BRIDGE_SKIP_LOGGED) {
+                TIE_BRIDGE_SKIP_LOGGED = true;
+                Subterra.LOGGER.info(
+                        "Subterra density: tie bridge skipped by default (stale DLL vs the p.1.8.33 sea-level "
+                                + "design); the pure-Java tree generates terrain. Opt in with -Dsubterra.density.tie=true.");
+            }
+            return null;
+        }
         TieTerrainDensityBridge current = tieBridge;
         if (current != null) {
             return current.available() ? current : null;
@@ -331,7 +358,7 @@ public final class SubterraDensity implements DensityFunction {
                                     + "with the new seed (this should never occur with phase-guaranteed capture).",
                             cachedSeed, seed);
                 }
-                current = NoiseRouter.overworld(seed, kind.minY, kind.maxY);
+                current = NoiseRouter.overworld(seed, kind.minY, kind.maxY, kind.seaLevel);
                 cachedSeed = seed;
                 cachedRouter = current;
             }

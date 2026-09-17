@@ -92,13 +92,34 @@ public final class DensityComposite {
         return overworld(router, -64, 320);
     }
 
-    /** Assembles all three composite fields over {@code router} for {@code [minY, maxY)}. */
+    /** Assembles all three composite fields over {@code router} for {@code [minY, maxY)} at the vanilla sea level (63). */
     public static Overworld overworld(NoiseRouter router, int minY, int maxY) {
+        return overworld(router, minY, maxY, 63.0);
+    }
+
+    /**
+     * Assembles all three composite fields over {@code router} for {@code [minY, maxY)} with an
+     * explicit sea level (p.1.8.33 design change: Subterra no longer replicates the vanilla sea
+     * level — the world is modelled at {@code seaLevel}, e.g. 127). All vanilla y anchors — the
+     * depth gradient band {@code [-64, 320]}, the bottom slide {@code [-64, -40]} and the top
+     * slide {@code [240, 256]} — are shifted up by {@code seaLevel - 63}, so the sea-relative
+     * terrain profile is preserved exactly while the whole world is raised.
+     *
+     * @param seaLevel the design sea level (the vanilla-anchored value is 63).
+     */
+    public static Overworld overworld(NoiseRouter router, int minY, int maxY, double seaLevel) {
         if (minY >= maxY) {
             throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
         }
+        if (!Double.isFinite(seaLevel) || seaLevel < minY || seaLevel > maxY) {
+            throw new IllegalArgumentException("sea level must be finite within [minY, maxY], got " + seaLevel);
+        }
         Objects.requireNonNull(router, "router");
         long seed = router.worldSeed();
+        // p.1.8.33: the vanilla-anchor lift. Every hardcoded vanilla y anchor below is expressed
+        // as (vanilla anchor + DELTA) with DELTA = seaLevel - 63, so the sea-relative shape is
+        // bit-preserving and the whole terrain rises with the design sea level.
+        final double delta = seaLevel - 63.0;
 
         Density continents = router.continents();
         Density erosion = router.erosion();
@@ -151,14 +172,15 @@ public final class DensityComposite {
         Density base3d = BlendedNoise.overworld(seed);
 
         // --- depth field: gradient + offset (faithful) ---
-        Density depthGrad = (x, y, z) -> SlideFn.grad(y, minY, maxY, 1.5, -1.5);
+        Density depthGrad = (x, y, z) -> SlideFn.grad(y, -64.0 + delta, 320.0 + delta, 1.5, -1.5);
         Density depth = add(depthGrad, offsetDensity);
 
         // --- initial_density_without_jaggedness (NO jaggedness) ---
         Density depthFactorNoJag = mul(depth, factorDensity);
         Density noJagRaw = (x, y, z) -> clamp(4.0 * JaggednessFn.quarterNegative(
                 depthFactorNoJag.eval(x, y, z)) - 0.703125, -64.0, 64.0);
-        Density initialDensity = SlideFn.overworld(noJagRaw);
+        Density initialDensity = (x, y, z) -> SlideFn.slide(noJagRaw.eval(x, y, z), y,
+                -64.0 + delta, -40.0 + delta, 0.1171875, 240.0 + delta, 256.0 + delta, -0.078125);
 
         // --- sloped cheese (WITH jaggedness) and final_density ---
         Density jaggedTerm = JaggednessFn.apply(jaggednessFactor, jaggedNoise);
@@ -186,7 +208,8 @@ public final class DensityComposite {
         // squeeze keep the final magnitude inside vanilla's realistic surface range
         // (~[-0.46, 0.46]); without it the raw cheese evaluates up to +1.5, producing
         // over-wide solid columns (the "far lands"-style block walls seen in-game).
-        Density slideFinal = SlideFn.overworld(finalCheese);
+        Density slideFinal = (x, y, z) -> SlideFn.slide(finalCheese.eval(x, y, z), y,
+                -64.0 + delta, -40.0 + delta, 0.1171875, 240.0 + delta, 256.0 + delta, -0.078125);
         Density finalDensity = min((x, y, z) -> JaggednessFn.squeeze(FINAL_SCALE * slideFinal.eval(x, y, z)),
                 noodle);
 

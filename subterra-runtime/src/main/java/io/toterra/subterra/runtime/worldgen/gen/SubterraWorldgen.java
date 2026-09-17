@@ -93,6 +93,7 @@ public final class SubterraWorldgen {
         NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onServerAboutToStart);
         NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onServerStarting);
         NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onServerStopped);
+        NeoForge.EVENT_BUS.addListener(SubterraWorldgen::onDiagnosticServerStarted);
     }
 
     /**
@@ -118,9 +119,39 @@ public final class SubterraWorldgen {
      * strictly before any chunk generation, so the leaf is never evaluated seedless. */
     public static void onServerAboutToStart(ServerAboutToStartEvent event) {
         captureSeed(event.getServer());
+        // p.1.8.33 诊断：门控密度网格（对照引擎探针）。
     }
 
     /** Recomputes + logs the captured seed and the shipped subterra datapack ids. */
+    /** 最小 FunctionContext（诊断用）。 / A minimal FunctionContext for the diagnostic. */
+    private static net.minecraft.world.level.levelgen.DensityFunction.FunctionContext ctx(int x, int y, int z) {
+        return new net.minecraft.world.level.levelgen.DensityFunction.FunctionContext() {
+            @Override public int blockX() { return x; }
+            @Override public int blockY() { return y; }
+            @Override public int blockZ() { return z; }
+        };
+    }
+
+    /** p.1.8.33 诊断（subterra.probe.densitygrid 门控）：ServerStarted 后打印一片密度网格，
+     *  供与引擎探针对照（定位 MC 侧与引擎侧的数值分歧）。 / Gated density-grid diagnostic. */
+    public static void onServerStartedDiagnostic(net.minecraft.server.level.ServerLevel level) {
+        if (System.getProperty("subterra.probe.densitygrid") == null && System.getenv("SUBTERRA_DENSITYGRID") == null) {
+            return;
+        }
+        io.toterra.subterra.runtime.worldgen.gen.SubterraDensity density =
+                new io.toterra.subterra.runtime.worldgen.gen.SubterraDensity(
+                        io.toterra.subterra.runtime.worldgen.gen.SubterraDensity.Kind.OVERWORLD_FINAL);
+        for (int y : new int[]{63, 127, 160, 200}) {
+            StringBuilder sb = new StringBuilder("[Subterra densitygrid] y=" + y + ":");
+            for (int x = 0; x <= 192; x += 64) {
+                for (int z = 0; z <= 192; z += 64) {
+                    sb.append(String.format(" %.3f", density.compute(ctx(x, y, z))));
+                }
+            }
+            Subterra.LOGGER.info("{}", sb);
+        }
+    }
+
     public static void onServerStarting(ServerStartingEvent event) {
         MinecraftServer server = event.getServer();
         captureSeed(server);
@@ -165,6 +196,11 @@ public final class SubterraWorldgen {
     }
 
     /** Clears the captured seed on server stop so a world switch never reuses a stale seed. */
+    /** p.1.8.33 诊断监听：ServerStarted 后 levels 就绪，打印门控密度网格。 / The gated ServerStarted diagnostic. */
+    public static void onDiagnosticServerStarted(net.neoforged.neoforge.event.server.ServerStartedEvent event) {
+        onServerStartedDiagnostic(event.getServer().overworld());
+    }
+
     public static void onServerStopped(ServerStoppedEvent event) {
         worldSeed = SEED_UNKNOWN;
         fallbackLogged = false;

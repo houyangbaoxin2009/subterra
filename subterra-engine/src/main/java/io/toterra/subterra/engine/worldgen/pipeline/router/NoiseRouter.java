@@ -368,8 +368,22 @@ public final class NoiseRouter {
      * @throws IllegalArgumentException if {@code minY >= maxY}.
      */
     public static NoiseRouter overworld(long worldSeed, int minY, int maxY) {
+        return overworld(worldSeed, minY, maxY, 63.0);
+    }
+
+    /**
+     * Overworld router with an explicit design sea level (p.1.8.33): the composite y anchors
+     * (depth gradient + slides) are lifted by {@code seaLevel - 63}, so the terrain is modelled
+     * at the design sea level (Subterra no longer replicates the vanilla sea level; e.g. 127).
+     *
+     * @param seaLevel the design sea level (vanilla-anchored value: 63).
+     */
+    public static NoiseRouter overworld(long worldSeed, int minY, int maxY, double seaLevel) {
         if (minY >= maxY) {
             throw new IllegalArgumentException("bad Y range: minY=" + minY + " maxY=" + maxY);
+        }
+        if (!Double.isFinite(seaLevel) || seaLevel < minY || seaLevel > maxY) {
+            throw new IllegalArgumentException("sea level must be finite within [minY, maxY], got " + seaLevel);
         }
         double height = (double) (maxY - minY);
         double midY = (minY + maxY) / 2.0;
@@ -447,7 +461,7 @@ public final class NoiseRouter {
         NoiseRouter base = new NoiseRouter(worldSeed, barrier, floodedness, spread, lava,
                 temperature, vegetation, continents, erosion, baseDepth, ridges, baseInitial, baseFinal,
                 veinToggle, veinRidged, veinGap);
-        DensityComposite.Overworld comp = DensityComposite.overworld(base, minY, maxY);
+        DensityComposite.Overworld comp = DensityComposite.overworld(base, minY, maxY, seaLevel);
 
         return new NoiseRouter(worldSeed, barrier, floodedness, spread, lava, temperature, vegetation,
                 continents, erosion, comp.depth(), ridges, comp.initialDensityWithoutJaggedness(),
