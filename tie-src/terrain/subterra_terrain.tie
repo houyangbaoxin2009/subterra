@@ -52,6 +52,8 @@ var g_seed: i64 = 0            // 当前缓存对应的 world seed
 var g_lat: table<f64>;         // 40 晶格 × 259 槽：[xo, yo, zo, p0..p255]
 var g_rlo: i64 = 0             // 初始化期工作 RNG（Xoroshiro128++ 状态，求值期不使用）
 var g_rhi: i64 = 0
+var g_slo: i64 = 0             // 当前噪声栈的盐流态（first/second 两层各自从此 fork）
+var g_shi: i64 = 0
 
 namespace stdens {
 
@@ -190,11 +192,16 @@ func build_lattice(slot: i64) {
     }
 }
 
-// 单层八度组建（镜像 PerlinNoise.createForked：抽 2 个 nextLong 为叉基，
+// 单层八度组建（镜像 PerlinNoise.createForked：每层先回到盐流再抽 2 个 nextLong 为
+// 叉基——Java 侧 first/second 两层各自 createForked(同一条盐流)，共消耗 4 个 nextLong；
 // 非零振幅八度 k 由 fromHashOf("octave_"+(firstOctave+k)) 派生晶格 RNG）
 func init_layer(slot0: i64, first_oct: i64, size: i64) {
+    rng_seed128(g_slo, g_shi)
     var base_lo = rng_next()
     var base_hi = rng_next()
+    // 盐流推进态存回（八度建表会覆盖工作 RNG；下一层从盐流的后续位置继续 fork）
+    g_slo = g_rlo
+    g_shi = g_rhi
     var k: i64 = 0
     while k < size {
         var ol = md5_lo(oct_label(first_oct + k + 11)) ^ base_lo
@@ -205,11 +212,12 @@ func init_layer(slot0: i64, first_oct: i64, size: i64) {
     }
 }
 
-// fromHashOf(盐)：MD5 大端对拆后与基逐字异或（原样使用，不再混合）
+// fromHashOf(盐)：MD5 大端对拆后与基逐字异或（原样使用，不再混合）；
+// 盐流态另存 g_slo/g_shi，供 first/second 两层各自 fork（镜像 Java 共享流语义）
 func seed_from_salt(base_lo: i64, base_hi: i64, salt: string) {
-    var lo = md5_lo(salt) ^ base_lo
-    var hi = md5_hi(salt) ^ base_hi
-    rng_seed128(lo, hi)
+    g_slo = md5_lo(salt) ^ base_lo
+    g_shi = md5_hi(salt) ^ base_hi
+    rng_seed128(g_slo, g_shi)
 }
 
 // 按种子建全 40 晶格（镜像 SubterraTerrain.noise × 4 + NormalNoise.create 双层）
