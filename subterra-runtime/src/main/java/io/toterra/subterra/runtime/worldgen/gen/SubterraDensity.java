@@ -62,16 +62,18 @@ public final class SubterraDensity implements DensityFunction {
     /**
      * Which seed-independent density a {@code "subterra:density"} describes.
      * Each kind fixes the canonical {@code [minY, maxY)} block window used by the
-     * router (overworld = &#8722;64..320, matching vanilla overworld.json).
+     * router (overworld = &#8722;128..592, the p.2.36.1 Subterra window: min_y=-128 /
+     * height=720 / sea 127, matching the shipped {@code subterra_overworld.json} and
+     * the {@code subterra:subterra_overworld} dimension type).
      */
     public enum Kind {
         /** The p.1.8.14 composite overworld {@code finalDensity}. */
-        // p.1.8.33 fix: the composite anchors (y_clamped_gradient / depth splines / slides) are
-        // vanilla-window-bound (surface ~63); a wider Kind window here desynchronises the JSON
-        // noise block from the terrain shape (the 2026-09-16 drowned-world regression) — keep
-        // the window identical to the vanilla overworld recipe until window re-parameterisation
-        // is a designed feature.
-        OVERWORLD_FINAL("overworld_final", -64, 384, 127.0),
+        // p.2.36.1 design change (supersedes the p.1.8.33 keep-vanilla-window note): the window
+        // is re-parameterised as a designed feature — the Subterra window [-128, 592) with sea 127
+        // is the default (JSON ↔ dimension type ↔ Kind ↔ TerrainAxisProbe four-way pinned).
+        // Per-world window adjustment lands with the p.2.36.2 WorldgenProfile config surface
+        // (td + api dual interface) via the datapack-injection point.
+        OVERWORLD_FINAL("overworld_final", -128, 720, 127.0),
         ;
 
         private final String id;

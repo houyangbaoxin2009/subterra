@@ -18,10 +18,12 @@ import java.util.Map;
  *       2026-09-16 「x 走向山峰 + x 走向海洋 + 海浪状」实机回归而立）。</li>
  *   <li><b>窗口一致性</b>：随附 {@code subterra_overworld.json} 的 {@code noise.min_y /
  *       noise.height / sea_level} 必须与 {@code subterra:density} 的 kind 窗口
- *       （[-64, 320)，vanilla 锚定）与海平面 63 严格一致——td-plus 曾把三者扩成
- *       [-128, 592) + 海平面 128，而复合层锚点仍 vanilla 系，导致全域淹没。</li>
+ *       （[-128, 592)，p.2.36.1 Subterra 窗口）与海平面 127 严格一致——四方一致
+ *       （JSON ↔ Kind ↔ dimension_type {@code subterra:subterra_overworld} ↔ 本探针）；
+ *       td-plus 时代的 [-128, 592) + 海平面 128 淹没回归，根因是窗口与锚点错位，
+ *       现海平面参数化（p.1.8.33）+ 窗口重参数化（p.2.36.1）双设计已落。</li>
  *   <li><b>地表语义</b>：金标种子下 32×32 网格的密度零穿越地表高度，均值落在
- *       vanilla 海平面邻域、离散度非零（既非全淹也非平板）。</li>
+ *       设计海平面（127）邻域、离散度非零（既非全淹也非平板）。</li>
  * </ul>
  * 禁时序断言；同输入同字节。
  *
@@ -31,7 +33,7 @@ import java.util.Map;
  * after the 2026-09-16 "x-aligned ridges + x-aligned oceans + wave-shaped world"
  * field report), (b) strict JSON ↔ subterra:density window consistency (the td-plus
  * window expansion drowned the world because the composite anchors stayed vanilla-bound),
- * and (c) surface-height semantics on the golden seed (mean near the vanilla sea level,
+ * and (c) surface-height semantics on the golden seed (mean near the design sea level 127,
  * non-zero spread). No timing assertions; same input → same bytes.
  */
 public final class TerrainAxisProbe {
@@ -73,7 +75,7 @@ public final class TerrainAxisProbe {
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 int top = -1;
-                for (int y = 380; y >= -100; y -= 4) {
+                for (int y = 588; y >= -124; y -= 4) {
                     if (terrain.eval(x0 + i * step, y, z0 + j * step) >= 0.0) {
                         top = y;
                         break;
@@ -118,9 +120,10 @@ public final class TerrainAxisProbe {
         if (json == null) {
             return;
         }
-        check("json: min_y == -64 (kind window, vanilla dimension type)", json.contains("\"min_y\": -64") || json.contains("\"min_y\":-64"));
-        check("json: height == 384 (min_y + height == kind.maxY 320 + sea 127 design)",
-                json.contains("\"height\": 384") || json.contains("\"height\":384"));
+        check("json: min_y == -128 (kind window, subterra:subterra_overworld dimension type)",
+                json.contains("\"min_y\": -128") || json.contains("\"min_y\":-128"));
+        check("json: height == 720 (min_y + height == kind.maxY 592, sea 127 design)",
+                json.contains("\"height\": 720") || json.contains("\"height\":720"));
         check("json: sea_level == 127 (design sea level)", json.contains("\"sea_level\": 127") || json.contains("\"sea_level\":127"));
     }
 

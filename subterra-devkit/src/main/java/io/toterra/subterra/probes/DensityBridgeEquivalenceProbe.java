@@ -37,7 +37,7 @@ public final class DensityBridgeEquivalenceProbe {
             long compared = 0;
             for (int x = -512; x <= 512; x += 64) {
                 for (int z = -512; z <= 512; z += 64) {
-                    for (int y : new int[]{-64, 63, 127, 200}) {
+                    for (int y : new int[]{-100, -64, 63, 127, 200, 400}) {
                         double bv = bridge.density(x, y, z, seed);
                         double jv = javaTree.eval(x, y, z);
                         compared++;
