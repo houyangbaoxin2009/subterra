@@ -94,6 +94,12 @@ config="subterra-servercore-loading.mixins.json"
 [[mixins]]
 config="subterra-jec.mixins.json"
 
+# Sky (clean-room) mixins: cloud-height override — LevelRenderer.renderClouds
+# consults the api.sky.SkyApi per-dimension override table before falling back
+# to the vanilla DimensionSpecialEffects cloud height (p.2.0.13).
+[[mixins]]
+config="subterra-sky.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]

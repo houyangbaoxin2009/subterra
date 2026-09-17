@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8.7",
+  "package": "io.toterra.subterra.runtime.client.sky.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "CloudHeightMixin"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
