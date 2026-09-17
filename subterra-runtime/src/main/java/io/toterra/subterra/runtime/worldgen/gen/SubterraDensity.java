@@ -10,6 +10,7 @@ import net.minecraft.util.KeyDispatchDataCodec;
 import net.minecraft.world.level.levelgen.DensityFunction;
 
 import io.toterra.subterra.engine.worldgen.pipeline.router.NoiseRouter;
+import io.toterra.subterra.engine.worldgen.pipeline.terrain.SubterraTerrain;
 import io.toterra.subterra.engine.worldgen.tie.TiePoiResidency;
 import io.toterra.subterra.Subterra;
 import io.toterra.subterra.engine.worldgen.tie.TieTerrainDensityBridge;
@@ -148,7 +149,7 @@ public final class SubterraDensity implements DensityFunction {
 
     // ---- lazily seeded router cache (keyed by the world seed) ----
     private volatile long cachedSeed = Long.MIN_VALUE;
-    private volatile NoiseRouter cachedRouter;
+    private volatile io.toterra.subterra.engine.worldgen.pipeline.density.Density cachedTerrain;
     /** Logged once per JVM if the router cache ever sees a mid-world seed change. */
     private static volatile boolean SEED_SWITCH_LOGGED = false;
 
@@ -244,8 +245,7 @@ public final class SubterraDensity implements DensityFunction {
         // 回退：纯 Java 的 p.1.8.14 复合主世界路由器（DLL 缺失/失败时与原先逐位一致）。
         long bx = context.blockX();
         long bz = context.blockZ();
-        double v = routerFor(seed).finalDensity()
-                .eval((double) bx, (double) context.blockY(), (double) bz);
+        double v = terrainFor(seed).eval((double) bx, (double) context.blockY(), (double) bz);
         if (PERF) {
             perfComputeCalls++;
             perfDistinctCells++;
@@ -341,26 +341,32 @@ public final class SubterraDensity implements DensityFunction {
     }
 
     /** Returns the seeded overworld router for {@code seed}, cached (single-flight). */
-    private NoiseRouter routerFor(long seed) {
-        NoiseRouter current = cachedRouter;
+    /**
+     * p.1.8.34: returns the seeded Subterra-native terrain density
+     * ({@link SubterraTerrain#finalDensity}), cached single-flight per seed. The vanilla
+     * recipe (NoiseRouter.overworld) is no longer the terrain source — the design sea
+     * level (127) and the Subterra surface model live in {@link SubterraTerrain}.
+     */
+    private io.toterra.subterra.engine.worldgen.pipeline.density.Density terrainFor(long seed) {
+        io.toterra.subterra.engine.worldgen.pipeline.density.Density current = cachedTerrain;
         if (current != null && cachedSeed == seed) {
             return current;
         }
         synchronized (this) {
-            current = cachedRouter;
+            current = cachedTerrain;
             if (current == null || cachedSeed != seed) {
-                // A cached router for a DIFFERENT seed means the seed drifted mid-world.
+                // A cached density for a DIFFERENT seed means the seed drifted mid-world.
                 // Never silently switch: log loudly once (would have caught any drift).
-                if (cachedRouter != null && cachedSeed != seed && !SEED_SWITCH_LOGGED) {
+                if (cachedTerrain != null && cachedSeed != seed && !SEED_SWITCH_LOGGED) {
                     SEED_SWITCH_LOGGED = true;
                     io.toterra.subterra.Subterra.LOGGER.error(
                             "Subterra density: world seed changed mid-world from {} to {}; terrain is regenerating "
                                     + "with the new seed (this should never occur with phase-guaranteed capture).",
                             cachedSeed, seed);
                 }
-                current = NoiseRouter.overworld(seed, kind.minY, kind.maxY, kind.seaLevel);
+                current = SubterraTerrain.finalDensity(seed);
                 cachedSeed = seed;
-                cachedRouter = current;
+                cachedTerrain = current;
             }
         }
         return current;

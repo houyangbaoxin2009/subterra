@@ -220,6 +220,7 @@ def terrainAxisProbe = tasks.register('runTerrainAxisProbe', JavaExec) {
     description = 'p.1.8.33: wave-terrain regression probe (two-axis variation, JSON-window consistency, surface semantics, pure JVM)'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'io.toterra.subterra.probes.TerrainAxisProbe'
+    if (project.hasProperty('probeArgs')) args project.property('probeArgs').toString().split(',')
     jvmArgs '-Dsubterra.tie.lib=' + file('../subterra-engine/src/main/resources/tie/subterra_density.dll').absolutePath
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 }

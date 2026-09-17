@@ -40,6 +40,10 @@ public final class TerrainAxisProbe {
     private static int failures;
 
     public static void main(String[] args) {
+        if (args.length > 0 && "map".equals(args[0])) {
+            asciiMap();
+            return;
+        }
         axisVariation();
         jsonWindowConsistency();
         surfaceSemantics();
@@ -55,8 +59,8 @@ public final class TerrainAxisProbe {
     private static void axisVariation() {
         long[] seeds = {44905237L, 12345678L, 0L};
         for (long seed : seeds) {
-            NoiseRouter r = NoiseRouter.overworld(seed, -64, 384, 127.0);
-            double[][] surf = surfaceGrid(r, 0, 0, 31, 8);
+            Density terrain = io.toterra.subterra.engine.worldgen.pipeline.terrain.SubterraTerrain.finalDensity(seed);
+            double[][] surf = surfaceGrid(terrain, 0, 0, 31, 8);
             int n = surf.length;
             double stdX = rowStd(surf, n);
             double stdZ = colStd(surf, n);
@@ -67,14 +71,14 @@ public final class TerrainAxisProbe {
     }
 
     /** 地表高度网格：density 零穿越（自上而下首个 >= 0 的 y）。 / The surface-height grid (first y >= 0 density top-down). */
-    private static double[][] surfaceGrid(NoiseRouter r, int x0, int z0, int span, int step) {
+    private static double[][] surfaceGrid(Density terrain, int x0, int z0, int span, int step) {
         int n = span + 1;
         double[][] grid = new double[n][n];
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 int top = -1;
                 for (int y = 380; y >= -100; y -= 4) {
-                    if (r.finalDensity().eval(x0 + i * step, y, z0 + j * step) >= 0.0) {
+                    if (terrain.eval(x0 + i * step, y, z0 + j * step) >= 0.0) {
                         top = y;
                         break;
                     }
@@ -127,8 +131,8 @@ public final class TerrainAxisProbe {
     /** 地表语义：金标种子 32×32 网格，地表（>=127 为陆）比例与高度带符合新设计。 /
      *  Surface semantics: on the golden seed's 32×32 grid, land (surface >= 127) fraction and height band match the design. */
     private static void surfaceSemantics() {
-        NoiseRouter r = NoiseRouter.overworld(44905237L, -64, 384, 127.0);
-        double[][] surf = surfaceGrid(r, 0, 0, 31, 32);
+        Density terrain = io.toterra.subterra.engine.worldgen.pipeline.terrain.SubterraTerrain.finalDensity(44905237L);
+        double[][] surf = surfaceGrid(terrain, 0, 0, 31, 32);
         int land = 0; int n = surf.length; long sum = 0; long sumSq = 0;
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
@@ -147,6 +151,38 @@ public final class TerrainAxisProbe {
             double std = Math.sqrt(Math.max(0.0, sumSq / (double) land - mean * mean));
             check("surface: mean land top " + fmt(mean) + " within [130, 260]", mean >= 130 && mean <= 260);
             check("surface: land-height spread " + fmt(std) + " > 4 (terrain varies)", std > 4.0);
+        }
+    }
+
+    /** ASCII 地形图（诊断模式：args[0]="map"）。 / ASCII terrain map (diagnostic mode). */
+    private static void asciiMap() {
+        Density d = io.toterra.subterra.engine.worldgen.pipeline.terrain.SubterraTerrain.finalDensity(44905237L);
+        int step = 32;
+        int span = 2048;
+        System.out.println("surface-height ASCII map (x→ right, z↓ down, step " + step + ", sea=127 marked '*'):");
+        for (int z = 0; z < span; z += step) {
+            StringBuilder row = new StringBuilder();
+            for (int x = 0; x < span; x += step) {
+                int top = -999;
+                for (int y = 380; y >= -100; y -= 6) {
+                    if (d.eval(x, y, z) >= 0.0) {
+                        top = y;
+                        break;
+                    }
+                }
+                if (top < 0) {
+                    row.append(' ');
+                } else if (top < 127) {
+                    row.append('-');
+                } else if (top < 150) {
+                    row.append('*');
+                } else if (top < 190) {
+                    row.append('h');
+                } else {
+                    row.append('^');
+                }
+            }
+            System.out.println(row);
         }
     }
 
