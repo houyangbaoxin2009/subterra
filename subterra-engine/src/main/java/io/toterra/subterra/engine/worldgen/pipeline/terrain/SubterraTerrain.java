@@ -38,10 +38,10 @@ public final class SubterraTerrain {
     private static final double SLOPE = 0.30;
 
     /** 噪声派生盐。 / The noise derivation salts. */
-    private static final String SALT_CONTINENT = "subterra.terrain.continent";
-    private static final String SALT_HILLS = "subterra.terrain.hills";
-    private static final String SALT_RIDGE = "subterra.terrain.ridge";
-    private static final String SALT_DETAIL = "subterra.terrain.detail";
+    private static final String SALT_CONTINENT = "subterra:subterra_continent";
+    private static final String SALT_HILLS = "subterra:subterra_hills";
+    private static final String SALT_RIDGE = "subterra:subterra_ridge";
+    private static final String SALT_DETAIL = "subterra:subterra_detail";
 
     private SubterraTerrain() {
     }
@@ -67,7 +67,7 @@ public final class SubterraTerrain {
 
         return (x, y, z) -> {
             double c = continent.getValue(x * 0.5, 0, z * 0.5);
-            double surface = SEA_LEVEL - 20.0 + 95.0 * c + 16.0 * hills.getValue(x * 0.5, 0, z * 0.5);
+            double surface = SEA_LEVEL - 5.0 + 95.0 * c + 16.0 * hills.getValue(x * 0.5, 0, z * 0.5);
             // 山地掩码：仅内陆（c > 0.15）隆起，平方缓入。
             double mask = clamp((c - 0.15) / 0.5);
             if (mask > 0.0) {
