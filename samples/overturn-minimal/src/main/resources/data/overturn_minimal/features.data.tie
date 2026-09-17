@@ -1,11 +1,11 @@
 // OverturnMinimal 特征/成矿规则包（p.2.29.3）——「一种按母岩矿石」最小样例。
-// 规则文档形态 = 根表 rules = [ [ k = .., v = .. ], ... ]（pack.td 同源；k 为字符串、可含点号）。
+// 规则文档形态 = 根表 rules = [ [ k = .., v = .. ], ... ]（pack.data.tie 同源；k 为字符串、可含点号）。
 // 颠覆目标：在 Subterra 的真实生成路径上，让「一种矿石只按母岩产出」——本样例把铁矿石
 // （minecraft:iron_ore）限定为只在花岗岩（minecraft:granite）母岩上、以竖直矿脉（vertical）
 // 产出；并声明一个结构护栏 box（0,0,64,64,8）使矿脉不越过该保护区。
 //
 // OverturnMinimal feature/ore rules pack (p.2.29.3) — the minimal "mineral-by-host-rock" sample.
-// Rule document shape = root table rules = [ [ k = .., v = .. ], ... ] (same as pack.td; k is a
+// Rule document shape = root table rules = [ [ k = .., v = .. ], ... ] (same as pack.data.tie; k is a
 // string and may contain dots). Overturn target: on Subterra's real generation path, make "one
 // mineral only form by host rock" — this sample restricts iron ore to a granite host rock, forms it
 // as vertical veins, and declares a structure-guard box (0,0,64,64,8) so veins never cross it.

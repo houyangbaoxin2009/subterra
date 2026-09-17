@@ -1,4 +1,4 @@
-// devkit structure "obligatory_tower" — registered ONLY via pack.td entries
+// devkit structure "obligatory_tower" — registered ONLY via pack.data.tie entries
 // (manifest-additive discovery, id devkit:structure/obligatory_tower). Lives
 // outside data/ so the directory scan never sees it: one entry, one source.
 type tie<data>

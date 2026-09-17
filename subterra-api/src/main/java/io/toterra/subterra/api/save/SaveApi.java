@@ -14,7 +14,7 @@ import java.util.Objects;
  * 落于此，禁止拍脑袋数值。
  * <p>确定性：{@link #slotDirectories()} 返回六类类型化槽的小写目录名固定序（镜像 {@code SaveSlot}）；
  * {@link #isKnownSlotDir} / {@link #slotDocFileName} 提供槽目录成员的确定性判定与规范文档文件名
- * ({@code doc.td})；{@link #ledgerVersion()} 返回藏录文档版本；{@link #sortLedgerEntries} 以确定性命名词法
+ * ({@code doc.data.tie})；{@link #ledgerVersion()} 返回藏录文档版本；{@link #sortLedgerEntries} 以确定性命名词法
  * {@code (k 词法序 → seq → when → note)} 归一化藏录条目序（镜像 {@code LedgerDoc} 的稳定排序，同输入逐字节
  * 一致、乱序输入产出相同序）；{@link #hybridDocKeys()} 返回 td/zd 混合文档 {@code version/meta/zd} 的固定
  * 键序（镜像 {@code ZdtTransfer} 的写序）。全部为纯函数：无随机、无墙钟、无迭代序依赖；{@link #sortLedgerEntries}
@@ -31,7 +31,7 @@ import java.util.Objects;
  * constant/semantic here is pinned verbatim from the engine's actual behaviour — nothing is guessed.
  * <p>Deterministic: {@link #slotDirectories()} returns the fixed-order lowercase directory names of the six typed
  * slots (mirrors {@code SaveSlot}); {@link #isKnownSlotDir} / {@link #slotDocFileName} give a deterministic
- * membership test over slot directories and the canonical document file name ({@code doc.td});
+ * membership test over slot directories and the canonical document file name ({@code doc.data.tie});
  * {@link #ledgerVersion()} returns the ledger-document version; {@link #sortLedgerEntries} normalises the ledger
  * entry order by the deterministic naming grammar {@code (k lexicographic → seq → when → note)} (mirrors
  * {@code LedgerDoc}'s stable sort; same input yields identical order, shuffled input yields the same order);
@@ -72,11 +72,11 @@ public final class SaveApi {
         return slotDirectories().contains(dir);
     }
 
-    /** The canonical per-slot document file name ({@code "doc.td"}, mirroring {@code WorldPackPacker}'s
-     *  <code>DOC</code>). / 每槽规范文档文件名（{@code "doc.td"}，镜像 {@code WorldPackPacker} 的
+    /** The canonical per-slot document file name ({@code "doc.data.tie"}, mirroring {@code WorldPackPacker}'s
+     *  <code>DOC</code>). / 每槽规范文档文件名（{@code "doc.data.tie"}，镜像 {@code WorldPackPacker} 的
      *  {@code DOC}）。 */
     public static String slotDocFileName() {
-        return "doc.td";
+        return "doc.data.tie";
     }
 
     /** The ledger-document version ({@code 1}, mirroring {@code LedgerDoc#toTd}'s {@code version}). /

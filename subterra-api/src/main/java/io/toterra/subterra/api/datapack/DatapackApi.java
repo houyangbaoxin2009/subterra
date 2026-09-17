@@ -59,7 +59,7 @@ public final class DatapackApi {
      *  七个基础条目 kind 外加噪声设置超集 kind，固定序，逐字镜像 {@code engine.datapack.EntryKind}
      *  （每个 kind 携带自己的数据目录段 {@code dir}）。 */
     public enum Kind {
-        /** functions — {@code data/<ns>/function/<path>.td}. */
+        /** functions — {@code data/<ns>/function/<path>.data.tie}. */
         FUNCTION("function"),
         /** recipes. */
         RECIPE("recipe"),
@@ -73,7 +73,7 @@ public final class DatapackApi {
         TAG("tag"),
         /** localization. */
         LANG("lang"),
-        /** noise settings — {@code data/<ns>/worldgen/noise_settings/<path>.td}. */
+        /** noise settings — {@code data/<ns>/worldgen/noise_settings/<path>.data.tie}. */
         NOISE_SETTINGS("noise_settings");
 
         private final String dir;

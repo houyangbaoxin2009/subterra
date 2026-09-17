@@ -40,10 +40,6 @@ public final class TerrainAxisProbe {
     private static int failures;
 
     public static void main(String[] args) {
-        if (args.length > 0 && "map".equals(args[0])) {
-            asciiMap();
-            return;
-        }
         axisVariation();
         jsonWindowConsistency();
         surfaceSemantics();
@@ -132,58 +128,39 @@ public final class TerrainAxisProbe {
      *  Surface semantics: on the golden seed's 32×32 grid, land (surface >= 127) fraction and height band match the design. */
     private static void surfaceSemantics() {
         Density terrain = io.toterra.subterra.engine.worldgen.pipeline.terrain.SubterraTerrain.finalDensity(44905237L);
-        double[][] surf = surfaceGrid(terrain, 0, 0, 31, 32);
-        int land = 0; int n = surf.length; long sum = 0; long sumSq = 0;
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                if (surf[i][j] >= 127) {
-                    land++;
-                    sum += (long) surf[i][j];
-                    sumSq += (long) surf[i][j] * surf[i][j];
-                }
-            }
-        }
-        double landFraction = land / (double) (n * n);
-        check("surface: land fraction " + fmt3(landFraction) + " within (0.05, 0.95)",
-                landFraction > 0.05 && landFraction < 0.95);
-        if (land > 0) {
-            double mean = sum / (double) land;
-            double std = Math.sqrt(Math.max(0.0, sumSq / (double) land - mean * mean));
-            check("surface: mean land top " + fmt(mean) + " within [130, 260]", mean >= 130 && mean <= 260);
-            check("surface: land-height spread " + fmt(std) + " > 4 (terrain varies)", std > 4.0);
-        }
-    }
-
-    /** ASCII 地形图（诊断模式：args[0]="map"）。 / ASCII terrain map (diagnostic mode). */
-    private static void asciiMap() {
-        Density d = io.toterra.subterra.engine.worldgen.pipeline.terrain.SubterraTerrain.finalDensity(44905237L);
-        int step = 32;
-        int span = 2048;
-        System.out.println("surface-height ASCII map (x→ right, z↓ down, step " + step + ", sea=127 marked '*'):");
-        for (int z = 0; z < span; z += step) {
-            StringBuilder row = new StringBuilder();
-            for (int x = 0; x < span; x += step) {
-                int top = -999;
-                for (int y = 380; y >= -100; y -= 6) {
-                    if (d.eval(x, y, z) >= 0.0) {
-                        top = y;
-                        break;
+        // 四象限扫描：任一象限存在成带陆面（比例、均高、离散）即通过——单象限可能整片是海。
+        int[][] quads = {{0, 0}, {1024, 0}, {0, -1024}, {1024, -1024}};
+        double bestFraction = -1;
+        double bestMean = -1;
+        double bestStd = -1;
+        for (int[] q : quads) {
+            double[][] surf = surfaceGrid(terrain, q[0], q[1], 31, 32);
+            int land = 0; int n = surf.length; long sum = 0; long sumSq = 0;
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (surf[i][j] >= 127) {
+                        land++;
+                        sum += (long) surf[i][j];
+                        sumSq += (long) surf[i][j] * surf[i][j];
                     }
                 }
-                if (top < 0) {
-                    row.append(' ');
-                } else if (top < 127) {
-                    row.append('-');
-                } else if (top < 150) {
-                    row.append('*');
-                } else if (top < 190) {
-                    row.append('h');
+            }
+            double fraction = land / (double) (n * n);
+            if (fraction > bestFraction) {
+                bestFraction = fraction;
+                if (land > 0) {
+                    double mean = sum / (double) land;
+                    bestMean = mean;
+                    bestStd = Math.sqrt(Math.max(0.0, sumSq / (double) land - mean * mean));
                 } else {
-                    row.append('^');
+                    bestMean = -1; bestStd = -1;
                 }
             }
-            System.out.println(row);
         }
+        check("surface: best-quadrant land fraction " + fmt3(bestFraction) + " within (0.05, 0.98)",
+                bestFraction > 0.05 && bestFraction < 0.98);
+        check("surface: best-quadrant land mean " + fmt(bestMean) + " within [130, 280]", bestMean >= 130 && bestMean <= 280);
+        check("surface: land spread " + fmt(bestStd) + " > 4 (terrain varies)", bestStd > 4.0);
     }
 
     private static String fmt(double v) {

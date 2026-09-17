@@ -64,17 +64,17 @@ public final class ConfigPackProbe {
         String packed = ConfigPack.export(files);
         check("package has header and bare root", packed.startsWith("type tie<data>\n[\n")
                 && packed.contains("package = ["));
-        check("package lists all files", packed.contains("\"log.td\"") && packed.contains("\"worldgen.td\"")
-                && packed.contains("\"z-last.td\""));
+        check("package lists all files", packed.contains("\"log.data.tie\"") && packed.contains("\"worldgen.data.tie\"")
+                && packed.contains("\"z-last.data.tie\""));
 
         Map<String, TdTable> restored = ConfigPack.parse(packed);
         check("restored file count", restored.size() == 3);
         // The td parser strips a top-level table name (`log = [...]` -> bare
         // content), same as tiec parse_data; content is preserved at root.
-        check("log.td content preserved", restored.get("log.data.tie") instanceof TdTable logTable
+        check("log.data.tie content preserved", restored.get("log.data.tie") instanceof TdTable logTable
                 && logTable.get("level").asString().equals("WARN")
                 && logTable.get("ring_size").asInt() == 64);
-        check("worldgen.td preserved", restored.get("worldgen.data.tie").get("worldgen") instanceof TdTable wg
+        check("worldgen.data.tie preserved", restored.get("worldgen.data.tie").get("worldgen") instanceof TdTable wg
                 && wg.get("mode").asString().equals("eco"));
         check("ordering deterministic", files.keySet().equals(restored.keySet()));
 
