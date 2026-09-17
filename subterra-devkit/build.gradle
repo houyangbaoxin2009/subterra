@@ -215,6 +215,21 @@ def holepunchProbe = tasks.register('runHolepunchProbe', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'io.toterra.subterra.probes.HolepunchProbe'
 }
+def tempBridgeScan = tasks.register('runTempBridgeScan', JavaExec) {
+    group = 'verification'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.TempBridgeScan'
+    jvmArgs '-Dsubterra.tie.lib=' + file('../subterra-engine/src/main/resources/tie/subterra_density.dll').absolutePath
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+def densityBridgeEquivalenceProbe = tasks.register('runDensityBridgeEquivalenceProbe', JavaExec) {
+    group = 'verification'
+    description = 'p.1.8.34: tie density bridge vs Java SubterraTerrain bit-exact equivalence (pure JVM)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'io.toterra.subterra.probes.DensityBridgeEquivalenceProbe'
+    jvmArgs '-Dsubterra.tie.lib=' + file('../subterra-engine/src/main/resources/tie/subterra_density.dll').absolutePath
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
 def terrainAxisProbe = tasks.register('runTerrainAxisProbe', JavaExec) {
     group = 'verification'
     description = 'p.1.8.33: wave-terrain regression probe (two-axis variation, JSON-window consistency, surface semantics, pure JVM)'
