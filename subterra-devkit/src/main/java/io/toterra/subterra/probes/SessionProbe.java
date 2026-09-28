@@ -17,8 +17,8 @@ import io.toterra.subterra.engine.session.SessionMachine;
 import io.toterra.subterra.engine.session.SessionMachineException;
 import io.toterra.subterra.engine.session.SessionMachineResult;
 import io.toterra.subterra.engine.session.SessionState;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdRow;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdRow;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;

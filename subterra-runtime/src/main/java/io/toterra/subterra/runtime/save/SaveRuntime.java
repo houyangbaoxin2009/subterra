@@ -17,7 +17,7 @@ import io.toterra.subterra.engine.datapack.DatapackRules;
 import io.toterra.subterra.engine.save.migrate.LevelDatReader;
 import io.toterra.subterra.engine.save.migrate.LevelDatum;
 import io.toterra.subterra.engine.save.migrate.LevelZdt;
-import io.toterra.subterra.engine.zd.ZdHeader;
+import org.tielang.zd.ZdHeader;
 
 /**
  * p.2.3.2 runtime 壳最小接线：在 {@code ServerStartedEvent} 旁路挂载 level.dat → zdt 迁移（默认不接管

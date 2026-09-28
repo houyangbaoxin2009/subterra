@@ -1,9 +1,10 @@
 package io.toterra.subterra.engine.export;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdVolume;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -172,7 +173,7 @@ public final class ConfigExporter {
      * rehydrate), same semantics as {@link #rehydrate}.
      */
     public static ConfigLayers rehydrateZd(byte[] zd) {
-        return rehydrateRoot(ZdVolume.readTree(zd));
+        return rehydrateRoot(TdZd.readTree(zd));
     }
 
     /**

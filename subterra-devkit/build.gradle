@@ -16,6 +16,8 @@ dependencies {
     implementation rootProject.sourceSets.main.output
     implementation project(':subterra-api')
     implementation project(':subterra-engine')
+    // p.2.3.8: devkit probes exercise the zd-java library surface directly.
+    implementation 'org.tielang:zd-java:0.1.0'
     implementation project(':subterra-migrate')
     // p.2.35: the Trimand seam probe exercises the pure-JDK tie bridge (TrimandBridge FFM
     // ok/skip two paths) directly — the tie module bundles /tie/subterra_diffuse.dll.

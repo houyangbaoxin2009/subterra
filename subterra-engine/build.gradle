@@ -12,4 +12,8 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 // classpath. Iron-law dependency direction: engine depends only on api.
 dependencies {
     implementation project(':subterra-api')
+    // p.2.3.8: the zd carrier codec moved to the standalone org.tielang:zd-java library
+    // (composite build from ../../tie-repo/zd-java); api so consumers (runtime, devkit)
+    // see org.tielang.zd types through the engine.
+    api 'org.tielang:zd-java:0.1.0'
 }

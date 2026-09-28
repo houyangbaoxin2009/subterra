@@ -15,7 +15,7 @@ import io.toterra.subterra.engine.p2p.plan.ChannelPlanner;
 import io.toterra.subterra.engine.p2p.plan.ChannelProfile;
 import io.toterra.subterra.engine.p2p.plan.P2pSemantics;
 import io.toterra.subterra.engine.p2p.plan.PlanReport;
-import io.toterra.subterra.engine.zd.ZdRow;
+import org.tielang.zd.ZdRow;
 
 import java.util.List;
 import java.util.Map;

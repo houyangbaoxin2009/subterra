@@ -1,8 +1,9 @@
 package io.toterra.subterra.engine.worldgen.profiler.report;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.api.worldgen.profiler.ProfileReport;
 import io.toterra.subterra.engine.config.TdTable;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
+import org.tielang.zd.ZdDocWriter;
 
 /**
  * Writes a {@link ProfileReport} as z-file (zd) binary (p.1.8.30). The file is
@@ -19,7 +20,7 @@ import io.toterra.subterra.engine.zd.ZdDocWriter;
  * <b>p.2.3.1 refactor:</b> the byte-building logic (header / {@code enc_i64} / varint /
  * UTF-8 / big-endian markers and the DFS preorder flatten) has been lifted into the
  * generic {@code engine.zd} carrier ({@code ZdHeader} / {@code ZdPrimitives} /
- * {@code ZdDocWriter}); this class now delegates to {@link ZdDocWriter#writeTree}
+ * {@code ZdDocWriter}); this class now delegates to {@link TdZd#writeTree}
  * with flags 0. The produced bytes are unchanged — {@link ZdWriter} output is still
  * the pinned vector anchor checked by {@code WorldProfileProbe} (10-byte
  * {@code TIEDBZD} v2 header and the first record's kind tag 0x0A at byte 10).
@@ -35,7 +36,7 @@ import io.toterra.subterra.engine.zd.ZdDocWriter;
  * <b>p.2.3.1 重构：</b>字节构建逻辑（头 / {@code enc_i64} / varint / UTF-8 / 大端标记与
  * DFS 先序平铺）已上移到通用 {@code engine.zd} 载体（{@code ZdHeader} /
  * {@code ZdPrimitives} / {@code ZdDocWriter}）；本类改为以 flags 0 委托
- * {@link ZdDocWriter#writeTree}。产出的字节不变，{@link ZdWriter} 输出仍是
+ * {@link TdZd#writeTree}。产出的字节不变，{@link ZdWriter} 输出仍是
  * {@code WorldProfileProbe} 校验的钉点向量（10 字节 {@code TIEDBZD} v2 头 + 字节 10 处的
  * 首记录 kind tag 0x0A）。
  * <p>
@@ -65,6 +66,6 @@ public final class ZdWriter {
      */
     public static byte[] write(ProfileReport r) {
         TdTable root = ProfileTree.toTd(r);
-        return ZdDocWriter.writeTree(0, root);
+        return TdZd.writeTree(0, root);
     }
 }

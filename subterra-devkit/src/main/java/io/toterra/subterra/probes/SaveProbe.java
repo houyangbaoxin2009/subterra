@@ -1,14 +1,15 @@
 package io.toterra.subterra.probes;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.save.SaveContainer;
 import io.toterra.subterra.engine.save.SaveSlot;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdHeader;
-import io.toterra.subterra.engine.zd.ZdPrimitives;
-import io.toterra.subterra.engine.zd.ZdRow;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdHeader;
+import org.tielang.zd.ZdPrimitives;
+import org.tielang.zd.ZdRow;
+import org.tielang.zd.ZdVolume;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -182,9 +183,9 @@ public final class SaveProbe {
                         .build())
                 .build();
 
-        byte[] t1 = ZdDocWriter.writeTree(0, tree);
-        TdTable back = ZdVolume.readTree(t1);
-        byte[] t2 = ZdDocWriter.writeTree(0, back);
+        byte[] t1 = TdZd.writeTree(0, tree);
+        TdTable back = TdZd.readTree(t1);
+        byte[] t2 = TdZd.writeTree(0, back);
         check("tree: writeTree(readTree(writeTree)) byte-for-byte equal", Arrays.equals(t1, t2));
 
         boolean struct = back.keys().equals(tree.keys())

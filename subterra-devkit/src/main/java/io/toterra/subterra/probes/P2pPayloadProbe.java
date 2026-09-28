@@ -8,7 +8,7 @@ import io.toterra.subterra.engine.p2p.payload.RawRows;
 import io.toterra.subterra.engine.p2p.payload.ZdChannelCodec;
 import io.toterra.subterra.engine.p2p.transport.ChannelResult;
 import io.toterra.subterra.engine.p2p.transport.P2pChannel;
-import io.toterra.subterra.engine.zd.ZdRow;
+import org.tielang.zd.ZdRow;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

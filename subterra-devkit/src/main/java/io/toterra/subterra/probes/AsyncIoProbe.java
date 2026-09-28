@@ -2,12 +2,13 @@
 // (io.toterra.subterra.engine.worldgen.async.io). NOT shipped in the mod jar.
 package io.toterra.subterra.probes;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.worldgen.async.io.AsyncIoQueue;
 import io.toterra.subterra.engine.worldgen.async.io.AsyncWrite;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdVolume;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -210,7 +211,7 @@ public final class AsyncIoProbe {
                 .put("ratio", TdValue.of(1.5))
                 .put("active", TdValue.of(true))
                 .build();
-        byte[] sync = ZdDocWriter.writeTree(0, tree);
+        byte[] sync = TdZd.writeTree(0, tree);
 
         MemorySink sink = new MemorySink();
         AsyncIoQueue q = AsyncIoQueue.of(sink, 1);
@@ -221,7 +222,7 @@ public final class AsyncIoProbe {
         check("async==sync: bytes via queue+sink byte-identical to ZdDocWriter direct output",
                 Arrays.equals(viaQueue, sync));
 
-        TdTable back = ZdVolume.readTree(viaQueue);
+        TdTable back = TdZd.readTree(viaQueue);
         boolean preserved = "rainforest".equals(back.get("name").asString())
                 && back.get("depth").asInt() == 128
                 && back.get("ratio").asFloat() == 1.5
@@ -229,7 +230,7 @@ public final class AsyncIoProbe {
         check("async round-trip: write via queue -> parse back preserves every field", preserved);
 
         check("async round-trip: write(parse(write)) byte-identical",
-                Arrays.equals(ZdDocWriter.writeTree(0, back), sync));
+                Arrays.equals(TdZd.writeTree(0, back), sync));
         q.close();
     }
 

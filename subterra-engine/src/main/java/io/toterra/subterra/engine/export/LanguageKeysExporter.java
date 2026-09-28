@@ -1,9 +1,10 @@
 package io.toterra.subterra.engine.export;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdVolume;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -108,10 +109,10 @@ public final class LanguageKeysExporter {
 
     /**
      * 同一内容的 zd v2 二进制变体（复用 p.2.18.1 的 zd 转换路径：
-     * {@code ZdDocWriter.writeTree(0, Td.parse(exportTd(keys)))}），逐字节确定。
+     * {@code TdZd.writeTree(0, Td.parse(exportTd(keys)))}），逐字节确定。
      *
      * The zd v2 binary variant of the same content (reusing the p.2.18.1 zd
-     * conversion path: {@code ZdDocWriter.writeTree(0, Td.parse(exportTd(keys)))}),
+     * conversion path: {@code TdZd.writeTree(0, Td.parse(exportTd(keys)))}),
      * byte-deterministic.
      */
     public static byte[] exportZd(Map<String, String> keys) {
@@ -125,7 +126,7 @@ public final class LanguageKeysExporter {
      * same semantics as {@link #rehydrate}.
      */
     public static Map<String, String> rehydrateZd(byte[] zd) {
-        return rehydrateTable(ZdVolume.readTree(zd));
+        return rehydrateTable(TdZd.readTree(zd));
     }
 
     /** Builds the {@code lang} document table from the key map (key-sorted). */

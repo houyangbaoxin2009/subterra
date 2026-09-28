@@ -1,12 +1,13 @@
 package io.toterra.subterra.probes;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdFooter;
-import io.toterra.subterra.engine.zd.ZdHeader;
-import io.toterra.subterra.engine.zd.ZdRow;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdFooter;
+import org.tielang.zd.ZdHeader;
+import org.tielang.zd.ZdRow;
+import org.tielang.zd.ZdVolume;
 
 import java.util.Arrays;
 import java.util.List;
@@ -151,22 +152,22 @@ public final class ZdV3Probe {
                 .put("child", TdTable.builder().put("k", TdValue.of(7L)).build())
                 .build();
 
-        byte[] indexed = ZdDocWriter.writeTreeIndexed(0, doc);
+        byte[] indexed = TdZd.writeTreeIndexed(0, doc);
         List<ZdRow> viaIndex = ZdVolume.readRows(indexed);
-        List<ZdRow> direct = ZdVolume.readRows(ZdDocWriter.writeTree(0, doc));
+        List<ZdRow> direct = ZdVolume.readRows(TdZd.writeTree(0, doc));
         check("索引读: writeIndexed → 段类型 0 定位数据体 → 行级与无 footer 一致",
                 viaIndex.equals(direct) && !viaIndex.isEmpty());
 
         // Tree-level identity at the byte level (TdTable is reference-equality, so the
         // rebuilt tree is verified by re-serialising it: write ∘ read ∘ write is
         // byte-identical to the original document).
-        byte[] plainDoc = ZdDocWriter.writeTree(0, doc);
+        byte[] plainDoc = TdZd.writeTree(0, doc);
         check("索引读: 树级往返（重建树再写出与原正文逐字节一致）",
                 Arrays.equals(ZdDocWriter.write(0, ZdVolume.readRows(indexed)), plainDoc));
         check("索引读: 头 bit5 置位 + 尾 footer 存在",
                 (indexed[9] & 0xFF & ZdHeader.FLAG_INDEX) != 0 && ZdVolume.footer(indexed) != null);
         check("索引读: 同输入同字节（确定性）",
-                Arrays.equals(indexed, ZdDocWriter.writeTreeIndexed(0, doc)));
+                Arrays.equals(indexed, TdZd.writeTreeIndexed(0, doc)));
         check("索引读: 带索引文档 = 无 footer 正文 + 索引段 + 25B 尾",
                 indexed.length == plainDoc.length + indexLen(indexed) + ZdFooter.FOOTER_LEN);
     }
@@ -185,8 +186,8 @@ public final class ZdV3Probe {
                 .build();
 
         // v2 files stay readable through the v3 reader (reading obligation = v2 + v3).
-        byte[] v2 = ZdDocWriter.writeTreeV2(0, doc);
-        byte[] v3 = ZdDocWriter.writeTree(0, doc);
+        byte[] v2 = TdZd.writeTreeV2(0, doc);
+        byte[] v3 = TdZd.writeTree(0, doc);
         check("兼容: v2 文件（\"02\"）经 v3 读端照常读取（行级一致）",
                 ZdHeader.parseVersion(v2, 0) == 2
                         && ZdVolume.readRows(v2).equals(ZdVolume.readRows(v3)));

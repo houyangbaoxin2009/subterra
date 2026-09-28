@@ -1,9 +1,10 @@
 package io.toterra.subterra.engine.export;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.world.WorldPack;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdVolume;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -209,7 +210,7 @@ public final class ExportHub {
      * {@code Td.parse} 处理）。确定性。
      */
     public static byte[] zdOf(String td) {
-        return ZdDocWriter.writeTree(0, Td.parse(td));
+        return TdZd.writeTree(0, Td.parse(td));
     }
 
     /**
@@ -219,7 +220,7 @@ public final class ExportHub {
      * 把 zd v2 二进制载荷转回其规范 td 文档文本（带标准 {@code type tie<data>} 头）。确定性。
      */
     public static String tdOf(byte[] zd) {
-        return "type tie<data>\n" + Td.write(ZdVolume.readTree(zd));
+        return "type tie<data>\n" + Td.write(TdZd.readTree(zd));
     }
 
     // ---------- helpers ----------

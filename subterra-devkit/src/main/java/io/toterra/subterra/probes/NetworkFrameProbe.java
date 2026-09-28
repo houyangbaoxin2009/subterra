@@ -5,7 +5,7 @@ import io.toterra.subterra.engine.network.frame.FrameResult;
 import io.toterra.subterra.engine.network.frame.FrameV1;
 import io.toterra.subterra.engine.network.frame.FrameV1Iterator;
 import io.toterra.subterra.engine.network.frame.ZdFrameBridge;
-import io.toterra.subterra.engine.zd.ZdRow;
+import org.tielang.zd.ZdRow;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;

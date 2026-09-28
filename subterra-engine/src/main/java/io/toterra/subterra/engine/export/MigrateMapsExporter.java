@@ -1,9 +1,10 @@
 package io.toterra.subterra.engine.export;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.Td;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdVolume;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -129,7 +130,7 @@ public final class MigrateMapsExporter {
      * semantics as {@link #rehydrate}.
      */
     public static Map<String, String> rehydrateZd(byte[] zd) {
-        return rehydrateTable(ZdVolume.readTree(zd));
+        return rehydrateTable(TdZd.readTree(zd));
     }
 
     /**

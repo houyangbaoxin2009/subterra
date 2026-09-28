@@ -18,6 +18,11 @@ include 'subterra-devkit'
 // p.2.35 tie bridge module: pure-JDK, bundles the Trimand DLL (/tie/subterra_diffuse.dll)
 // and the self-contained FFM bridge (io.toterra.subterra.tie.TrimandBridge).
 include 'subterra-tie'
+
+// p.2.3.8: zd-java — the standalone zd carrier codec (org.tielang.zd), composite-built
+// from the sibling checkout (F:/Projects/tie-repo/zd-java, GitHub tie-lang/zd-java).
+// The former engine.zd package moved there wholesale; Subterra consumes it as a library.
+includeBuild('../../tie-repo/zd-java')
 // p.2.20.3 official sample: minimal framework consumer (pure-JDK library shape;
 // MC assembly stays in the root project).
 include 'samples:overturn-minimal'

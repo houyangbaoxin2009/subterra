@@ -1,11 +1,12 @@
 package io.toterra.subterra.engine.render.lod;
 
+import io.toterra.subterra.engine.config.TdZd;
 import io.toterra.subterra.engine.config.TdTable;
 import io.toterra.subterra.engine.config.TdValue;
 import io.toterra.subterra.engine.network.integrity.Tsha1f;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdHeader;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdHeader;
+import org.tielang.zd.ZdVolume;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +24,7 @@ import java.util.Base64;
  * checksum mismatch). A cache hit skips section regeneration for the p.2.28.6 runtime.
  *
  * <p><b>File layout</b> (a cache file is one {@link LodCacheKey} = one on-disk file): the whole file is a
- * genuine zd v2 document, byte-for-byte what {@code ZdDocWriter.writeTree(0, doc)} produces
+ * genuine zd v2 document, byte-for-byte what {@code TdZd.writeTree(0, doc)} produces
  * (verified in reverse by {@code ZdVolume.readTree}), so it satisfies the framework's zd first-class
  * principle. The doc carries these pinned named fields in fixed order ({@link TdTable} keeps insertion
  * order; no timestamps, no randomness):
@@ -74,7 +75,7 @@ import java.util.Base64;
  * p.2.28.6 运行时使用。
  *
  * <p><b>文件布局</b>（一个缓存文件 = 一个 {@link LodCacheKey} = 一个磁盘文件）：整个文件就是一份货真价实
- * 的 zd v2 文档，逐字节等于 {@code ZdDocWriter.writeTree(0, doc)} 的输出（由 {@code ZdVolume.readTree}
+ * 的 zd v2 文档，逐字节等于 {@code TdZd.writeTree(0, doc)} 的输出（由 {@code ZdVolume.readTree}
  * 逆向校验），故满足框架 zd 一等原则。文档以固定序承载如下命名字段（{@link TdTable} 保持插入序；无时间戳、
  * 无随机）：
  * <pre>{@code
@@ -309,7 +310,7 @@ public final class LodCache {
     /** Encodes the cache file as a standard zd v2 document (10-byte header + wire2 records), nothing else.
      *  / 将缓存文件编码为标准 zd v2 文档（10 字节头 + wire2 记录），无其它附加字节。 */
     private static byte[] encodeFile(TdTable doc) {
-        return ZdDocWriter.writeTree(0, doc);
+        return TdZd.writeTree(0, doc);
     }
 
     /**
@@ -335,7 +336,7 @@ public final class LodCache {
         }
         TdTable doc;
         try {
-            doc = ZdVolume.readTree(file);
+            doc = TdZd.readTree(file);
         } catch (RuntimeException e) {
             return CacheStatus.CORRUPT; // malformed zd document / truncation
         }
@@ -383,7 +384,7 @@ public final class LodCache {
 
     /** Re-decodes the (already verified) section from the zd document. / 从（已校验的）zd 文档重新解码区块。 */
     private static LodSection decodeSection(byte[] file) {
-        TdTable doc = ZdVolume.readTree(file); // verified OK beforehand: safe
+        TdTable doc = TdZd.readTree(file); // verified OK beforehand: safe
         String b64 = tableStr(doc, FIELD_SECTION_B64);
         return LodSection.fromBytes(B64_DEC.decode(b64));
     }

@@ -3,9 +3,9 @@ package io.toterra.subterra.probes;
 import io.toterra.subterra.engine.network.frame.FrameConst;
 import io.toterra.subterra.engine.network.integrity.FrameV2;
 import io.toterra.subterra.engine.network.integrity.FrameV2Result;
-import io.toterra.subterra.engine.zd.ZdDocWriter;
-import io.toterra.subterra.engine.zd.ZdRow;
-import io.toterra.subterra.engine.zd.ZdVolume;
+import org.tielang.zd.ZdDocWriter;
+import org.tielang.zd.ZdRow;
+import org.tielang.zd.ZdVolume;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -137,8 +137,8 @@ public final class P2pChannelBenchmarkProbe {
     /** 一行中实际承载内容的字节（key + 数值 + 字符串，不含 10B 头 / tag / 长度前缀）。 */
     private static int rawRowContentBytes(ZdRow row) {
         return row.key().getBytes(java.nio.charset.StandardCharsets.UTF_8).length
-                + io.toterra.subterra.engine.zd.ZdPrimitives.encI64(row.valueI64()).length
-                + io.toterra.subterra.engine.zd.ZdPrimitives.be64(Double.doubleToLongBits(row.valueF64())).length
+                + org.tielang.zd.ZdPrimitives.encI64(row.valueI64()).length
+                + org.tielang.zd.ZdPrimitives.be64(Double.doubleToLongBits(row.valueF64())).length
                 + row.valueStr().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
     }
 

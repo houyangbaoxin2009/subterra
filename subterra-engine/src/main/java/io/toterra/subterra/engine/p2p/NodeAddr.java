@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-import io.toterra.subterra.engine.zd.ZdPrimitives;
+import org.tielang.zd.ZdPrimitives;
 
 /**
  * 节点可寻址地址判别联合（p.2.5.2）：直连地址 {@link Direct}（公网 / 打洞后的内网端点）
