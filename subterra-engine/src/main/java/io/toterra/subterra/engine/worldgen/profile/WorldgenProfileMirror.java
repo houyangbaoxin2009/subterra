@@ -571,6 +571,9 @@ public final class WorldgenProfileMirror {
                         .append(params.get(i).tdValue()).append(",\n");
             }
             if (!edges.equals(defaultEdges())) {
+                if (edges.isEmpty()) {
+                    sb.append("  edges = none,\n"); // keep the edgeless graph round-trip-exact
+                }
                 for (Edge edge : edges) {
                     sb.append("  ").append(edge.tdKey()).append(" = ").append(edge.tdValue()).append(",\n");
                 }
@@ -667,6 +670,7 @@ public final class WorldgenProfileMirror {
         Integer minY = null;
         Integer height = null;
         Double seaLevel = null;
+        boolean clearEdges = false;
         Map<String, String> dimValues = new LinkedHashMap<>();
         Map<String, String> paramValues = new LinkedHashMap<>();
         Map<String, Edge> edgeValues = new LinkedHashMap<>();
@@ -705,6 +709,16 @@ public final class WorldgenProfileMirror {
                 if (paramValues.put(dim, value) != null) {
                     throw new IllegalArgumentException("duplicate td key '" + key + "'");
                 }
+            } else if (key.equals("edges")) {
+                if (clearEdges) {
+                    throw new IllegalArgumentException("duplicate td key '" + key + "'");
+                }
+                if (!value.equalsIgnoreCase("none")) {
+                    throw new IllegalArgumentException(
+                            "the 'edges' key only accepts 'none' (an edgeless graph); declare edges "
+                                    + "via 'edge.<from>.<to>' keys: " + value);
+                }
+                clearEdges = true;
             } else if (key.startsWith(EDGE_KEY_PREFIX)) {
                 String pair = key.substring(EDGE_KEY_PREFIX.length());
                 int dot = pair.indexOf('.');
@@ -753,7 +767,12 @@ public final class WorldgenProfileMirror {
         }
 
         List<Edge> edgeList;
-        if (edgeValues.isEmpty()) {
+        if (clearEdges) {
+            if (!edgeValues.isEmpty()) {
+                throw new IllegalArgumentException("'edges = none' cannot be combined with 'edge.*' keys");
+            }
+            edgeList = List.of(); // an explicitly defined edgeless graph (every dimension is a root)
+        } else if (edgeValues.isEmpty()) {
             edgeList = base.edges();
         } else {
             edgeList = new ArrayList<>(edgeValues.values());

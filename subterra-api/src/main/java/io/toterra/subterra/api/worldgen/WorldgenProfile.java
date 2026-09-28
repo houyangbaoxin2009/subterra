@@ -438,6 +438,20 @@ public record WorldgenProfile(int minY, int height, double seaLevel, List<DimCap
         return new WorldgenProfile(minY, height, seaLevel, dims, out, edges, fields, transitions);
     }
 
+    /** A copy with the relation graph replaced wholesale by {@code newEdges} (sorted into canonical
+     *  (from, to) order, re-validated; an empty list defines a valid edgeless graph where every
+     *  dimension is a root). / 以 {@code newEdges} 整表替换关系图的副本（排序进规范序、重新校验；
+     *  空表定义合法的无边图——九维全为根）。 */
+    public WorldgenProfile withEdges(List<RelationEdge> newEdges) {
+        Objects.requireNonNull(newEdges, "newEdges must not be null");
+        List<RelationEdge> out = new ArrayList<>(newEdges);
+        out.sort((a, b) -> {
+            int byFrom = Integer.compare(indexOf(a.from()), indexOf(b.from()));
+            return byFrom != 0 ? byFrom : Integer.compare(indexOf(a.to()), indexOf(b.to()));
+        });
+        return new WorldgenProfile(minY, height, seaLevel, dims, params, out, fields, transitions);
+    }
+
     /** A copy with the edge replaced or added by its (from, to) pair, canonical order restored
      *  (re-validated). / 按 (from, to) 替换或新增边的副本，恢复规范序（重新校验）。 */
     public WorldgenProfile withEdge(RelationEdge edge) {
@@ -526,6 +540,9 @@ public record WorldgenProfile(int minY, int height, double seaLevel, List<DimCap
                     .append(params.get(i).tdValue()).append(",\n");
         }
         if (!edges.equals(defaultEdges())) {
+            if (edges.isEmpty()) {
+                sb.append("  edges = none,\n"); // keep the edgeless graph round-trip-exact
+            }
             for (RelationEdge edge : edges) {
                 sb.append("  ").append(edge.tdKey()).append(" = ").append(edge.tdValue()).append(",\n");
             }
@@ -550,9 +567,10 @@ public record WorldgenProfile(int minY, int height, double seaLevel, List<DimCap
 
     /**
      * Parses a td table literal into a profile. Recognised keys: {@code min_y}, {@code height},
-     * {@code sea_level}, {@code dim.<id>}, {@code p.<id>}, {@code edge.<from>.<to>},
-     * {@code field.<id>} and {@code transition.<id>}. Undeclared keys fall back to {@link #defaults()};
-     * declaring any {@code edge.*} replaces the whole default chain; {@code field.*} /
+     * {@code sea_level}, {@code dim.<id>}, {@code p.<id>}, {@code edge.<from>.<to>}, {@code edges}
+     * (only {@code none} — an explicitly defined edgeless graph, mutually exclusive with
+     * {@code edge.*}), {@code field.<id>} and {@code transition.<id>}. Undeclared keys fall back to
+     * {@link #defaults()}; declaring any {@code edge.*} replaces the whole default chain; {@code field.*} /
      * {@code transition.*} merge by named slot. A {@code type tie<data>} header, {@code //} comments and
      * stray/trailing commas are tolerated; duplicate keys, unknown keys, malformed entries, out-of-window
      * sea levels, out-of-order edges and cyclic graphs are rejected with
@@ -582,6 +600,7 @@ public record WorldgenProfile(int minY, int height, double seaLevel, List<DimCap
         Integer minY = null;
         Integer height = null;
         Double seaLevel = null;
+        boolean clearEdges = false;
         Map<String, String> dimValues = new LinkedHashMap<>();
         Map<String, String> paramValues = new LinkedHashMap<>();
         Map<String, RelationEdge> edgeValues = new LinkedHashMap<>();
@@ -620,6 +639,16 @@ public record WorldgenProfile(int minY, int height, double seaLevel, List<DimCap
                 if (paramValues.put(dim, value) != null) {
                     throw new IllegalArgumentException("duplicate td key '" + key + "'");
                 }
+            } else if (key.equals("edges")) {
+                if (clearEdges) {
+                    throw new IllegalArgumentException("duplicate td key '" + key + "'");
+                }
+                if (!value.equalsIgnoreCase("none")) {
+                    throw new IllegalArgumentException(
+                            "the 'edges' key only accepts 'none' (an edgeless graph); declare edges "
+                                    + "via 'edge.<from>.<to>' keys: " + value);
+                }
+                clearEdges = true;
             } else if (key.startsWith(EDGE_KEY_PREFIX)) {
                 String pair = key.substring(EDGE_KEY_PREFIX.length());
                 int dot = pair.indexOf('.');
@@ -668,7 +697,12 @@ public record WorldgenProfile(int minY, int height, double seaLevel, List<DimCap
         }
 
         List<RelationEdge> edgeList;
-        if (edgeValues.isEmpty()) {
+        if (clearEdges) {
+            if (!edgeValues.isEmpty()) {
+                throw new IllegalArgumentException("'edges = none' cannot be combined with 'edge.*' keys");
+            }
+            edgeList = List.of(); // an explicitly defined edgeless graph (every dimension is a root)
+        } else if (edgeValues.isEmpty()) {
             edgeList = base.edges();
         } else {
             edgeList = new ArrayList<>(edgeValues.values());

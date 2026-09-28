@@ -83,6 +83,7 @@ public final class WorldgenProfileProbe {
             defaultsAndWindowGate();
             dimensionOrder();
             relationGraph();
+            graphDefinability();
             fieldsAndTransitions();
             tdRoundTrip();
             apiMirrorParity();
@@ -178,6 +179,79 @@ public final class WorldgenProfileProbe {
                         def.fields(), def.transitions()))
                         && throwsIAE(() -> WorldgenProfile.fromTd(
                         "[\n  edge.terrain.climate = 1.0:mix,\n  edge.climate.terrain = 1.0:mix,\n]")));
+    }
+
+    /**
+     * 用户定案（2026-09-28 重申）：维度关系图<b>必须可定义、可修改</b>——td 可整图声明（含合法空图），
+     * api 可整图替换 / 单边增删改权，全部确定性且 td 往返逐字节稳定。
+     * / User decision (reaffirmed 2026-09-28): the dimension relation graph <b>must be definable and
+     * modifiable</b> — td can declare a whole graph (including a valid edgeless one), the api can replace
+     * it wholesale or edit edges surgically, all deterministic with byte-stable td round-trips.
+     */
+    private static void graphDefinability() {
+        WorldgenProfile def = WorldgenProfile.defaults();
+        String defined = "[\n"
+                + "  edge.terrain.hydro = 1.0:mix,\n"
+                + "  edge.hydro.surface = 0.8:multiply,\n"
+                + "  edge.climate.vegetation = 0.6:add,\n"
+                + "]";
+        WorldgenProfile graph = WorldgenProfile.fromTd(defined);
+        check("关系图可定义: td 整图声明（3 边）完全替换缺省链，缺省边全数消失",
+                graph.edges().size() == 3
+                        && graph.edges().stream().noneMatch(e -> e.tdKey().equals("edge.terrain.vegetation"))
+                        && graph.edges().get(0).tdKey().equals("edge.terrain.hydro")
+                        && graph.edges().get(1).tdKey().equals("edge.climate.vegetation")
+                        && graph.edges().get(1).blend() == Blend.ADD
+                        && graph.edges().get(2).tdKey().equals("edge.hydro.surface")
+                        && graph.edges().get(2).blend() == Blend.MULTIPLY);
+        check("关系图可定义: 整图声明 td 往返逐字节恒等（渲染落规范序）",
+                WorldgenProfile.fromTd(graph.td()).equals(graph)
+                        && graph.td().endsWith("  edge.terrain.hydro = 1.0:mix,\n"
+                        + "  edge.climate.vegetation = 0.6:add,\n"
+                        + "  edge.hydro.surface = 0.8:multiply,\n"
+                        + "]"));
+
+        WorldgenProfile empty = WorldgenProfile.fromTd("[\n  edges = none,\n]");
+        check("关系图可定义: edges = none 显式定义空图（无边、九维全为根、求值序回落规范序）",
+                empty.edges().isEmpty()
+                        && empty.evaluationOrder().equals(WorldgenProfileMirror.DIM_ORDER)
+                        && empty.withEdges(List.of()).edges().isEmpty()
+                        && WorldgenProfile.fromTd(empty.td()).equals(empty));
+        check("关系图语义: 空文档 = 全缺省（空文档 ≠ 空图，缺省链保留）",
+                WorldgenProfile.fromTd("[\n]").edges().size() == 16);
+
+        WorldgenProfile bulk = def.withEdges(List.of(
+                RelationEdge.of("surface", "mineral"),
+                new RelationEdge("terrain", "hydro", 2.5D, Blend.MAX)));
+        check("关系图可修改: api 整图替换（withEdges，乱序入参落规范序）",
+                bulk.edges().size() == 2
+                        && bulk.edges().get(0).tdKey().equals("edge.terrain.hydro")
+                        && Double.doubleToLongBits(bulk.edges().get(0).weight())
+                        == Double.doubleToLongBits(2.5D)
+                        && bulk.edges().get(0).blend() == Blend.MAX
+                        && bulk.edges().get(1).tdKey().equals("edge.surface.mineral")
+                        && WorldgenProfile.fromTd(bulk.td()).equals(bulk));
+
+        WorldgenProfile edited = def.withEdge(new RelationEdge("terrain", "hydro", 0.25D, Blend.MIN))
+                .withoutEdge("climate", "relic");
+        check("关系图可修改: 单边改权换混 + 删边（16 → 15 边），td 往返恒等",
+                edited.edges().size() == 15
+                        && edited.edges().stream()
+                        .filter(e -> e.tdKey().equals("edge.terrain.hydro"))
+                        .allMatch(e -> Double.doubleToLongBits(e.weight())
+                                == Double.doubleToLongBits(0.25D) && e.blend() == Blend.MIN)
+                        && edited.edges().stream().noneMatch(e -> e.tdKey().equals("edge.climate.relic"))
+                        && WorldgenProfile.fromTd(edited.td()).equals(edited));
+
+        WorldgenProfile again = def.withEdge(new RelationEdge("terrain", "hydro", 0.25D, Blend.MIN))
+                .withoutEdge("climate", "relic");
+        check("关系图可修改: 同一修改序列同输入同字节（确定性）",
+                edited.td().equals(again.td()) && edited.equals(again));
+        check("关系图可修改: 改动后求值序随图更新（climate.relic 删除不改变其余序）",
+                def.withoutEdge("terrain", "hydro").evaluationOrder().get(0).equals("terrain"));
+        check("api ↔ mirror: 整图声明文档解析 → 渲染逐字节一致",
+                WorldgenProfile.fromTd(defined).td()
+                        .equals(WorldgenProfileMirror.fromTd(defined).td()));
     }
 
     private static void fieldsAndTransitions() {
@@ -328,7 +402,10 @@ public final class WorldgenProfileProbe {
                 "[\n  transition.bogus = 0.1:smoothstep:1,\n]",
                 "[\n  transition.land_sea = 0,\n]",
                 "[\n  transition.land_sea = 0.1:curvy:1,\n]",
-                "[\n  transition.land_sea = 0.1:smoothstep:0,\n]");
+                "[\n  transition.land_sea = 0.1:smoothstep:0,\n]",
+                "[\n  edges = maybe,\n]",
+                "[\n  edges = none,\n  edge.terrain.hydro = 1.0:mix,\n]",
+                "[\n  edges = none,\n  edges = none,\n]");
         boolean apiRejectsAll = true;
         boolean mirrorSame = true;
         for (String doc : bad) {
@@ -337,7 +414,7 @@ public final class WorldgenProfileProbe {
             apiRejectsAll &= apiReject;
             mirrorSame &= apiReject == mirrorReject;
         }
-        check("确定性拒绝: 三十五种非法文档 api 全部 IAE 拒绝", apiRejectsAll);
+        check("确定性拒绝: 三十八种非法文档 api 全部 IAE 拒绝", apiRejectsAll);
         check("api ↔ mirror: 同一组非法输入拒绝结果完全相同", mirrorSame);
         check("确定性拒绝: null 源 NPE（api 与 mirror 同）",
                 throwsNPE(() -> WorldgenProfile.fromTd(null))
