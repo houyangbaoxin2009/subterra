@@ -86,29 +86,41 @@ public final class SaveProbe {
         }
     }
 
-    // ---- 1 ZdHeader (p.2.3.1) ------------------------------------------------
+    // ---- 1 ZdHeader (p.2.3.1; v3 upgrade p.2.3.7) ----------------------------
 
     private static void headerChecks() {
-        byte[] empty = ZdHeader.writeZ(false, false, false, false, false);
-        byte[] expectEmpty = {'T', 'I', 'E', 'D', 'B', 'Z', 'D', 0x00, 0x02, 0x00};
-        check("ZdHeader: all-false writes 10-byte TIEDBZD v2 flags=0",
-                empty.length == 10 && Arrays.equals(empty, expectEmpty));
+        // v2 byte-compatibility path: unchanged bytes (0x00 0x02, low-5-bit flags).
+        byte[] v2Empty = ZdHeader.writeV2(false, false, false, false, false);
+        byte[] expectV2 = {'T', 'I', 'E', 'D', 'B', 'Z', 'D', 0x00, 0x02, 0x00};
+        check("ZdHeader: v2 all-false writes 10-byte TIEDBZD v2 flags=0",
+                v2Empty.length == 10 && Arrays.equals(v2Empty, expectV2));
 
-        byte[] combo = ZdHeader.writeZ(true, false, true, true, false);
+        // v3 default write path: bytes 0x00 0x03, low-7-bit flags.
+        byte[] v3Empty = ZdHeader.writeZ(false, false, false, false, false, false, false);
+        byte[] expectV3 = {'T', 'I', 'E', 'D', 'B', 'Z', 'D', 0x00, 0x03, 0x00};
+        check("ZdHeader: v3 all-false writes 10-byte TIEDBZD v3 flags=0",
+                v3Empty.length == 10 && Arrays.equals(v3Empty, expectV3));
+
+        byte[] combo = ZdHeader.writeZ(true, false, true, true, false, true, false);
         boolean comboOk = combo.length == 10
-                && combo[0] == 'T' && combo[7] == 0x00 && combo[8] == 0x02
-                && (combo[9] & 0xFF) == (ZdHeader.FLAG_DICTIONARY | ZdHeader.FLAG_EXT | ZdHeader.FLAG_STREAMING);
-        check("ZdHeader: dict|ext|streaming sets flags bits exactly", comboOk);
+                && combo[0] == 'T' && combo[7] == 0x00 && combo[8] == 0x03
+                && (combo[9] & 0xFF) == (ZdHeader.FLAG_DICTIONARY | ZdHeader.FLAG_EXT
+                | ZdHeader.FLAG_STREAMING | ZdHeader.FLAG_INDEX);
+        check("ZdHeader: dict|ext|streaming|index sets flags bits exactly", comboOk);
 
-        byte[] full = ZdHeader.writeZ(true, true, true, true, true);
-        boolean fullOk = (full[9] & 0xFF) == 0x1F;
-        check("ZdHeader: all five flags => 0x1F", fullOk);
+        byte[] full = ZdHeader.writeZ(true, true, true, true, true, true, true);
+        boolean fullOk = (full[9] & 0xFF) == 0x7F;
+        check("ZdHeader: all seven flags => 0x7F", fullOk);
 
-        check("ZdHeader.isZd true for a written header", ZdHeader.isZd(empty));
+        // v3 reading obligation: v2 and v3 headers both valid.
+        check("ZdHeader.isZd true for v2 and v3 headers",
+                ZdHeader.isZd(v2Empty) && ZdHeader.isZd(v3Empty));
         check("ZdHeader.isZd false for garbage / short", !ZdHeader.isZd(new byte[]{1, 2, 3, 4})
                 && !ZdHeader.isZd(new byte[]{}));
-        byte[] badVersion = {'T', 'I', 'E', 'D', 'B', 'Z', 'D', 0x00, 0x03, 0x00};
-        check("ZdHeader.isZd false for wrong version", !ZdHeader.isZd(badVersion));
+        byte[] badVersion = {'T', 'I', 'E', 'D', 'B', 'Z', 'D', 0x00, 0x04, 0x00};
+        byte[] v1Version = {'T', 'I', 'E', 'D', 'B', 'Z', 'D', 0x00, 0x01, 0x00};
+        check("ZdHeader.isZd false for v1 / v4 (obligation is v2+v3 only)",
+                !ZdHeader.isZd(badVersion) && !ZdHeader.isZd(v1Version));
 
         boolean invalidThrows = false;
         try {
@@ -117,8 +129,9 @@ public final class SaveProbe {
             invalidThrows = true;
         }
         check("ZdHeader.parseVersion rejects bad magic", invalidThrows);
-        check("ZdHeader.parseVersion == 2 for v2 header",
-                ZdHeader.parseVersion(empty, 0) == 2 && ZdHeader.flags(empty, 0) == 0);
+        check("ZdHeader.parseVersion == 2 for v2 / == 3 for v3",
+                ZdHeader.parseVersion(v2Empty, 0) == 2 && ZdHeader.flags(v2Empty, 0) == 0
+                        && ZdHeader.parseVersion(v3Empty, 0) == 3 && ZdHeader.flags(v3Empty, 0) == 0);
         check("ZdPrimitives.encI64 symmetric edge", Arrays.equals(ZdPrimitives.encI64(127L), new byte[]{127})
                 && Arrays.equals(ZdPrimitives.encI64(-1L), new byte[]{(byte) 0xFF}));
     }

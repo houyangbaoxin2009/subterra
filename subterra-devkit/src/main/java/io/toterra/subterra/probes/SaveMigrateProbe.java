@@ -171,8 +171,8 @@ public final class SaveMigrateProbe {
                         && DatapackRules.render(d2.rules()).equals(DatapackRules.render(d.rules())));
         check("zdt: toTd(parse(s))==s 逐字节", LevelZdt.toTd(d2).equals(s));
         byte[] zd = LevelZdt.zdPayload(s);
-        check("zdt: zd 头合法 version=2",
-                ZdHeader.isZd(zd) && ZdHeader.parseVersion(zd, 0) == 2);
+        check("zdt: zd 头合法 version=3（p.2.3.7 起写方默认 v3）",
+                ZdHeader.isZd(zd) && ZdHeader.parseVersion(zd, 0) == 3);
     }
 
     /** 未压缩路径：raw NBT（首字节 0x0A，非 gzip/zlib 魔数）也应可解析. */

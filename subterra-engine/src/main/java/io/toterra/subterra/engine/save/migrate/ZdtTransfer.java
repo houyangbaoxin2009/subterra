@@ -87,7 +87,10 @@ public final class ZdtTransfer {
             throw new IllegalArgumentException("zdt document missing 'zd' string");
         }
         byte[] zdBytes = Base64.getDecoder().decode(s.str());
-        if (!ZdHeader.isZd(zdBytes) || ZdHeader.parseVersion(zdBytes, 0) != 2) {
+        // p.2.3.7: the v3 reading obligation is v2 + v3 — both embedded payload
+        // versions are valid (writer default is v3 since the zd carrier upgrade).
+        if (!ZdHeader.isZd(zdBytes) || (ZdHeader.parseVersion(zdBytes, 0) != ZdHeader.VERSION_V2
+                && ZdHeader.parseVersion(zdBytes, 0) != ZdHeader.VERSION_V3)) {
             throw new IllegalArgumentException("zdt document zd payload has an invalid header");
         }
         return new TableDoc(kind, version, meta, zdBytes);

@@ -28,7 +28,7 @@ import java.util.Base64;
  * principle. The doc carries these pinned named fields in fixed order ({@link TdTable} keeps insertion
  * order; no timestamps, no randomness):
  * <pre>{@code
- *  [0..9)     zd v2 header (ZdHeader: "TIEDBZD" + 0x00 0x02 + flags 0)   // 10 bytes
+ *  [0..9)     zd header (ZdHeader: "TIEDBZD" + 0x00 0x02|0x03, v2/v3 read obligation)  // 10 bytes
  *  [10..end)  wire2 records of a single TdTable = the cache document with fields, in fixed order:
  *      formatVersion   : int   = FORMAT_VERSION (2)
  *      verifyScheme    : int   = VERIFY_SCHEME (1)
@@ -78,7 +78,7 @@ import java.util.Base64;
  * 逆向校验），故满足框架 zd 一等原则。文档以固定序承载如下命名字段（{@link TdTable} 保持插入序；无时间戳、
  * 无随机）：
  * <pre>{@code
- *  [0..9)     zd v2 头（ZdHeader："TIEDBZD" + 0x00 0x02 + flags 0）            // 10 字节
+ *  [0..9)     zd 头（ZdHeader："TIEDBZD" + 0x00 0x02|0x03，v2/v3 读义务）            // 10 字节
  *  [10..end)  单个 TdTable 的 wire2 记录 = 缓存文档，字段固定序：
  *      formatVersion   : int   = FORMAT_VERSION（2）
  *      verifyScheme    : int   = VERIFY_SCHEME（1）
@@ -328,8 +328,10 @@ public final class LodCache {
         if (!startsWith(file, MAGIC_BYTES)) {
             return CacheStatus.CORRUPT; // bad zd magic
         }
-        if ((file[7] & 0xFF) != 0x00 || (file[8] & 0xFF) != 0x02) {
-            return CacheStatus.VERSION_MISMATCH; // zd v2 header version mismatch
+        if (!ZdHeader.isZd(file)) {
+            // p.2.3.7: v3 reading obligation — v2 and v3 headers both valid; any
+            // other version (incl. pre-v2) is a deterministic mismatch.
+            return CacheStatus.VERSION_MISMATCH; // zd header version mismatch
         }
         TdTable doc;
         try {

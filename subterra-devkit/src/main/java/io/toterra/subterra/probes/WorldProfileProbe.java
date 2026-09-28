@@ -356,14 +356,14 @@ public final class WorldProfileProbe {
         // ---- 10 zd output ----------------------------------------------------
         byte[] zd = ZdWriter.write(r1);
         byte[] hdr = {(byte) 0x54, (byte) 0x49, (byte) 0x45, (byte) 0x44, (byte) 0x42,
-                (byte) 0x5A, (byte) 0x44, (byte) 0x00, (byte) 0x02, (byte) 0x00};
+                (byte) 0x5A, (byte) 0x44, (byte) 0x00, (byte) 0x03, (byte) 0x00};
         boolean hdrOk = zd.length > 10;
         for (int i = 0; i < hdr.length; i++) {
             if (zd[i] != hdr[i]) {
                 hdrOk = false;
             }
         }
-        check("zd: length>10 and 10-byte TIEDBZD v2 header exact", hdrOk);
+        check("zd: length>10 and 10-byte TIEDBZD v3 header exact (writer default since p.2.3.7)", hdrOk);
         check("zd: first record kind tag == 0x0A at bytes[10]",
                 zd.length >= 11 && (zd[10] & 0xFF) == 0x0A);
 

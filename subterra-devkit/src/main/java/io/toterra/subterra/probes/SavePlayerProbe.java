@@ -103,7 +103,8 @@ public final class SavePlayerProbe {
 
         String s = PlayerZdt.toTd(d);
         byte[] zd = PlayerZdt.zdPayload(s);
-        check("zdt: zd 头合法 version=2", ZdHeader.isZd(zd) && ZdHeader.parseVersion(zd, 0) == 2);
+        check("zdt: zd 头合法 version=3（p.2.3.7 起写方默认 v3）",
+                ZdHeader.isZd(zd) && ZdHeader.parseVersion(zd, 0) == 3);
         PlayerDatum d2 = PlayerZdt.parse(s);
         check("zdt: parse 字段级相等", datumEqual(d, d2));
         check("zdt: toTd(parse(s))==s 逐字节", PlayerZdt.toTd(d2).equals(s));
