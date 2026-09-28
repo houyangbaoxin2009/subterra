@@ -239,7 +239,17 @@ sub-item of this design ships under this discipline.
 ## 7. Risks and Gates
 
 * **淹没回归（2026-09-16 教训）**：任何窗口/海平面变更必须「JSON ↔ Kind ↔ dimension_type ↔
-  探针」四方一致；TerrainAxisProbe 的窗口一致性断言同步改钉新默认。
+  探针」四方一致；TerrainAxisProbe 的窗口一致性断言同步改钉新默认。p.2.36.2 起
+  api 配置面缺省（`WorldgenProfile.defaults()`）为第五方（探针已钉）。
+* **注入路径实证（p.2.36.2 收尾片，1.21.1 反编译源核实）**：
+  `DedicatedServer.initServer` 的 `handleServerAboutToStart` 先于 `loadLevel()` /
+  `createLevels()`——`ServerAboutToStart` 是「世界加载前」的合规窗口（档案快照已落此点，
+  `WorldgenProfileRuntime`）；但 `MappedRegistry.register` 对重复 key **直接抛异常**
+  （Neo 1.21.1 补的 throw，上游 1.21.2 修复），故「`DatapackRegistryInjector` 同路径改写
+  同 key」不成立——该路径只支持新键。p.2.36.3 开启注入时的合规选项：值端
+  `Holder.Reference.bindValue`（protected，需经授权通道）或数据包层注入（更高优先级 pack
+  覆盖同路径资源）；在 Kind 参数化落定前，分歧窗口**必须**被确定性拒绝（快照照实入、
+  随附数据包不跟随、响亮警告），不得漏进世界。
 * **金标**：VanillaGolden（海 63 vanilla 路径 delta=0）不动——它钉 vanilla 形状机制，本重构钉
   新设计语义，两层互补。
 * **性能**：tile 缓存路径复用 Trimand stdens 机制；探针里加内存/求值次数断言（同 p.2.35 纪律）。

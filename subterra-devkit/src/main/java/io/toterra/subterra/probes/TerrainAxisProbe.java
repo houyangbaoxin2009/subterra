@@ -19,7 +19,8 @@ import java.util.Map;
  *   <li><b>窗口一致性</b>：随附 {@code subterra_overworld.json} 的 {@code noise.min_y /
  *       noise.height / sea_level} 必须与 {@code subterra:density} 的 kind 窗口
  *       （[-128, 592)，p.2.36.1 Subterra 窗口）与海平面 127 严格一致——四方一致
- *       （JSON ↔ Kind ↔ dimension_type {@code subterra:subterra_overworld} ↔ 本探针）；
+ *       （JSON ↔ Kind ↔ dimension_type {@code subterra:subterra_overworld} ↔ 本探针），
+ *       p.2.36.2 起 api 配置面缺省（{@code WorldgenProfile.defaults()}）为第五方；
  *       td-plus 时代的 [-128, 592) + 海平面 128 淹没回归，根因是窗口与锚点错位，
  *       现海平面参数化（p.1.8.33）+ 窗口重参数化（p.2.36.1）双设计已落。</li>
  *   <li><b>地表语义</b>：金标种子下 32×32 网格的密度零穿越地表高度，均值落在
@@ -115,6 +116,18 @@ public final class TerrainAxisProbe {
 
     /** JSON 噪声块必须与 kind 窗口和 vanilla 海平面严格一致。 / The shipped JSON must match the kind window and the vanilla sea level. */
     private static void jsonWindowConsistency() {
+        // p.2.36.2: the api config-surface defaults are now the fifth leg of the
+        // window-consistency gate — WorldgenProfile.defaults() (what
+        // config/subterra/worldgen_profile.data.tie falls back to and what
+        // WorldgenProfileRuntime snapshots) must pin the same window / sea the
+        // shipped JSON and the density Kind carry.
+        io.toterra.subterra.api.worldgen.WorldgenProfile def =
+                io.toterra.subterra.api.worldgen.WorldgenProfile.defaults();
+        check("profile: api config-surface defaults pin the same window / sea "
+                        + "(-128 / 720 / 127.0, top 592) as JSON + Kind",
+                def.minY() == -128 && def.height() == 720 && def.windowTop() == 592
+                        && Double.doubleToLongBits(def.seaLevel())
+                        == Double.doubleToLongBits(127.0D));
         String json = readResource("/data/subterra/worldgen/noise_settings/subterra_overworld.json");
         check("json: shipped noise_settings present", json != null && !json.isBlank());
         if (json == null) {

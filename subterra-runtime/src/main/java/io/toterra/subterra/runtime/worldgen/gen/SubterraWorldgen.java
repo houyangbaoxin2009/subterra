@@ -119,7 +119,12 @@ public final class SubterraWorldgen {
      * strictly before any chunk generation, so the leaf is never evaluated seedless. */
     public static void onServerAboutToStart(ServerAboutToStartEvent event) {
         captureSeed(event.getServer());
-        // p.1.8.33 诊断：门控密度网格（对照引擎探针）。
+        // p.2.36.2: load + validate + snapshot the worldgen profile (config/subterra/
+        // worldgen_profile.data.tie) through the api seam. This event fires before
+        // loadLevel()/createLevels() (1.21.1 source-verified), so the snapshot is in
+        // place before any world construction; invalid input deterministically keeps
+        // the defaults (setAssembly discipline).
+        WorldgenProfileRuntime.snapshotAtServerAboutToStart();
     }
 
     /** Recomputes + logs the captured seed and the shipped subterra datapack ids. */
