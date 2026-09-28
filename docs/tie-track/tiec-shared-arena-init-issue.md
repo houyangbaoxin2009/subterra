@@ -48,3 +48,33 @@ b) 导出运行时初始化符号（如 `tie$rt_init`），宿主 FFM load 后�
 
 所有含运行时分配路径的 `--shared` 库（如 Subterra 的 subterra_density.dll 密度求值——
 种子派生 MD5 串分配 + 40×259 晶格表）。纯标量库（如 trimand 的 coarse_* 查询面）不受影响。
+
+## 结案 / Resolution（2026-09-28 复核，Subterra 侧）
+
+* **tie 轨道已于 2026-09-18 修复**（移交次日）：tiec 提交 `9f50709`
+  `fix(shared): emit tie$rt_init module ctor for DLL global table init`。
+* **采用方案 = 移交单修复方向 (a)，并同时保留 (b) 作兼容**：
+  * irgen `tig_shared_rt_init()`（`compiler/backend/irgen.tie:572`）在 `--shared` 且存在表全局时
+    生成 `tie$rt_init`（内含全局表初始化，即 exe 由 CRT pre-main 所做的那一步）；
+  * llvmgen（`compiler/backend/llvmgen.tie:539-545`）把 `tie$rt_init` 注册进
+    `@llvm.global_ctors`（`i32 65535` 优先级），**DLL 装载即执行**，宿主零改动；
+  * `tie$rt_init` 仍为 dllexport 符号，宿主可显式 downcall（修复方向 b），符号缺失时向后兼容跳过。
+* **Subterra 侧结论**：本缺陷**不再阻塞** p.2.36.3 的密度 DLL 重导出与
+  `DensityBridgeEquivalenceProbe` 入闸；`subterra_terrain.tie` → `subterra_density.dll`
+  按 `SubterraTerrain` 新模型重导出后即可跑等价探针（门控纪律不变：默认 skip、
+  `-Dsubterra.density.tie` 显式开启、DLL 陈旧即降级纯 Java 树）。
+* 本单保留为历史记录（现象 / 最小复现 / 反汇编证据 / 修复方向仍有参考价值），不再计为在途项。
+
+## Resolution (English, re-checked 2026-09-28 by Subterra)
+
+* **Fixed on the tie track on 2026-09-18** (the day after the handover): tiec commit `9f50709`.
+* **Fix direction (a) adopted, with (b) kept for compatibility**: irgen emits `tie$rt_init`
+  (carrying the global-table init that the exe gets from its CRT pre-main path) whenever
+  `--shared` produces table globals; llvmgen registers it in `@llvm.global_ctors` (priority
+  `65535`) so it runs at DLL load with zero host changes; the symbol stays dllexport so a host
+  may also downcall it explicitly, with a skip when absent.
+* **Subterra conclusion**: the defect no longer blocks the p.2.36.3 density-DLL re-export or
+  moving `DensityBridgeEquivalenceProbe` into the gate. Gating discipline unchanged (default
+  skip, `-Dsubterra.density.tie` to enable, stale DLL degrades to the pure-Java tree).
+* This ticket is kept as history (symptom / minimal repro / disassembly evidence / fix
+  directions remain useful) and is no longer counted as an open item.
